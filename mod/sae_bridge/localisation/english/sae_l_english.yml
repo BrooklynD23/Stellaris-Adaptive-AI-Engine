@@ -1,0 +1,16 @@
+﻿l_english:
+ sae.10.name:0 "A doctrine shifts"
+ sae.10.desc:0 "A shift in doctrine is under way in a nearby empire."
+ sae.10.a:0 "Noted."
+# UNVERIFIED(A-39, M0-6): [From.GetName] resolves the From scope passed by scopes = { from = prev } | fallback: drop the scope token and use generic text
+ sae_reason_turtle_siege:0 "[From.GetName] draws its fleets back behind fortified borders and waits out the pressure."
+# UNVERIFIED(A-39, M0-6): [From.GetName] resolves the From scope passed by scopes = { from = prev } | fallback: drop the scope token and use generic text
+ sae_reason_tech_rush_punish:0 "Doctrine shifts in [From.GetName]: a rival has pulled ahead in research and will be made to pay for it."
+# UNVERIFIED(A-39, M0-6): [From.GetName] resolves the From scope passed by scopes = { from = prev } | fallback: drop the scope token and use generic text
+ sae_reason_aggression_hold:0 "[From.GetName] adapts its doctrine and holds its fleets ready against a rising threat."
+# UNVERIFIED(A-39, M0-6): [From.GetName] resolves the From scope passed by scopes = { from = prev } | fallback: drop the scope token and use generic text
+ sae_reason_baseline:0 "[From.GetName] settles back into its usual course and balances its priorities."
+# UNVERIFIED(A-39, M0-6): [From.GetName] resolves the From scope passed by scopes = { from = prev } | fallback: drop the scope token and use generic text
+ sae_reason_operator_forced:0 "By outside decree, [From.GetName] changes course and adopts a new doctrine."
+# UNVERIFIED(A-39, M0-6): [From.GetName] resolves the From scope passed by scopes = { from = prev } | fallback: drop the scope token and use generic text
+ sae_reason_safety_floor:0 "[From.GetName] rebuilds its minimum defences before pursuing any other aim."

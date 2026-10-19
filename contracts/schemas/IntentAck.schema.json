@@ -1,0 +1,99 @@
+{
+  "$defs": {
+    "AckCode": {
+      "description": "Machine-readable reason in an ACK line (``code=``).",
+      "enum": [
+        "OK",
+        "RANGE",
+        "NOT_MANAGED",
+        "BAD_TARGET",
+        "MULTIPLAYER",
+        "SEQ_OLD",
+        "EXPIRED",
+        "SCHEMA",
+        "TIMEOUT",
+        "NEWER_BATCH"
+      ],
+      "title": "AckCode",
+      "type": "string"
+    },
+    "AckStatus": {
+      "description": "Outcome of one (country, seq) batch. The first five come from the mod (C1 ACK);\n``LOST`` and ``SUPERSEDED`` are assigned by the engine (C3 section 5).",
+      "enum": [
+        "APPLIED",
+        "REJECTED",
+        "STALE",
+        "DUPLICATE",
+        "SCHEMA_MISMATCH",
+        "LOST",
+        "SUPERSEDED"
+      ],
+      "title": "AckStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A mod ACK (C1) as delivered to the engine, or an adapter-simulated one in replay/synth.",
+  "properties": {
+    "applied": {
+      "anyOf": [
+        {
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Mod's sae_seq_applied (DUPLICATE acks).",
+      "title": "Applied"
+    },
+    "code": {
+      "$ref": "#/$defs/AckCode"
+    },
+    "country": {
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Country",
+      "type": "integer"
+    },
+    "game_date": {
+      "title": "Game Date",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maximum": 6,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "seq": {
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/AckStatus"
+    }
+  },
+  "required": [
+    "seq",
+    "country",
+    "status",
+    "code",
+    "game_date"
+  ],
+  "title": "IntentAck",
+  "type": "object"
+}

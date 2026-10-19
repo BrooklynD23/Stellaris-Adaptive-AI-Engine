@@ -1,0 +1,3 @@
+# sae_bridge constants (SEMANTICS 1, C6 2).
+# UNVERIFIED(A-37, M0-5): @scripted variables are usable as check_variable values in scripted effects | fallback: inline the literal 16 at the single use site
+@sae_max_managed = 16

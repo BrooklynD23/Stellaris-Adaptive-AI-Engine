@@ -1,0 +1,85 @@
+{
+ "schema_version": 1,
+ "name": "observer_mode",
+ "date": "2231.04.01",
+ "countries": [
+  {
+   "country_id": 2,
+   "name": "Observer One",
+   "sid": 1,
+   "managed": true,
+   "fleet_power": 4000,
+   "naval_cap_used": 20,
+   "naval_cap": 60,
+   "energy": 10,
+   "minerals": 20,
+   "alloys": 3,
+   "alloys_income": 2,
+   "tech_researched": 20,
+   "applied_seq": 9,
+   "pending_seq": 10,
+   "applied_econ": 4,
+   "applied_mil": 2,
+   "systems": [
+    1,
+    2
+   ]
+  },
+  {
+   "country_id": 3,
+   "name": "Observer Two",
+   "sid": 2,
+   "managed": true,
+   "fleet_power": 500,
+   "tech_researched": 8,
+   "systems": [
+    5
+   ]
+  },
+  {
+   "country_id": 4,
+   "name": "Unmanaged",
+   "systems": [
+    9
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   5
+  ],
+  [
+   5,
+   9
+  ]
+ ],
+ "contacts": [
+  [
+   2,
+   3
+  ]
+ ],
+ "starbases": [
+  {
+   "system": 2,
+   "owner": 2,
+   "defense_modules": 1,
+   "platforms": 1
+  }
+ ],
+ "wars": [
+  {
+   "attackers": [
+    2
+   ],
+   "defenders": [
+    4
+   ]
+  }
+ ]
+}

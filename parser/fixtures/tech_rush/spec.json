@@ -1,0 +1,107 @@
+{
+ "schema_version": 1,
+ "name": "tech_rush",
+ "date": "2240.06.01",
+ "countries": [
+  {
+   "country_id": 0,
+   "name": "Tech Republic",
+   "sid": 1,
+   "is_player": true,
+   "fleet_power": 3000,
+   "tech_researched": 120,
+   "alloys_income": 20,
+   "systems": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "country_id": 5,
+   "name": "Slow Hegemony",
+   "sid": 2,
+   "managed": true,
+   "fleet_power": 3000,
+   "naval_cap_used": 40,
+   "naval_cap": 80,
+   "energy": 200,
+   "minerals": 300,
+   "alloys": 50,
+   "alloys_income": 20,
+   "tech_researched": 40,
+   "applied_seq": 4,
+   "pending_seq": 5,
+   "applied_econ": 2,
+   "applied_mil": 1,
+   "systems": [
+    10,
+    11
+   ]
+  },
+  {
+   "country_id": 6,
+   "name": "Mid Combine",
+   "sid": 3,
+   "managed": true,
+   "fleet_power": 6000,
+   "naval_cap_used": 90,
+   "naval_cap": 120,
+   "energy": -15.5,
+   "minerals": 100,
+   "alloys": 10,
+   "alloys_income": 5,
+   "tech_researched": 100,
+   "systems": [
+    20
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   3
+  ],
+  [
+   3,
+   10
+  ],
+  [
+   10,
+   11
+  ],
+  [
+   3,
+   20
+  ]
+ ],
+ "contacts": [
+  [
+   0,
+   5
+  ],
+  [
+   0,
+   6
+  ]
+ ],
+ "starbases": [
+  {
+   "system": 3,
+   "owner": 0,
+   "defense_modules": 1,
+   "platforms": 1
+  },
+  {
+   "system": 10,
+   "owner": 5,
+   "defense_modules": 2,
+   "platforms": 0
+  }
+ ],
+ "wars": []
+}

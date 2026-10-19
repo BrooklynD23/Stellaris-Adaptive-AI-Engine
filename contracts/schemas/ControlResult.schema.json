@@ -1,0 +1,214 @@
+{
+  "$defs": {
+    "Archetype": {
+      "description": "Player archetypes the v0/v1 belief filter tracks (settled decision).",
+      "enum": [
+        "turtle",
+        "tech_rush",
+        "early_aggression",
+        "balanced"
+      ],
+      "title": "Archetype",
+      "type": "string"
+    },
+    "EngineStatus": {
+      "additionalProperties": false,
+      "description": "Answer to ``status`` (also attached to every result).",
+      "properties": {
+        "commit_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commit Until"
+        },
+        "forced_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Forced Until"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "in_flight_batches": {
+          "minimum": 0,
+          "title": "In Flight Batches",
+          "type": "integer"
+        },
+        "level": {
+          "$ref": "#/$defs/HealthLevel"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/GameState"
+        },
+        "strategy": {
+          "$ref": "#/$defs/Strategy"
+        },
+        "suspended": {
+          "title": "Suspended",
+          "type": "boolean"
+        },
+        "top_archetype": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Archetype"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "run_id",
+        "game_date",
+        "suspended",
+        "state",
+        "level",
+        "strategy",
+        "forced_until",
+        "commit_until",
+        "top_archetype",
+        "in_flight_batches"
+      ],
+      "title": "EngineStatus",
+      "type": "object"
+    },
+    "GameState": {
+      "description": "Opportunity axis. PAUSED is only produced when ``pause_detection`` is on (M1-P passed).",
+      "enum": [
+        "PLAYING",
+        "PAUSED",
+        "CLOSED"
+      ],
+      "title": "GameState",
+      "type": "string"
+    },
+    "HealthLevel": {
+      "description": "Pressure axis. S is entered only by the operator ``pause`` command (C9).",
+      "enum": [
+        "H0",
+        "H1",
+        "H2",
+        "H3",
+        "S"
+      ],
+      "title": "HealthLevel",
+      "type": "string"
+    },
+    "Strategy": {
+      "description": "Counter-strategy templates. ``baseline`` is the safety-floor default.",
+      "enum": [
+        "outscale_siege",
+        "early_punish",
+        "hold_counterpunch",
+        "baseline"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Written to ``control/done/<command_id>.result.json``.",
+  "properties": {
+    "accepted": {
+      "title": "Accepted",
+      "type": "boolean"
+    },
+    "applied_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Game date of the tick boundary where it took effect.",
+      "title": "Applied At"
+    },
+    "command_id": {
+      "description": "Echo; may be 'unknown' when the command file was unreadable.",
+      "title": "Command Id",
+      "type": "string"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "enum": [
+            "invalid",
+            "too_large",
+            "unknown_cmd",
+            "not_running",
+            "expired"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EngineStatus"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "v": {
+      "const": 1,
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "command_id",
+    "accepted",
+    "applied_at",
+    "status"
+  ],
+  "title": "ControlResult",
+  "type": "object"
+}

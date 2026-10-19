@@ -1,0 +1,107 @@
+# sae_bridge scripted triggers (country scope unless noted).
+
+# Eligible country (SEMANTICS 1)
+sae_is_eligible = {
+  # UNVERIFIED(A-39, M0-3): is_country_type = default selects playable/AI empires | fallback: use is_ai plus has_country_flag filters or any_country limit
+  is_country_type = default
+}
+
+sae_is_human = {
+  # UNVERIFIED(A-39, M0-3): is_country_type = default selects playable/AI empires | fallback: use is_ai plus has_country_flag filters or any_country limit
+  is_country_type = default
+  # UNVERIFIED(A-39, M0-3): is_ai trigger distinguishes human and AI | fallback: compare against the console-scope player country flag
+  is_ai = no
+}
+
+sae_is_ai = {
+  # UNVERIFIED(A-39, M0-3): is_country_type = default selects playable/AI empires | fallback: use is_ai plus has_country_flag filters or any_country limit
+  is_country_type = default
+  # UNVERIFIED(A-39, M0-3): is_ai trigger distinguishes human and AI | fallback: compare against the console-scope player country flag
+  is_ai = yes
+}
+
+# SEMANTICS 4.4 / 7: contact with at least one human (this country is the AI)
+sae_has_human_contact = {
+  # UNVERIFIED(A-39, M0-3): any_country trigger iterates all living countries | fallback: use a global counter of known sids
+  any_country = {
+    sae_is_human = yes
+    has_communications = prev # UNVERIFIED(A-32, M0-6): has_communications = prev detects contact with a human | fallback: has_met/is_country_known, else manage every AI
+  }
+}
+
+# Open = no earlier apply rule matched (temp sae_t_done, SEMANTICS 6)
+sae_t_open = {
+  check_variable = { which = sae_t_done value = 0 }
+}
+
+# SEMANTICS 6.8: every staged value in range. Needs sae_t_mt / sae_t_dt (target - sid) set by sae_apply.
+sae_p_in_range = {
+  check_variable = { which = sae_t_nonint value = 0 } # integrality, set by sae_compute_nonint (SEMANTICS 6.8)
+  check_variable = { which = sae_p_expires value >= 0 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  check_variable = { which = sae_p_expires value <= 1000000 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  check_variable = { which = sae_p_reason value >= 0 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  check_variable = { which = sae_p_reason value <= 6 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  OR = {
+    check_variable = { which = sae_p_econ value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    AND = {
+      check_variable = { which = sae_p_econ value >= 1 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_econ value <= 4 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+    }
+  }
+  OR = {
+    AND = {
+      check_variable = { which = sae_p_mil value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+      check_variable = { which = sae_p_mil_target value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    }
+    AND = {
+      check_variable = { which = sae_p_mil value >= 1 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_mil value <= 3 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_mil_target value >= 1 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_mil_target value <= 1000000 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      NOT = { check_variable = { which = sae_t_mt value = 0 } }
+    }
+  }
+  OR = {
+    AND = {
+      check_variable = { which = sae_p_dip value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+      check_variable = { which = sae_p_dip_target value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    }
+    AND = {
+      check_variable = { which = sae_p_dip value >= 1 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_dip value <= 4 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_dip_target value >= 1 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      check_variable = { which = sae_p_dip_target value <= 1000000 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      NOT = { check_variable = { which = sae_t_dt value = 0 } }
+    }
+  }
+  # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  OR = { check_variable = { which = sae_p_ship_corvette value = -1 } AND = { check_variable = { which = sae_p_ship_corvette value >= 0 } check_variable = { which = sae_p_ship_corvette value <= 100 } } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  OR = { check_variable = { which = sae_p_ship_frigate value = -1 } AND = { check_variable = { which = sae_p_ship_frigate value >= 0 } check_variable = { which = sae_p_ship_frigate value <= 100 } } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  OR = { check_variable = { which = sae_p_ship_destroyer value = -1 } AND = { check_variable = { which = sae_p_ship_destroyer value >= 0 } check_variable = { which = sae_p_ship_destroyer value <= 100 } } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  OR = { check_variable = { which = sae_p_ship_cruiser value = -1 } AND = { check_variable = { which = sae_p_ship_cruiser value >= 0 } check_variable = { which = sae_p_ship_cruiser value <= 100 } } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+  # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  OR = { check_variable = { which = sae_p_ship_battleship value = -1 } AND = { check_variable = { which = sae_p_ship_battleship value >= 0 } check_variable = { which = sae_p_ship_battleship value <= 100 } } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+}
+
+# SEMANTICS 6.9: staged targets (when not -1) name a living country by sae_sid
+sae_target_ok = {
+  OR = {
+    check_variable = { which = sae_p_mil_target value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    # UNVERIFIED(A-39, M0-3): any_country trigger iterates all living countries | fallback: use a global counter of known sids
+    any_country = {
+      # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+      check_variable = { which = sae_sid value = prev.sae_p_mil_target }
+    }
+  }
+  OR = {
+    check_variable = { which = sae_p_dip_target value = -1 } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    # UNVERIFIED(A-39, M0-3): any_country trigger iterates all living countries | fallback: use a global counter of known sids
+    any_country = {
+      # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+      check_variable = { which = sae_sid value = prev.sae_p_dip_target }
+    }
+  }
+}

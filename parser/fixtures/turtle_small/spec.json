@@ -1,0 +1,81 @@
+{
+ "name": "turtle_small",
+ "date": "2231.04.01",
+ "countries": [
+  {
+   "country_id": 0,
+   "name": "United Nations of Earth",
+   "sid": 1,
+   "is_player": true,
+   "fleet_power": 12010,
+   "tech_researched": 58,
+   "alloys_income": 40,
+   "systems": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "country_id": 7,
+   "name": "Tzynn Empire",
+   "sid": 3,
+   "managed": true,
+   "fleet_power": 8450,
+   "naval_cap_used": 110,
+   "naval_cap": 140,
+   "energy": 412.5,
+   "minerals": 1180,
+   "alloys": 96.25,
+   "alloys_income": 14.5,
+   "tech_researched": 50,
+   "systems": [
+    10,
+    11,
+    12
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   4,
+   10
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   3
+  ],
+  [
+   3,
+   4
+  ],
+  [
+   10,
+   11
+  ],
+  [
+   11,
+   12
+  ]
+ ],
+ "contacts": [
+  [
+   0,
+   7
+  ]
+ ],
+ "starbases": [
+  {
+   "system": 4,
+   "owner": 0,
+   "defense_modules": 2,
+   "platforms": 6
+  }
+ ],
+ "wars": []
+}

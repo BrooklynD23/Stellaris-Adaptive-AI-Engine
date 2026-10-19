@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "Cost": {
+      "additionalProperties": false,
+      "description": "Worker self-measured cost (resource proposal section 3).",
+      "properties": {
+        "cpu_s": {
+          "minimum": 0,
+          "title": "Cpu S",
+          "type": "number"
+        },
+        "rss_peak_bytes": {
+          "minimum": 0,
+          "title": "Rss Peak Bytes",
+          "type": "integer"
+        },
+        "wall_s": {
+          "minimum": 0,
+          "title": "Wall S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rss_peak_bytes",
+        "cpu_s",
+        "wall_s"
+      ],
+      "title": "Cost",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "How one parse worker run ended, classified per C4 exit codes and C7 section 7.",
+  "properties": {
+    "cost": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cost"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "exit_code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exit Code"
+    },
+    "kind": {
+      "enum": [
+        "ok",
+        "clean_failure",
+        "budget_breach",
+        "killed_by_governor"
+      ],
+      "title": "Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "exit_code",
+    "cost"
+  ],
+  "title": "WorkerOutcome",
+  "type": "object"
+}

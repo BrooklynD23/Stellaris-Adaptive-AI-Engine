@@ -1,0 +1,26 @@
+# sae_bridge ai_budget entries: additive, gated by the econ-plan flags (SEMANTICS 6.10). econ=balanced adds nothing.
+# Field names follow the vanilla/StarNet budget layout from memory; the whole block is M0-8 material.
+# UNVERIFIED(A-21, M0-8): flag-gated additive ai_budget entry changes AI spending | fallback: gate StarNet economic subplans by flag instead
+sae_budget_military = {
+  type = expenditure
+  resource = alloys
+  category = ships
+  potential = { has_country_flag = sae_econ_military }
+  fraction = { weight = 0.25 }
+}
+# UNVERIFIED(A-21, M0-8): flag-gated additive ai_budget entry changes AI spending | fallback: gate StarNet economic subplans by flag instead
+sae_budget_research = {
+  type = expenditure
+  resource = energy
+  category = buildings
+  potential = { has_country_flag = sae_econ_research }
+  fraction = { weight = 0.25 }
+}
+# UNVERIFIED(A-21, M0-8): flag-gated additive ai_budget entry changes AI spending | fallback: gate StarNet economic subplans by flag instead
+sae_budget_expansion = {
+  type = expenditure
+  resource = minerals
+  category = colonization
+  potential = { has_country_flag = sae_econ_expansion }
+  fraction = { weight = 0.25 }
+}

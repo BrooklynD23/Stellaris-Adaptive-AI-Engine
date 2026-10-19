@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "GodView": {
+      "additionalProperties": false,
+      "description": "The player's true state. Written only to bus.god.jsonl; never an engine input.",
+      "properties": {
+        "alloys_income": {
+          "title": "Alloys Income",
+          "type": "number"
+        },
+        "fleet_power": {
+          "minimum": 0,
+          "title": "Fleet Power",
+          "type": "number"
+        },
+        "fortified_starbases": {
+          "minimum": 0,
+          "title": "Fortified Starbases",
+          "type": "integer"
+        },
+        "systems_owned": {
+          "minimum": 0,
+          "title": "Systems Owned",
+          "type": "integer"
+        },
+        "tech_researched": {
+          "minimum": 0,
+          "title": "Tech Researched",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fleet_power",
+        "systems_owned",
+        "tech_researched",
+        "alloys_income",
+        "fortified_starbases"
+      ],
+      "title": "GodView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "God-view data: the parser's GodView and raw PLYR fields. Written to bus.god.jsonl only.",
+  "properties": {
+    "game_date": {
+      "title": "Game Date",
+      "type": "string"
+    },
+    "player": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GodView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "plyr": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Numeric PLYR fields, C1 keys.",
+      "title": "Plyr",
+      "type": "object"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "enum": [
+        "log",
+        "save"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "game_date",
+    "source"
+  ],
+  "title": "GodObservation",
+  "type": "object"
+}

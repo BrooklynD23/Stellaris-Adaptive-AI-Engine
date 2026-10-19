@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# SAE commit-msg gate: conventional subject + a recorded code review.
+# Every commit needs a trailer naming the review that covered it, e.g.
+#   Reviewed-by: sae-reviewer (T4 change set)
+#   Reviewed-by: sae-adversary/Fable 5.1 (docs/status/WAVE3_review.md)
+# Skip only in an emergency: SAE_SKIP_HOOKS=1 git commit ...   (say why in the commit body)
+set -euo pipefail
+
+[ "${SAE_SKIP_HOOKS:-}" = "1" ] && { echo "commit-msg: SKIPPED by SAE_SKIP_HOOKS=1" >&2; exit 0; }
+
+msg_file="$1"
+subject=$(grep -v '^#' "$msg_file" | head -n 1)
+
+if ! echo "$subject" | grep -Eq '^(feat|fix|refactor|docs|test|chore|perf|ci)(\([a-z0-9_-]+\))?: .+'; then
+  echo "commit-msg: subject must be '<type>: <description>' (feat|fix|refactor|docs|test|chore|perf|ci)" >&2
+  exit 1
+fi
+
+if ! grep -Eq '^Reviewed-by: .+' "$msg_file"; then
+  echo "commit-msg: missing 'Reviewed-by: <reviewer> (<review record>)' trailer" >&2
+  exit 1
+fi

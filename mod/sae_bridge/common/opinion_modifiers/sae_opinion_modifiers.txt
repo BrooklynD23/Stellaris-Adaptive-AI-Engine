@@ -1,0 +1,15 @@
+# sae_bridge opinion modifiers (SEMANTICS 6.10): posture (3) and stance (4); keys exactly as C3 enums.
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_posture_defensive = { opinion = { base = 5 } }
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_posture_deterrent = { opinion = { base = -5 } }
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_posture_offensive = { opinion = { base = -15 } }
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_stance_friendly = { opinion = { base = 20 } }
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_stance_neutral = { opinion = { base = 0 } }
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_stance_rival = { opinion = { base = -20 } }
+# UNVERIFIED(A-23, M0-6): opinion_modifier block syntax (opinion base) is valid | fallback: copy a vanilla opinion_modifiers entry and keep key name
+sae_stance_hostile = { opinion = { base = -40 } }

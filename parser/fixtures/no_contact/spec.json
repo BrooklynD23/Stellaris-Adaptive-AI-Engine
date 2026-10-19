@@ -1,0 +1,79 @@
+{
+ "schema_version": 1,
+ "name": "no_contact",
+ "date": "2231.04.01",
+ "ironman": true,
+ "countries": [
+  {
+   "country_id": 0,
+   "name": "Hidden Player",
+   "sid": 1,
+   "is_player": true,
+   "fleet_power": 7000,
+   "tech_researched": 40,
+   "alloys_income": 10,
+   "systems": [
+    1,
+    2
+   ]
+  },
+  {
+   "country_id": 7,
+   "name": "Blind Observer",
+   "sid": 3,
+   "managed": true,
+   "fleet_power": 7000,
+   "naval_cap_used": 5,
+   "naval_cap": 10,
+   "energy": 1,
+   "minerals": 2,
+   "alloys": 3,
+   "alloys_income": 10,
+   "tech_researched": 40,
+   "systems": [
+    10,
+    11
+   ]
+  },
+  {
+   "country_id": 9,
+   "name": "Distant Foe",
+   "systems": [
+    50
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   10
+  ],
+  [
+   10,
+   11
+  ]
+ ],
+ "contacts": [],
+ "starbases": [
+  {
+   "system": 2,
+   "owner": 0,
+   "defense_modules": 3,
+   "platforms": 3
+  }
+ ],
+ "wars": [
+  {
+   "attackers": [
+    0
+   ],
+   "defenders": [
+    9
+   ]
+  }
+ ]
+}

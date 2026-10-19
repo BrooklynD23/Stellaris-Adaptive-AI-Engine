@@ -1,0 +1,86 @@
+{
+  "additionalProperties": false,
+  "description": "Result of :meth:`GameAdapter.emit`. ``ok`` means the file is in place, NOT that it was applied.",
+  "properties": {
+    "bytes_written": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Bytes Written",
+      "type": "integer"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "enum": [
+            "write_failed",
+            "release_mode",
+            "closed",
+            "multiplayer",
+            "ironman"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "multiplayer = refused, the mod reported mp=1 (C6 section 1.6); ironman = refused, Ironman detected (C6 section 1.10); nothing written in either case.",
+      "title": "Error"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path"
+    },
+    "seq": {
+      "description": "The batch seq.",
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    }
+  },
+  "required": [
+    "seq",
+    "ok"
+  ],
+  "title": "EmitReceipt",
+  "type": "object"
+}

@@ -1,0 +1,158 @@
+{
+  "$defs": {
+    "ForceStrategy": {
+      "additionalProperties": false,
+      "description": "Override the counter table. ``strategy=None`` clears an active override.",
+      "properties": {
+        "cmd": {
+          "const": "force_strategy",
+          "default": "force_strategy",
+          "title": "Cmd",
+          "type": "string"
+        },
+        "months": {
+          "default": 24,
+          "description": "Override length in game months.",
+          "maximum": 120,
+          "minimum": 1,
+          "title": "Months",
+          "type": "integer"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Strategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "title": "ForceStrategy",
+      "type": "object"
+    },
+    "Pause": {
+      "additionalProperties": false,
+      "description": "Stop deciding and emitting; observation and logging continue (level S).",
+      "properties": {
+        "cmd": {
+          "const": "pause",
+          "default": "pause",
+          "title": "Cmd",
+          "type": "string"
+        }
+      },
+      "title": "Pause",
+      "type": "object"
+    },
+    "Resume": {
+      "additionalProperties": false,
+      "description": "Leave level S.",
+      "properties": {
+        "cmd": {
+          "const": "resume",
+          "default": "resume",
+          "title": "Cmd",
+          "type": "string"
+        }
+      },
+      "title": "Resume",
+      "type": "object"
+    },
+    "Status": {
+      "additionalProperties": false,
+      "description": "Read-only snapshot; never logged as a state change.",
+      "properties": {
+        "cmd": {
+          "const": "status",
+          "default": "status",
+          "title": "Cmd",
+          "type": "string"
+        }
+      },
+      "title": "Status",
+      "type": "object"
+    },
+    "Strategy": {
+      "description": "Counter-strategy templates. ``baseline`` is the safety-floor default.",
+      "enum": [
+        "outscale_siege",
+        "early_punish",
+        "hold_counterpunch",
+        "baseline"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One file in ``runs/<run_id>/control/inbox/``.",
+  "properties": {
+    "command": {
+      "discriminator": {
+        "mapping": {
+          "force_strategy": "#/$defs/ForceStrategy",
+          "pause": "#/$defs/Pause",
+          "resume": "#/$defs/Resume",
+          "status": "#/$defs/Status"
+        },
+        "propertyName": "cmd"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Pause"
+        },
+        {
+          "$ref": "#/$defs/Resume"
+        },
+        {
+          "$ref": "#/$defs/ForceStrategy"
+        },
+        {
+          "$ref": "#/$defs/Status"
+        }
+      ],
+      "title": "Command"
+    },
+    "command_id": {
+      "pattern": "^c-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$",
+      "title": "Command Id",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "operator": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Operator",
+      "type": "string"
+    },
+    "reason": {
+      "default": "",
+      "maxLength": 500,
+      "title": "Reason",
+      "type": "string"
+    },
+    "v": {
+      "const": 1,
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "command_id",
+    "issued_at",
+    "operator",
+    "command"
+  ],
+  "title": "ControlCommand",
+  "type": "object"
+}

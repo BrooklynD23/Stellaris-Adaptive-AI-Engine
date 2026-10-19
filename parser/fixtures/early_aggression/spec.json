@@ -1,0 +1,101 @@
+{
+ "schema_version": 1,
+ "name": "early_aggression",
+ "date": "2203.02.01",
+ "countries": [
+  {
+   "country_id": 0,
+   "name": "Warlike Union",
+   "sid": 1,
+   "is_player": true,
+   "fleet_power": 9000,
+   "tech_researched": 12,
+   "alloys_income": 30,
+   "systems": [
+    1,
+    2
+   ]
+  },
+  {
+   "country_id": 7,
+   "name": "Prey Collective",
+   "sid": 2,
+   "managed": true,
+   "fleet_power": 1000,
+   "naval_cap_used": 10,
+   "naval_cap": 30,
+   "energy": 80,
+   "minerals": 90,
+   "alloys": 5,
+   "alloys_income": 3,
+   "tech_researched": 10,
+   "applied_seq": 1,
+   "pending_seq": 1,
+   "applied_econ": 1,
+   "applied_mil": 3,
+   "systems": [
+    10
+   ]
+  },
+  {
+   "country_id": 8,
+   "name": "Far Neighbour",
+   "sid": 3,
+   "managed": true,
+   "fleet_power": 7000,
+   "tech_researched": 12,
+   "alloys_income": 29,
+   "systems": [
+    30
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   10
+  ],
+  [
+   10,
+   30
+  ]
+ ],
+ "contacts": [
+  [
+   0,
+   7
+  ],
+  [
+   0,
+   8
+  ]
+ ],
+ "starbases": [
+  {
+   "system": 2,
+   "owner": 0,
+   "defense_modules": 4,
+   "platforms": 3
+  },
+  {
+   "system": 1,
+   "owner": 0,
+   "defense_modules": 0,
+   "platforms": 0
+  }
+ ],
+ "wars": [
+  {
+   "attackers": [
+    0
+   ],
+   "defenders": [
+    7
+   ]
+  }
+ ]
+}
