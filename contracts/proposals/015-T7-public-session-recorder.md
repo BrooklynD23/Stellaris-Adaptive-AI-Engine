@@ -1,6 +1,6 @@
 # 015-T7 — Public session recorder for synth (T2)
 
-Status: PROPOSED (2026-10-19). Contracts: C6 §3 (determinism), C8 §5 (`sae replay`). Owner asked: T2. Consumers: T7.
+Status: ACCEPTED-WITH-CHANGES (2026-10-19). Contracts: C6 §3 (determinism), C8 §5 (`sae replay`). Owner asked: T2. Consumers: T7.
 
 ## What
 `SynthAdapter(..., record_dir: Path | None = None)` writes the LiveAdapter record format (`game.log`,

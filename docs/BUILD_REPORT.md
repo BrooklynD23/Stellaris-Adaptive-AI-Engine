@@ -81,11 +81,10 @@ Settled during the build (recorded in `contracts/CHANGES.md` and the plan files)
 on close (also under Ironman); Ironman detected and observe-only; T9 decisions D1–D6 (plan §8).
 
 Open:
-1. Proposal 015: line 3 of `contracts/proposals/015-T7-public-session-recorder.md` still reads `Status: PROPOSED`
-   (the decision text says ACCEPTED-WITH-CHANGES). The permission system blocked agents from changing it; the
-   maintainer applies the one-line fix.
-2. Proposals 019–022 (T9) are PROPOSED; 023 is parked by decision D1.
-3. D6: the objective for game-paired tests is decided before M4.
+1. Proposals 019–022 (T9) are PROPOSED; 023 is parked by decision D1.
+2. D6: the objective for game-paired tests is decided before M4.
+
+(Proposal 015's status line was fixed by the maintainer on 2026-10-19: ACCEPTED-WITH-CHANGES.)
 
 ## 8. Recommended next step
 

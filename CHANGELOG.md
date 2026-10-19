@@ -111,7 +111,7 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 
 #### Contracts and maintainer decisions, all teams
 
-- Contracts C1–C9 frozen at v1, then v1.1/v1.2 without any wire change (`SAE|v1|`, `sae_p_schema = 1`, C4 `schema_version` 1). Proposals 001–018 were decided (015's status line still reads PROPOSED pending a one-line manual fix; its decision text says ACCEPTED-WITH-CHANGES); 019–023 (T9 expansion) are PROPOSED. The full record is in `contracts/CHANGES.md`, not repeated here.
+- Contracts C1–C9 frozen at v1, then v1.1/v1.2 without any wire change (`SAE|v1|`, `sae_p_schema = 1`, C4 `schema_version` 1). Proposals 001–018 were decided; 019–023 (T9 expansion) are PROPOSED. The full record is in `contracts/CHANGES.md`, not repeated here.
 - Maintainer decisions (2026-10-19): CUSUM `change_score` is diagnostic only; `balanced` is the default preset and `low_impact` is the H1 floor; the fleet-size intent is dropped from v0 until M0-7 (C3 v1.1); the engine refuses `sae_in.ini` writes while `mp=1`; `outscale_siege` and `early_punish` share AI values and differ only in flavour text.
 - Proposal 017: `sae_in.ini` is rewritten knob-only on exit, on SIGTERM and on multiplayer; Ironman is detected from save metadata and switches to observe-only (C2, C5, C6 v1.2). Amended by maintainer decision: the knob-only exit rewrite also happens under Ironman; only intent writes are blocked.
 - Proposal 018: deferred batches are audited with their own `deferred` rule id, separate from real rejections (C3 v1.2).
