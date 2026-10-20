@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-import resource
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +16,9 @@ import pytest
 from sae.contracts.c7_governor import MIB, WorkerSpec
 from sae.platform.sensors import SystemSensors
 from sae.platform.spawn import SystemPlatform
+
+if sys.platform != "win32":
+    import resource
 
 ROOT = Path(__file__).resolve().parents[3] / "src" / "sae"
 GAME_PID = 424242
@@ -63,6 +65,7 @@ class PS:
         return [self.game]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process controls (setpriority, prlimit)")
 def test_only_self_or_child_pids_are_controlled(monkeypatch: pytest.MonkeyPatch) -> None:
     writes: list[tuple[str, int | None]] = []
     reads: list[tuple[str, int | None]] = []
