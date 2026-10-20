@@ -107,6 +107,7 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 - Coverage tooling: `pytest-cov` with `fail_under = 90` and parallel mode; measured 96.58% overall, every Python
   package ≥ 90%. Built-in policy JSON ships in the wheel.
 - Fable architecture review 2 (`docs/status/ARCHITECTURE_alignment_review_2.md`): 5 of 5 actions closed.
+- `docs/handoff/NEXT_ORCHESTRATOR.md`: handoff prompt for the next orchestrator session (state, decisions, next work).
 
 #### Expansion and process
 
