@@ -58,8 +58,10 @@ Strategy check (orchestrator, 30-year `sae synth`, seeds 1/3/5/7): turtle → `o
 ## 5. Known gaps
 
 1. Nothing has run in the real game; all Stellaris behaviour is UNVERIFIED (section 6).
-2. Windows-only code (Job Objects, EcoQoS, priority classes, Windows file semantics) is tested with mocks only;
-   the GitHub Actions workflow passes `actionlint` locally but has never run.
+2. Windows-only code (Job Objects, EcoQoS, priority classes, Windows file semantics) is tested with mocks only.
+   GitHub Actions CI (`python-linux`, `mod`, `rust-linux`, `windows`) is green since 2026-10-20 (run 39484641559,
+   `ac5b338`) and the four jobs are required checks on `main`. Windows CI runs the Python suite and mypy on a real
+   Windows runner, but not the real game.
 3. Likelihoods are synth-tuned guesses (HYP) until M2 calibration on real saves (V-1).
 4. `outscale_siege` and `early_punish` write identical AI values in v0 (fleet bias dropped until M0-7).
 5. The disk-size warning reuses the `budget_breach` health kind (C5 has no disk kind).
@@ -93,6 +95,21 @@ checks, WU-8 docs) is done. Coverage: 96.58% overall, every Python package ≥ 9
 architecture review 2 (`docs/status/ARCHITECTURE_alignment_review_2.md`): performance/memory ON TARGET,
 telemetry ON TARGET, adaptive engine AT RISK and learning from saves AT RISK (both need real-game data or WU-5..7);
 all 5 review actions closed. Exact gate results: `docs/handoff/NEXT_ORCHESTRATOR.md` §9.
+
+## 7b. Update 2026-10-20: expansion X1 (T9 wiring)
+
+Game-free; synth data only. Evidence from `uv run pytest <path> -o addopts="" -q` on 2026-10-20.
+
+| Item | Status | Evidence |
+|---|---|---|
+| WU-5 `sae profile update\|show\|close\|exclude\|delete\|label` (`src/sae/profile/`) | done | `tests/unit/t9`: 97 passed; `sae.profile` line coverage 99% (cli.py 98%, others 100%) |
+| D5 `sae play` launcher (`sae.profile.launcher`) | done | covered in `tests/unit/t9` (launcher.py 100%) |
+| F1 PLYR leg (fog check) | done | `tests/e2e/test_fog.py`: 3 passed |
+| F3 (profile rebuild from the same index and buses is byte-identical) | done (X1-D) | `tests/e2e/test_fog_f3.py`: 3 passed |
+| Registry writer `append_registry_row` (C10, proposal 025) | done | `tests/contract/test_c10_registry_writer.py`: 11 passed |
+
+The profile is a read-only panel until eligible (>= 8 closed campaigns, positive fold score). Nothing here has run
+against the real game: game-process detection and save-folder behaviour stay UNVERIFIED (A-46).
 
 ## 8. Recommended next step
 

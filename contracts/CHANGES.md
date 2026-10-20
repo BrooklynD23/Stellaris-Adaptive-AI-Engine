@@ -3,6 +3,34 @@
 Newest first. Every accepted proposal adds an entry: date, contracts, version change, proposal file,
 summary.
 
+## 2026-10-20 — Proposal 026 ACCEPTED (C8 → v1.5)
+
+Maintainer decision. Proposal: `contracts/proposals/026-T6-telemetry-private-memory.md`.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 026 telemetry memory metric | C8 §2 | `sae-telemetry` budget stays 150 MiB but measures private memory: Linux `RssAnon`, Windows psutil `memory_info().private`, other platforms RSS fallback. Evidence: CI run 39442249597 RSS 152-165 MiB = anon 59-60 MiB + file-backed 92-106 MiB (shared pyarrow/rerun pages); WSL2 RSS 118-124 MiB | rule, C8 v1.5 (wire `v = 1`, no model or schema change) |
+| Unchanged | C7 §4.6 | daemon budget (`daemon_rss_bytes` breach 150 MiB / exit 300 MiB, CI-4 gate) keeps full RSS | none |
+
+Follow-ups: T6 (`src/sae/telemetry/**`) measures the per-platform private-memory metric in its self-check, with one
+test per branch it can reach.
+
+## 2026-10-20 — Proposal 025 ACCEPTED-WITH-CHANGES (C8 → v1.4; C10 → v1.1)
+
+X1 work order X1-A. Proposal: `contracts/proposals/025-T9-x1-profile-wiring.md`.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 025 §1 dispatch | C8 §5; `src/sae/cli.py` | `sae profile` → `sae.profile.cli`, `sae play` → `sae.profile.launcher` (T9) dispatched; `tune`/`policy`/`gate` stay planned | additive, C8 v1.4 |
+| 025 §4 | C8 §7 | `tests/unit/t9/**` owned by T9 | ownership |
+| 025 §2 writer | C10 §5; `c10_profile.append_registry_row` | landed: `human:` row needs TTY on stdin and stdout (checked before the lock); `registry.jsonl.lock` via `O_CREAT\|O_EXCL`; LF repair; seq = last valid + 1; fsync; lock removed in `finally` | code, C10 v1.1 |
+| 025 §3 | C10 §1 rules 7–15, §2 rules 1–3 | run segments, idempotent update, run lookup, split prompt, deleted terminal, campaign order and fold-relative decay age, deterministic `built_at` and file bytes, mode off and privacy deletes, sealed-query count, index writer lock and recovery, labels never overwritten | clarification, no schema change, C10 v1.1 |
+| Architect changes | C10 §1 rule 9, rule 14, §5 | run lookup matches `(run_id, folder_key)`, not `run_id` alone; seq counted after the LF repair (a complete final line without LF counts) | clarification |
+
+Follow-ups: T9 (`src/sae/profile/index.py::plan_update`, `store.append_events`) implement rule 9 on the pair and
+rule 14 seq-after-repair, with one test each (segments A then B in one run → two campaigns; valid final row without
+LF → next seq follows it).
+
 ## 2026-10-19 — Architecture review 2 actions 1, 3, 4, 5 (C1 clarification; C6 §3; C8 → v1.3; C10 §5)
 
 Source: `docs/status/ARCHITECTURE_alignment_review_2.md` §7.

@@ -1,9 +1,8 @@
 """Fog-perturbation harness (plan section 3, F0/F1): replay a recording with god data randomised.
 
 The daemon runs in-process so a wrapper can be put on the ``SaveParser`` seam (``ReplayAdapter(parser=...)``).
-PLYR lines are appended after the last save and HB, so they cannot reach the decision stream: the PLYR leg of
-F1 is a KNOWN GAP (docs/status/T7.md). The effective perturbation is ``PerturbingParser`` (god view of every
-parse). Appending keeps the recording's save offsets and ``game.log.ts`` valid.
+F1's PLYR leg is live: full seeded PLYR lines are inserted before the first saves (``with_plyr_lines``), so they
+reach the run's god bus. The other perturbation is ``PerturbingParser`` (god view of every parse).
 """
 
 from __future__ import annotations
@@ -28,29 +27,48 @@ DECISION_TYPES = frozenset(
 )
 
 
-def with_plyr_lines(session: Path, dest: Path, seed: int) -> Path:
-    """Copy a recording to ``dest`` and append seeded random PLYR lines (and their ``game.log.ts`` stamps).
+def _plyr_line(rng: random.Random, date: str) -> bytes:
+    return (
+        f"SAE|v1|PLYR|{date}|sid=1|fleet={rng.randrange(10**7)}|navcap_used={rng.randrange(10**4)}"
+        f"|navcap={rng.randrange(10**4)}|en={rng.randrange(10**5)}|mi={rng.randrange(10**5)}"
+        f"|al={rng.randrange(10**5)}|al_inc={rng.randrange(10**3)}|wars={rng.randrange(9)}|name=Human\n"
+    ).encode()
 
-    Synth recordings carry bare ``PLYR`` lines (no player numbers), so god-only numbers are injected after the
-    last save offset (saves stay aligned). Two seeds give two different players over the same visible game.
+
+def with_plyr_lines(session: Path, dest: Path, seed: int) -> Path:
+    """Copy a recording to ``dest`` with a full seeded PLYR line inserted before each of its first 3 saves.
+
+    Each line sits at the save's byte offset, dated like the last log line before it (a save with no such line is
+    skipped), so it is replayed before that save is parsed. Later ``game.log.ts`` offsets and save names shift by
+    the inserted bytes; each insertion also gets a stamp carrying the ns of the poll that follows it. Two seeds
+    give two different players over the same visible game.
     """
     shutil.copytree(session, dest)
-    log, stamps = dest / "game.log", dest / "game.log.ts"
+    log, stamps, saves = dest / "game.log", dest / "game.log.ts", dest / "saves"
     rng = random.Random(seed)
-    date = log.read_text(encoding="utf-8").rstrip("\n").rsplit("\n", 1)[-1].split("|")[3]
-    last_ns = int(stamps.read_text(encoding="utf-8").rstrip("\n").rsplit("\n", 1)[-1].split()[1])
-    size = log.stat().st_size
-    for i in range(3):
-        line = (
-            f"SAE|v1|PLYR|{date}|sid=1|fleet={rng.randrange(10**7)}|navcap_used={rng.randrange(10**4)}"
-            f"|navcap={rng.randrange(10**4)}|en={rng.randrange(10**5)}|mi={rng.randrange(10**5)}"
-            f"|al={rng.randrange(10**5)}|al_inc={rng.randrange(10**3)}|wars={rng.randrange(9)}|name=Human\n"
-        )
-        size += len(line.encode())
-        with log.open("ab") as f:
-            f.write(line.encode())
-        with stamps.open("a", encoding="utf-8") as f:
-            f.write(f"{size} {last_ns + (i + 1) * 1_000_000}\n")
+    data = log.read_bytes()
+    ts = [(int(o), int(n)) for o, n in (ln.split() for ln in stamps.read_text(encoding="utf-8").splitlines())]
+    found = sorted((int(p.name.split("-", 1)[0]), p) for p in saves.glob("*.sav"))
+    inserts: list[tuple[int, bytes]] = []
+    for off, _ in found[:3]:
+        before = data[:off].decode("utf-8", errors="replace").splitlines()
+        dates = [ln.split("|")[3] for ln in before if ln.startswith("SAE|v1|") and ln.count("|") >= 3]
+        if dates:
+            inserts.append((off, _plyr_line(rng, dates[-1])))
+
+    def shift(o: int) -> int:
+        return o + sum(len(b) for at, b in inserts if o >= at)
+
+    out, prev = bytearray(), 0
+    for at, line in inserts:
+        out += data[prev:at] + line
+        prev = at
+    log.write_bytes(bytes(out) + data[prev:])
+    extra = [(at, next((n for o, n in ts if o >= at), ts[-1][1])) for at, _ in inserts]
+    merged = sorted([(shift(o), n) for o, n in ts] + extra, key=lambda t: (t[0], t[1]))
+    stamps.write_text("".join(f"{o} {n}\n" for o, n in merged), encoding="utf-8")
+    for off, path in sorted(found, reverse=True):
+        path.rename(saves / f"{shift(off):012d}-{path.name.split('-', 1)[1]}")
     return dest
 
 

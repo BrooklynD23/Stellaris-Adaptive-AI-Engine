@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| Version | 1 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
-| Status | FROZEN v1 (2026-10-19; proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
+| Version | 1.1 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
+| Status | FROZEN v1.1 (2026-10-20; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
 | Owner | architect (contract); T9 implements the profile side (`src/sae/profile/**`, `src/sae/tune/**`), T7 the gate (`src/sae/bench/gate/**`), T4 the daemon's policy loader |
 | Producers | `sae profile …` (T9: §1, §2); `sae tune` (T9: proposed policies, `propose` rows); `sae gate stage1\|stage2` (T7: `stage*` rows, GateReports); `sae policy …` (T9, human-only rows, Preregistrations) |
 | Consumers | T4 daemon (§4, §5 read-only at start); T9; T7 (gate, privacy and fog tests); T6 (console views); T8 (docs) |
-| Code | `src/sae/contracts/c10_profile.py` — `CampaignEvent`, `CampaignLabel`, `CampaignSummary`, `ProfileDoc`, `PolicyVersion`, `RegistryRow`, `fold_registry`, `policy_sha256`, `pin_matches`, `Preregistration`, `GateReport` |
+| Code | `src/sae/contracts/c10_profile.py` — `CampaignEvent`, `CampaignLabel`, `CampaignSummary`, `ProfileDoc`, `PolicyVersion`, `RegistryRow`, `fold_registry`, `append_registry_row`, `policy_sha256`, `pin_matches`, `Preregistration`, `GateReport` |
 
 Settled decisions hold: no LLM in the runtime loop, zero GPU, three processes, **runtime self-modification OFF**.
 The daemon loads one hashed policy read-only at start and never changes it during a run; only validated,
@@ -70,6 +70,37 @@ Fold rules (pure; T9 owns `campaign_state()`; the rules are contract):
    #10, #14 … are `sealed`; the rest `tune`. A sealed campaign becomes `tune` once ≥ 2 newer sealed campaigns
    exist **and** it has served ≥ 10 sealed queries (`stage2_*` registry rows whose GateReport names it).
 6. Ironman campaigns have no observations in v1 (C6 §1.10) and never appear.
+7. **Run segments** (v1.1). Runs are indexed per segment: consecutive `observation`s of one run with the same
+   non-null `save_folder_key`; observations with a null key are skipped. A segment's key is the pair
+   `(run_id, folder_key)` (a live run can load a different save mid-run).
+8. **Idempotent update** (v1.1). `sae profile update` appends a `seen` row only for a new segment or a later
+   `last_date`; a second update over unchanged runs appends nothing. Several `seen` rows of one campaign fold to:
+   union of `run_ids`, `game_versions`, `policy_sha256`; min `start_date`; max `last_date`; `folder_key` from the
+   first.
+9. **Run lookup** (v1.1), per segment `(run_id, folder_key)`: (a) a non-deleted campaign with this `folder_key`
+   whose `run_ids` contain `run_id` → that campaign (`seen` only if `last_date` is later); (b) a deleted campaign
+   with this `folder_key` whose `run_ids` contain `run_id` → skip, no row; (c) otherwise the folder's current
+   campaign = the latest non-deleted campaign with this `folder_key` by first `seen`, then the split rule (rule 3);
+   no current campaign → new campaign with the rule 2 id. Matching is on the pair, never on `run_id` alone.
+10. **Split prompt** (v1.1). When stdin is not a TTY a split candidate is reported on stderr and left pending (no
+    row); it is asked again at the next update. "New game" writes `closed` for the old campaign (if not closed)
+    then `seen` with the new id; "reload" writes `seen` on the old campaign.
+11. **Deleted is terminal** (v1.1). No row is appended for a `deleted` campaign; its segments are never re-indexed.
+12. **Campaign order** (v1.1; decay age, rolling-origin folds, "latest" for drift) = order of each campaign's first
+    `seen` row.
+13. **`profile.mode = "off"`** (v1.1): `sae profile update` exits 2 ("profile.mode is off"); `show`, `close`,
+    `exclude`, `label`, `delete` still work. `exclude <id>` and `delete --campaign <id>` also remove
+    `summaries/<id>.json` and `profile.json` at once (the next `update` rebuilds), so a privacy command takes effect
+    even when `update` is blocked.
+14. **Index writer lock** (v1.1). Every `campaigns.jsonl` append takes `campaigns.jsonl.lock` with
+    `os.open(O_CREAT|O_EXCL|O_WRONLY)` (same pattern as §5); lock present → exit 1 ("index locked:
+    campaigns.jsonl.lock"; a stale lock after a crash is removed by hand). Under the lock: if the file is non-empty
+    and does not end with LF, write one LF first; seq = last valid seq + 1, counted **after** that repair (a
+    repaired final line that parses as a complete row counts; a partial one becomes a skipped invalid line); flush,
+    `os.fsync`; remove the lock in `finally`. Recovery from "campaigns.jsonl corrupted" (§7 seq gap): rename the
+    index and re-run `update` (ids are deterministic; labels keyed by id survive; split answers are asked again).
+15. **Labels are never overwritten** (v1.1). `sae profile label` refuses (exit 2) when `labels/<id>.json` or
+    `<recording_dir>/label.json` exists (for synth recordings that file is the ground-truth schedule).
 
 `CampaignLabel` (one model, two homes): `profile/<key>/labels/<campaign_id>.json` for indexed campaigns and
 `<recording_dir>/label.json` beside a recorded session (C6 §3; SynthAdapter writes it from its schedule with
@@ -125,6 +156,16 @@ hyperpriors, decay weight `0.5 ** (age / 5)`; `archetype_alpha` is a decayed Dir
 Model-enforced flags: `eligible == (len(source_campaigns) >= 8 and mean(folds.log_score_delta) > 0)`;
 `drift_alarm == (drift_outside >= 3)`. Eligibility only unlocks re-submission of the deferred priors path
 (maintainer D2); in v1 the profile is a read-only panel (`sae profile show`).
+
+Rules (v1.1, proposal 025 §3):
+1. **Fold-relative decay age.** Decay age is relative to the campaign being predicted (order: §1 rule 12): in fold
+   k (fit 1..k, score k+1) campaign k has age 0; for drift, the fit on all but the newest gives the second-newest
+   age 0.
+2. **Deterministic rebuild.** `ProfileDoc.built_at` = `at` of the last valid `campaigns.jsonl` row folded (not wall
+   time), so a rebuild from the same index and buses is byte-identical. Profile files (`summaries/*.json`,
+   `profile.json`) are written as `json.dumps(model_dump(mode="json"), sort_keys=True, indent=1) + "\n"`,
+   atomically (tmp + `os.replace`).
+3. **Sealed-query count** for §1 rule 5 comes from the registry fold; with no gate yet (X1) it is 0.
 
 ```json model=CampaignSummary
 {"schema_version": 1, "campaign_id": "c-3f9a0c1b2d4e5f60", "builder_version": "0.1.0",
@@ -279,7 +320,8 @@ before taking the lock; `tuner` and `gate` rows need no TTY. A test must cover t
 
 Writers: every writer appends through one helper, `c10_profile.append_registry_row(path, row)` — exclusive lock file
 `registry.jsonl.lock` (`O_CREAT|O_EXCL`), re-read the last `seq`, write `seq + 1`, flush + fsync, remove the lock.
-**The helper lands with WU-7** (the first writer); until then nothing writes the registry.
+The helper **landed X1 (proposal 025)**; its first caller is WU-7 (`sae policy …`). Like §1 rule 14, a
+final line without LF is terminated with one LF first and seq counts after that repair.
 
 Rollback is one row and takes effect at the next daemon start. `policy.pin = "builtin"` is the emergency exit.
 

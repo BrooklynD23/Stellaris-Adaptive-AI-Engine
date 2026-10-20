@@ -10,10 +10,13 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
+import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
+from pathlib import Path
 from typing import Annotated, Any, Final, Literal, get_args
 
 from pydantic import AfterValidator, AwareDatetime, BaseModel, Field, model_validator
@@ -413,6 +416,53 @@ def fold_registry(rows: Sequence[RegistryRow], builtin_sha256: str) -> RegistryS
         raise RegistryError(f"current policy {current[:8]} was rejected or failed after promotion")
     approved = frozenset(s for s, n in progress.items() if n == len(CHAIN) and s not in broken)
     return RegistryState(current=current, approved=approved)
+
+
+def _is_tty(stream: Any) -> bool:
+    """True only for an open stream that reports a TTY (None or closed counts as not a TTY)."""
+    try:
+        return stream is not None and not stream.closed and bool(stream.isatty())
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def append_registry_row(path: Path, row: RegistryRow) -> RegistryRow:
+    """Append ``row`` with seq = last seq + 1 (0 for a new file); return the row as written (C10 section 5).
+
+    A ``human:`` row is refused unless stdin and stdout are both an interactive TTY, before the lock is taken.
+    Writers serialise on ``<path>.lock`` (``O_CREAT|O_EXCL``). A final line without LF is first terminated with
+    one LF (proposal 025 section 3.9); it counts toward the next seq only if it parses as a complete row.
+
+    Raises:
+        RegistryError: a ``human:`` row without a TTY, or the lock file already exists.
+    """
+    if row.by.startswith("human:") and not (_is_tty(sys.stdin) and _is_tty(sys.stdout)):
+        raise RegistryError("human registry rows need an interactive TTY on stdin and stdout")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = path.with_name(path.name + ".lock")
+    try:
+        os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644))
+    except FileExistsError:
+        raise RegistryError(f"registry locked: {lock.name}") from None
+    try:
+        data = path.read_bytes() if path.exists() else b""
+        last = -1
+        for line in data.splitlines():
+            try:
+                last = RegistryRow.model_validate_json(line).seq
+            except ValueError:  # pydantic ValidationError; skip-and-count is the reader's job
+                continue
+        written = row.model_copy(update={"seq": last + 1})
+        out = written.model_dump_json(exclude_none=True).encode() + b"\n"
+        if data and not data.endswith(b"\n"):
+            out = b"\n" + out
+        with path.open("ab") as fh:
+            fh.write(out)
+            fh.flush()
+            os.fsync(fh.fileno())
+    finally:
+        lock.unlink(missing_ok=True)
+    return written
 
 
 # --- Section 6: gate evidence ------------------------------------------------------------------------------

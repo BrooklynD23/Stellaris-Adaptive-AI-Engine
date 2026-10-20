@@ -78,6 +78,7 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 - `bench/`: R-1..R-6 procedures (these require the game), `balloon.py`, CSV templates, and `demo.sh`.
 - `.github/workflows/ci.yml`: Linux Python, Linux Rust (fmt, clippy, test, Windows cross-check) and Windows jobs. Every action is pinned to a commit SHA. The workflow is validated with actionlint only; it has not run on GitHub.
 - CI-1 now records each campaign with `sae synth --record` and compares `sae replay` at H0 and H2. The test-only session builder is removed. CI-4 pins the exact runtime distribution set.
+- F1 PLYR leg and F3 (profile rebuild from the same index and buses is byte-identical) now run against WU-5: `tests/e2e/test_fog.py` 3 passed, `tests/e2e/test_fog_f3.py` 3 passed; registry writer contract tests 11 passed.
 
 #### T8 Release, docs and M0 kit
 
@@ -123,6 +124,13 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
   architecture-alignment review after each wave.
 - `docs/plans/MVP_2day_plan.md` (2-day prototype push; no scope cuts) and `docs/BUILD_REPORT.md`.
 
+#### T9 Player profile
+
+- `sae profile update|show|close|exclude|delete|label` (`sae.profile`): append-only campaign index with a writer lock, strict fog-legal per-campaign summaries, deterministic read-only `profile.json`. The profile is not used by the engine until eligible (>= 8 closed campaigns, positive fold score).
+- `sae play`: runs `sae profile update` when `profile.mode != off`, then `sae daemon`; starts the daemon even if the update fails. It never launches Stellaris.
+- `append_registry_row` registry writer (C10) with contract tests; contract proposal 025-T9 and C10 v1.1.
+- User guide 4 and 8a/8c: commands, stored files, split prompt, index lock and corruption recovery, `--include-synth` (test-only).
+
 ### Changed
 
 #### Contracts and maintainer decisions, all teams
@@ -134,6 +142,9 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 
 #### CI
 
+- CI ran for the first time on 2026-10-20 (draft PR #1); all four jobs green on `ac5b338` (run 39484641559). `main` is
+  branch-protected: `python-linux`, `mod`, `rust-linux` and `windows` are required and must be up to date; force pushes
+  and deletion are blocked (admins are not enforced).
 - `.github/workflows/ci.yml` also runs on pushes to `feat/**` and on manual dispatch; a new `mod` job runs
   `check_mod.py` and the mod tool tests; Linux clippy uses `--all-targets` to match the pre-commit hook.
 
@@ -141,10 +152,10 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 
 #### Windows CI
 
-- Product: `FileInbox` now reports a directory named `c-*.json` as `invalid` on Windows (`os.open` on a directory raises `PermissionError` there, so it was logged and skipped silently).
 - Root cause of the Windows child-process failures (0xC0000142): `test_close_handle_noop_on_linux` called the real `CloseHandle(7)` on Windows and closed a live handle of the pytest process; it now pins `sys.platform` (proved on CI run 39449962091).
 - `src/sae/platform/spawn.py`: `sys.platform` guards so `mypy --strict src` passes on Windows (POSIX calls were reachable only behind a runtime variable mypy cannot narrow); no behaviour change.
 - CI: the CI-1/3/4/5 "collected" steps pass `-o addopts=` (the `-q` in addopts made `--co -q` print no node ids, so the count was 0).
+- Product: `FileInbox` now reports a directory named `c-*.json` as `invalid` on Windows (`os.open` on a directory raises `PermissionError` there, so it was logged and skipped silently).
 - Tests only (portability): `/x/p` and `/x/sae-parse` path expectations built via `Path`/`json.dumps`; `\` vs `/` in the rerun-import guard (`as_posix`); POSIX-only systemd probe test marked `linux_only`; `_win32` guard test forces `sys.platform="linux"`; 6.1 KB parametrize id shortened (exceeded the 32767-char `PYTEST_CURRENT_TEST` limit); import-guard subprocess now reports rc/stderr (exit 0xC0000142 DLL_INIT_FAILED, cause unconfirmed, likely runner-side).
 
 #### T6 Telemetry

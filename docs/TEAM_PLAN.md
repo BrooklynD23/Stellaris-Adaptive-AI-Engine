@@ -179,7 +179,7 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
   marked "requires the game".
 - Acceptance: all of the above green on this machine; R-gates documented, not claimed.
 - Depends on: every contract; integrates every team. Feeds: Wave 2 and 3.
-- Backlog: M4 paired A/B harness on a second machine; Windows CI leg for Python.
+- Backlog: M4 paired A/B harness on a second machine. (Windows CI leg for Python: done 2026-10-20, required check on `main`.)
 
 ## T8 — Release, docs, M0 kit (`docs/**` except this file, `README.md`, `CHANGELOG.md`, `changelog.d/**`, `packaging/**`, `tools/m0/**`, `src/sae/m0/**`)
 
@@ -207,10 +207,13 @@ runtime self-modification OFF (only validated, versioned, human-approved policie
 | WU-2 | T4 (+ T6) | C10 §4 daemon resolution in `src/sae/daemon/wiring.py` before `open_sink`; `src/sae/policies/builtin-0.1.0.json` (+ test: equals code constants); `LikelihoodModel`/templates/weights from the policy; `run_started.policy`; `health policy_pin_mismatch`; `--resume` sha check (exit 1); with the architect, the C8 §2 `engine.*` → `null` switch. T6: C8 §5.1 `open_sink(..., policy=)` | open |
 | WU-3 | T2 | C6 §2 `save_folder_key` + salt + `game_version` (`src/sae/adapters/assembler.py`); C6 §3 recording rules (`live.py`, `synth.py`), `record_capped`; `label.json` from `sae synth --record` | open |
 | WU-4 | T7 | F0–F4 fog checks on synth (plan §3); CI-4 `FORBIDDEN_SAE` += `sae.profile`, `sae.tune`; bus checks for C5 v1.3; whole-bus comparisons drop `run_started.policy`, determinism hashes drop `save_folder_key` | open |
-| WU-5 | T9 | `sae profile update\|show\|delete\|close\|exclude\|label` (C10 §1–§2) and the `sae play` launcher (C8 §5, D5) | after WU-1, WU-3 |
+| WU-5 | T9 | `sae profile update\|show\|delete\|close\|exclude\|label` (C10 §1–§2) and the `sae play` launcher (C8 §5, D5) | DONE X1 2026-10-20: `sae profile` + `sae play`, tests `tests/unit/t9/`; index lock, immediate privacy effect and no-overwrite labels per proposal 025 §3.7/§3.9/§3.10 |
 | WU-6 | T9 | `sae tune detector` (plan §4) | after WU-2, WU-5, M2 labels |
-| WU-7 | T7 + T9 (+ architect) | `sae gate stage1\|stage2` (T7), `sae policy …` (T9), `c10_profile.append_registry_row` (architect) | after WU-2, WU-4, WU-6 |
+| WU-7 | T7 + T9 (+ architect) | `sae gate stage1\|stage2` (T7), `sae policy …` (T9), `c10_profile.append_registry_row` (architect) | after WU-2, WU-4, WU-6. Note: `append_registry_row` + isatty refusal landed X1 (proposal 025); `sae policy` CLI and gate open (M2) |
 | WU-8 | T8 | docs (privacy, policy registry and rollback, recording hygiene, launcher); A-46 in the M0 checklist | after WU-1 |
+
+Fog checks (WU-4, X1 2026-10-20): F1 PLYR leg exercised on synth in CI (`tests/e2e/test_fog.py::test_f1_plyr_leg_reaches_god_bus`). F3 DONE: `tests/e2e/test_fog_f3.py` 3 passed.
+Backlog: `drift_alarm` rarely fires while sigma = `hyper_sd`; revisit with M2 data.
 
 Parked: proposal 023 / WU-9 (D1 = no). Deferred: 019 Part B, 020 §3 (D2, once a profile is eligible).
 Coverage: `uv run pytest --cov` (opt-in, `[tool.coverage]` `fail_under = 90`; maintainer target ≥ 90 % lines).
@@ -229,7 +232,7 @@ installed); each needs the maintainer's saves or the game. Added on the maintain
 | V-2 | Knob A/B in game: does an applied econ plan change AI behaviour? | Fleet power B/A ≥ 1.3 after 15 years (already M0-8 in `docs/m0_checklist.md`) | the game, M0 weekend | maintainer, T8 kit | M0 |
 | V-3 | Adaptation has signal, not noise: long runs must show real strategy switches and a reward spread | On recorded real or replayed campaigns: > 1 switch where the player changes style; rewards not all within ±0.02 (a 200-year synth run gave 1 switch, 3 batches, 99 rewards within ±0.02) | V-1 data or real recordings | T4 + T7 | M2 |
 | V-4 | Turtle vs builder counters really differ (decision D-V4 in the T4 section: distinct template if M0-7 passes, else collapse the table to 3 counters) | `outscale_siege` and `early_punish` produce measurably different AI behaviour once the hull mix returns; if M0-7 fails, V-4 closes by the collapse recorded in `contracts/CHANGES.md` | M0-7 result (A-22) | T4 + T1; decision architect + maintainer | at the M0-7 result |
-| V-5 | Fog-perturbation test on real saves: hide one god-only field and confirm beliefs don't move | Belief change = 0 for every god-only perturbation | `ReplayAdapter(parser=...)` seam, real recordings | T9 + T7 | M2 |
+| V-5 | Fog-perturbation test on real saves: hide one god-only field and confirm beliefs don't move | Belief change = 0 for every god-only perturbation | `ReplayAdapter(parser=...)` seam, real recordings | T9 + T7 | M2 (X1: F1's PLYR leg now runs on synth in CI, `tests/e2e/test_fog.py::test_f1_plyr_leg_reaches_god_bus`; real recordings still M2) |
 
 The runtime still ships only validated, versioned policies approved by a human; no test here turns on
 runtime self-modification.

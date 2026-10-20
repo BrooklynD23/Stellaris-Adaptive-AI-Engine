@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.3 (`v = 1` in the resolved config) |
-| Status | FROZEN v1.3 (2026-10-19; v1 + composition-root factories §5.1, proposal 008, maintainer decisions; 009 `health=` keyword, 010 optional extras; v1.2 proposals 019 Part A `open_sink(policy=)`, 020 `paths.sae_dir` + `profile`, 021 `policy`, 022 `record`, D5 launcher entry; v1.3 `engine.rho|likelihood_clip|belief_threshold` default `null` = from policy, W1-1 landed) |
+| Version | 1.5 (`v = 1` in the resolved config) |
+| Status | FROZEN v1.5 (2026-10-20; v1.5 proposal 026: telemetry memory budget measures private memory, §2; v1.4 proposal 025: `sae profile` and `sae play` dispatched, `tests/unit/t9/**`; 2026-10-19: v1 + composition-root factories §5.1, proposal 008, maintainer decisions; 009 `health=` keyword, 010 optional extras; v1.2 proposals 019 Part A `open_sink(policy=)`, 020 `paths.sae_dir` + `profile`, 021 `policy`, 022 `record`, D5 launcher entry; v1.3 `engine.rho|likelihood_clip|belief_threshold` default `null` = from policy, W1-1 landed) |
 | Owner | architect (contract, `pyproject.toml`, `src/sae/cli.py`) |
 | Producers | user (`sae.toml`, env, flags); `resolve_config` |
 | Consumers | every team |
@@ -46,10 +46,16 @@ written with every field present (`--resume`) no longer overrides the policy unl
 core only receives the effective config (`effective_engine_config`), never a `null`. Behaviour is unchanged for
 the built-in policy 0.1.0, which carries exactly the old defaults (0.02 / 3.0 / 0.45).
 
-**Telemetry process memory budget** (resource proposal §2 and §8; the signoff does not change it): `sae-telemetry`
-RSS ≤ 150 MiB. Above that it logs one line and exits 1 (it is optional; the engine is unaffected). This is a fixed
-budget, not a config key. Unlike the daemon (C7 §4.6, signoff change 6: breach at 150, exit at 300) there is no
-softer exit tier, because losing telemetry costs no decision. A larger cap needs measured RSS (R-1 run (d)).
+**Telemetry process memory budget** (resource proposal §2 and §8; the signoff does not change it; v1.5 proposal 026,
+maintainer decision 2026-10-20): `sae-telemetry` **private memory ≤ 150 MiB**. Private memory is measured per
+platform: Linux `RssAnon` (anonymous resident pages, `/proc/self/status`); Windows private bytes (psutil
+`memory_info().private`); any other platform full RSS as the fallback. File-backed shared library pages (pyarrow,
+rerun) are not counted: they are shared and reclaimable (CI run 39442249597: RSS 152-165 MiB = anon 59-60 MiB +
+file-backed 92-106 MiB; WSL2 RSS 118-124 MiB). Above the budget it logs one line and exits 1 (it is optional; the
+engine is unaffected). This is a fixed budget, not a config key; the 150 MiB value is unchanged. Unlike the daemon
+(C7 §4.6, signoff change 6: breach at 150, exit at 300, on `daemon_rss_bytes`) there is no softer exit tier, because
+losing telemetry costs no decision. The daemon budget and its RSS metric are unchanged by v1.5. A larger cap needs
+measured memory (R-1 run (d)).
 
 ## 3. Path auto-detection (T2 implements)
 
@@ -102,13 +108,13 @@ as an H1 floor. H3 is reached only by RAM triggers. **Confirmed by the maintaine
 | `sae telemetry` | `sae.telemetry.cli` (T6) | `--run <run_id>`; `--rerun-url <url>` or `--rrd <path>` (the optional third process) |
 | `sae bench` | `sae.bench.cli` (T7) | defined in T7's plan; entry point only is contracted |
 | `sae m0` | `sae.m0.cli` (T8) | defined in T8's plan; entry point only is contracted |
+| `sae profile update\|show\|delete\|close\|exclude\|label` | `sae.profile.cli` (T9, v1.4) | C10 §1–§2 (v1.1 rules); refuses while the game process is detected unless `--force`; idle priority |
+| `sae play` (launcher, maintainer D5) | `sae.profile.launcher` (T9, v1.4) | common flags; runs `sae profile update` when `profile.mode != "off"`, then starts `sae daemon` with the same flags; on a profile-update failure it prints a visible notice and **still starts the daemon**; never launches Stellaris, never touches its install or mod folder |
 
 Planned, **not dispatched yet** (added to `src/sae/cli.py` only when the module exists; plan §6 WU-5..WU-7, D5):
 
 | Command | Module (owner) | Contracted behaviour |
 |---|---|---|
-| `sae profile update\|show\|delete\|close\|exclude\|label` | `sae.profile.cli` (T9, WU-5) | C10 §1–§2; refuses while the game process is detected unless `--force`; idle priority |
-| `sae play` (launcher, maintainer D5) | `sae.profile.launcher` (T9, WU-5) | common flags; runs `sae profile update` when `profile.mode != "off"`, then starts `sae daemon` with the same flags; on a profile-update failure it prints a visible notice and **still starts the daemon**; never launches Stellaris, never touches its install or mod folder |
 | `sae tune detector` | `sae.tune.cli` (T9, WU-6) | C10 §4, plan §4 |
 | `sae policy prereg\|approve\|reject\|promote\|rollback\|pin` | `sae.profile.policy_cli` (T9, WU-7) | C10 §5 human-only rows: interactive TTY, typed 8-hex confirmation |
 | `sae gate stage1\|stage2` | `sae.bench.gate.cli` (T7, WU-7) | C10 §6 |
@@ -179,7 +185,7 @@ runs/
 | `tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**` | T7 |
 | `docs/**` (except `docs/TEAM_PLAN.md`), `README.md`, `CHANGELOG.md`, `changelog.d/**`, `packaging/**`, `tools/m0/**`, `src/sae/m0/**` | T8 |
 | `docs/TEAM_PLAN.md` | architect |
-| `src/sae/profile/**`, `src/sae/tune/**` | T9 (v1.2) |
+| `src/sae/profile/**`, `src/sae/tune/**`, `tests/unit/t9/**` | T9 (v1.2; tests v1.4) |
 | `src/sae/policies/**` (built-in policy package data) | T4, maintainer review required (C10 §4) |
 | `tests/unit/<team>/**` (e.g. `tests/unit/t4/`) | that team |
 

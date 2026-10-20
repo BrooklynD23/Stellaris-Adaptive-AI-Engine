@@ -1,4 +1,4 @@
-"""F4 code boundary (player-profile plan section 3) and F3 placeholder.
+"""F4 code boundary (player-profile plan section 3). F3 lives in tests/e2e/test_fog_f3.py.
 
 ``sae/core`` and ``sae/daemon`` must not name god-view or profile-store artefacts. The import-graph half
 (``sae.profile``, ``sae.tune`` forbidden) is ``test_ci4_imports.FORBIDDEN_SAE``.
@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-
-import pytest
 
 from .conftest import REPO
 
@@ -44,9 +42,3 @@ def test_f4_pattern_catches_each_name() -> None:
     for name in FORBIDDEN_NAMES:
         assert _PATTERN.search(f"x = open('{name}')")
 
-
-@pytest.mark.xfail(
-    reason="F3 needs WU-5 (T9 `sae profile update --include-synth`), which does not exist yet", strict=True
-)
-def test_f3_past_campaign_god_buses_do_not_move_profile() -> None:
-    raise NotImplementedError("WU-5 missing")

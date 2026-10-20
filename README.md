@@ -50,7 +50,7 @@ uv run pytest -x -q
 
 | Built and integrated (game-free tests) | Needs the game (not run) |
 |---|---|
-| T1 `sae_bridge` mod 0.1.0, T2 adapters (`replay`, `synth`, live log/save), T3 `sae-parse`, T4 engine (`sae daemon`), T5 Resource Governor, T6 bus, `sae ctl` and `sae telemetry`, T7 CI, e2e tests and `sae bench`, T8 `sae m0` kit and docs. Wave 2 integration done: `synth`, `replay` and `live` (against a fake game dir) run end to end | M0 spike ([checklist](docs/m0_checklist.md)), release gates R-1..R-6 |
+| T1 `sae_bridge` mod 0.1.0, T2 adapters (`replay`, `synth`, live log/save), T3 `sae-parse`, T4 engine (`sae daemon`), T5 Resource Governor, T6 bus, `sae ctl` and `sae telemetry`, T7 CI, e2e tests and `sae bench`, T8 `sae m0` kit and docs, T9 `sae profile` (campaign index, read-only player profile) and `sae play` (profile update, then daemon). Wave 2 integration done: `synth`, `replay` and `live` (against a fake game dir) run end to end | M0 spike ([checklist](docs/m0_checklist.md)), release gates R-1..R-6 |
 
 Release gates R-1..R-6 need the game and have not been run ([procedures](bench/README.md)). GitHub Actions has
 not run yet; `ci.yml` passes actionlint locally.
@@ -59,7 +59,7 @@ not run yet; `ci.yml` passes actionlint locally.
 
 | Doc | For |
 |---|---|
-| [User guide](docs/user_guide.md) | install, commands, presets, Ironman, multiplayer, troubleshooting |
+| [User guide](docs/user_guide.md) | install, commands (incl. `sae profile`, `sae play`), presets, privacy, Ironman, multiplayer, troubleshooting |
 | [Developer guide](docs/developer_guide.md) | layout, contracts, change protocol, tests |
 | [M0 checklist](docs/m0_checklist.md) and [runbook](tools/m0/README.md) | the feasibility weekend |
 | [MVP 2-day plan](docs/plans/MVP_2day_plan.md) | the current prototype push |

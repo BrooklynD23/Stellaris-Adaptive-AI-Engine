@@ -17,6 +17,8 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "telemetry": ("sae.telemetry.cli", "T6"),
     "bench": ("sae.bench.cli", "T7"),
     "m0": ("sae.m0.cli", "T8"),
+    "profile": ("sae.profile.cli", "T9"),
+    "play": ("sae.profile.launcher", "T9"),
 }
 
 
