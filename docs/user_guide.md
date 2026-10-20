@@ -103,9 +103,59 @@ the session (maintainer decision).
 
 ## 8. Recordings and sharing
 
-`sae synth --record` and live recordings copy the raw `game.log` (including unredacted `PLYR` player lines) and
-every autosave into the run's record dir; only `bus.jsonl` is redacted. **Share `bus.jsonl` and `.rrd` files, not
-the record dir: it holds the raw game log with player data.**
+`sae synth --record` and live recordings copy every autosave into the run's record dir. With the default
+`record.redact_plyr = true` the recorded `game.log` has the same `PLYR` redaction as `bus.jsonl`. **Never
+share the record dir: its `saves/` hold full unredacted autosaves. Share only `bus.jsonl` and `.rrd`.**
+
+**Replaying a redacted recording is supported.** With redaction on, each `PLYR` line in the recorded `game.log`
+becomes a stub, `SAE|v1|PLYR|<date>|sid=<n>`: the player id is kept, the name and other fields are dropped.
+`sae replay` parses the stub like any `PLYR` line (no `log_parse_error`); the player is shown as `sid <n>`
+(UNVERIFIED until T2 lands the recorder change; M0 tests it against a real log).
+
+**Recording hygiene** (C6 §3, `record` config; UNVERIFIED until M0-11/M0-3 show real logs):
+
+| Key | Default | Effect |
+|---|---|---|
+| `record.saves` | `all` | `none` = log-only recording; `every_n` = every `record.save_every`-th save (default 12) |
+| `record.max_bytes` | 4294967296 | per recording dir; past it save copies stop, the log keeps recording, one `health record_capped` |
+| `record.redact_plyr` | `true` | `false` needs `preset = "dev"` and writes an empty `GOD_VIEW_INSIDE` file: never share that dir |
+
+Nothing is deleted automatically. `sae synth --record` also writes `label.json` (the campaign label).
+
+## 8a. Privacy, profile and salt reset
+
+Profile files live in `<sae_dir>` (default under your user folder) and are never uploaded. They hold hashes,
+enums and numbers only: no save path, folder name, empire, species, leader or player name (C10). A campaign is
+identified by `save_folder_key`, an HMAC of the save folder name with a random 32-byte install salt in
+`<sae_dir>/salt`. The folder name itself never reaches a profile, bus or policy file (recordings copy raw saves, see §8; A-46, UNVERIFIED).
+
+- **Strict profile mode** is the only mode in v1 (`profile.mode = "off"` or `"strict"`, default `off`): it learns
+  from fog-legal data only. Reputation mode is not in v1 (maintainer decision D1).
+- **Salt reset:** delete `<sae_dir>/salt`. Older folder keys become unlinkable, so past campaigns stop merging
+  with new ones. A salt that is not exactly 32 bytes is never rewritten: SAE logs one `invalid_event` and runs with
+  no folder key. Delete the file to fix that.
+- Several people on one PC: set `profile.player_key` per OS user (`^[a-z0-9_]{1,32}$`).
+
+## 8b. Policy registry and rollback
+
+The engine's tunable numbers are a policy, resolved once at daemon start (C10 §4): config `policy.pin`
+`"builtin"` (the shipped constants), a sha256 (must be approved in the registry), or `null` (the registry's
+current policy, else built-in). Any failure falls back to the built-in policy and records `fallback_reason` in
+`run_started.payload.policy`. A game-version mismatch only raises one `health policy_pin_mismatch`; the policy is
+kept. `--resume` exits 1 if the policy sha changed since the run began.
+
+`policies/registry.jsonl` is append-only. A policy needs `propose, prereg, stage1_pass, stage2_pass, approve`
+in order before `promote`. Human rows come only from the planned T9 policy command (`policy` subcommands prereg, approve, reject, promote, rollback) on an interactive terminal.
+
+**Roll back:** the planned T9 policy rollback command (target: the built-in sha or an earlier promoted sha), or at once set
+`policy.pin = "builtin"` in the config. A broken registry also falls back to built-in by itself.
+
+## 8c. The `play` launcher (planned)
+
+The `play` launcher (C8 §5, maintainer D5; waits for T9 WU-5, not built yet) will run the profile update when
+`profile.mode != "off"`, then start the daemon with the same flags. If the update fails it prints a notice and
+still starts the daemon. It never launches Stellaris or touches its install or mod folder. Until then run
+`sae daemon` directly.
 
 ## 9. Troubleshooting
 

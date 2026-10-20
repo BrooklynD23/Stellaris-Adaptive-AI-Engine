@@ -18,7 +18,14 @@ console = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8", "hypothesis>=6", "mypy>=1.10", "ruff>=0.5", "types-psutil"]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+    "mypy>=1.10",
+    "ruff>=0.5",
+    "types-psutil",
+    "pytest-cov>=7.1.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -26,6 +33,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sae"]
+# Package data: the built-in PolicyVersion (C10 section 4). Explicit so a VCS-ignore rule can never drop it.
+artifacts = ["src/sae/policies/*.json"]
 
 [tool.ruff]
 line-length = 120
@@ -44,3 +53,12 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+# Coverage is run explicitly (`uv run pytest --cov`), never from addopts. Maintainer target: >= 90 % line coverage.
+[tool.coverage.run]
+source = ["src/sae"]
+branch = false
+parallel = true
+
+[tool.coverage.report]
+fail_under = 90

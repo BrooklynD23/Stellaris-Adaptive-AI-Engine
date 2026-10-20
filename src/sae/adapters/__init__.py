@@ -6,7 +6,7 @@ from sae.adapters.health import HealthFn, log_health
 from sae.adapters.live import LiveAdapter
 from sae.adapters.paths import resolve_paths
 from sae.contracts.c6_adapter import AdapterMode, GameAdapter, GodSink, SaveParser
-from sae.contracts.c8_config import SaeConfig
+from sae.contracts.c8_config import SaeConfig, sae_dir
 
 __all__ = ["LiveAdapter", "make_adapter"]
 
@@ -25,4 +25,6 @@ def make_adapter(
         god_sink,
         health=health if health is not None else log_health,
         release=config.adapter is AdapterMode.RELEASE,
+        record=config.record,
+        sae_dir=sae_dir(config),
     )

@@ -6,7 +6,7 @@ Metrics read only managed AIs' own state (never player data). ``reward = tanh(su
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 from pydantic import Field
 
@@ -80,8 +80,13 @@ def _mean_delta(opened: WindowSnapshot, now: WindowSnapshot, field: str) -> floa
     return sum(deltas) / len(deltas) if deltas else None
 
 
-def build(closed: WindowClosed, opened: WindowSnapshot | None, now: WindowSnapshot) -> OutcomePayload:
-    """Outcome payload for a closed window. No opening snapshot -> empty metrics, reward 0."""
+def build(closed: WindowClosed, opened: WindowSnapshot | None, now: WindowSnapshot,
+          weights: Mapping[str, float] | None = None) -> OutcomePayload:
+    """Outcome payload for a closed window. No opening snapshot -> empty metrics, reward 0.
+
+    ``weights`` come from the active policy (C10 section 4); None = the built-in ``WEIGHTS``.
+    """
+    w = WEIGHTS if weights is None else weights
     metrics: dict[str, float] = {}
     if opened is not None:
         for key, fld in (("d_fleet_share", "fleet_share"), ("d_systems_owned", "systems_owned"),
@@ -90,7 +95,7 @@ def build(closed: WindowClosed, opened: WindowSnapshot | None, now: WindowSnapsh
             if v is not None and math.isfinite(v):
                 metrics[key] = v
         metrics["n_ais"] = float(len(opened.ais))
-    raw = sum(WEIGHTS[k] * v for k, v in metrics.items() if k in WEIGHTS)
+    raw = sum(w[k] * v for k, v in metrics.items() if k in w)
     reward = max(-1.0, min(1.0, math.tanh(raw)))
     return OutcomePayload(strategy=closed.strategy, window_from=date_of(closed.from_mi),
                           window_to=date_of(closed.to_mi), forced=closed.forced, metrics=metrics, reward=reward)

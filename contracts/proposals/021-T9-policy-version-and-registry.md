@@ -1,6 +1,7 @@
 # 021-T9 — PolicyVersion file, append-only registry, gate evidence (C10 §4–§6; C8 v1.2)
 
-Status: PROPOSED (2026-10-19, T9 lead). Reporter: T9. Contracts: new C10 §4–§6 (with proposal 020);
+Status: **ACCEPTED-WITH-CHANGES** as C10 v1 §4–§6 + C8 v1.2 + C5 v1.3 (2026-10-19, architect, WU-1; changes W1-1..W1-5, W1-9, W1-10 in `contracts/CHANGES.md`; policies personal only, maintainer D4).
+Original: PROPOSED (2026-10-19, T9 lead). Reporter: T9. Contracts: new C10 §4–§6 (with proposal 020);
 C8 §2 (`engine.rho`, `engine.likelihood_clip`, `engine.belief_threshold` defaults become `null` = from policy;
 new `policy` section). Consumers: T4 (loads policy read-only at start), T7 (gate writes evidence rows),
 T9 (tuner writes candidates), T6 (views), T8 (docs). Plan: `docs/expansion/player_profile_and_rsi_plan.md` §5.

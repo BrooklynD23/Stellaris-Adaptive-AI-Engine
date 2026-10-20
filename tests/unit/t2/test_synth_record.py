@@ -16,6 +16,8 @@ from sae.contracts.c6_adapter import GameAdapter, IntentAck, Observation
 from sae.contracts.c8_config import SaeConfig
 from sae.contracts.common import Archetype
 from sae.core import engine
+from sae.core.policy import load_builtin
+from sae.daemon.policy_resolve import effective_engine_config
 
 from ._asm_helpers import Sink
 from .test_synth import EXE, BinaryParser, NullParser, drive, make
@@ -89,7 +91,8 @@ def test_cli_record_dir_must_be_empty(tmp_path: Path, capsys: pytest.CaptureFixt
 
 async def _engine_run(a: GameAdapter) -> list[tuple[str, str]]:
     """Loop-shaped driver over T4's pure engine; returns (game_date, strategy) of every strategy_selected."""
-    ctx = engine.EngineCtx(mode=a.mode, cfg=SaeConfig().engine)
+    # C8 v1.3: engine.* defaults are null and come from the policy, as the daemon does after resolve_policy.
+    ctx = engine.EngineCtx(mode=a.mode, cfg=effective_engine_config(SaeConfig().engine, load_builtin()))
     state = engine.initial_state(ctx.cfg)
     q: asyncio.Queue[tuple[str, object]] = asyncio.Queue()
     out: list[tuple[str, str]] = []

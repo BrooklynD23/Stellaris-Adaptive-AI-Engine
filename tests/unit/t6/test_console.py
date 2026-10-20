@@ -166,3 +166,30 @@ def test_governor_and_deferred_views(tmp_path: Path) -> None:
     with (run / "bus.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(rule_018 + "\n")
     assert [r["seq"] for r in _rows(run, "SELECT * FROM v_deferred ORDER BY seq")] == [71, 72]
+
+
+def test_v_runs_policy_sha(tmp_path: Path) -> None:
+    from sae.bus import open_sink
+    from sae.contracts.c5_bus import PolicyRef
+
+    from ._fixtures import RUN_ID, cfg
+
+    ref = PolicyRef(version="0.1.0", sha256="b" * 64, source="builtin", fallback_reason="pin missing")
+    open_sink(tmp_path, RUN_ID, cfg("balanced"), policy=ref).close()
+    conn = duckdb.connect()
+    query.load_views(conn, tmp_path / "bus.jsonl")
+    row = conn.execute(
+        "SELECT policy_version, policy_sha256, policy_source, policy_fallback_reason FROM v_runs").fetchone()
+    assert row == ("0.1.0", "b" * 64, "builtin", "pin missing")
+
+
+def test_v_runs_without_policy_is_null(tmp_path: Path) -> None:
+    from sae.bus import open_sink
+
+    from ._fixtures import RUN_ID, cfg
+
+    open_sink(tmp_path, RUN_ID, cfg("balanced")).close()
+    conn = duckdb.connect()
+    query.load_views(conn, tmp_path / "bus.jsonl")
+    rows = conn.execute("SELECT policy_version, policy_sha256 FROM v_runs").fetchall()
+    assert rows == [(None, None)]

@@ -110,9 +110,16 @@ class SnapRecord(_CountryStats):
 
 
 class PlayerRecord(_CountryStats):
-    """The player's true state. GOD-VIEW: routed only to ``observation_god`` (C6 section 4)."""
+    """The player's true state. GOD-VIEW: routed only to ``observation_god`` (C6 section 4).
+
+    ``name`` is optional for PLYR only (C1 section 3, C6 section 3): the recorder's redacted stub
+    ``SAE|v1|PLYR|<date>|sid=<n>`` parses as a stat-less, name-less record so replay keeps the human's sid.
+    """
 
     type: Literal["PLYR"] = "PLYR"
+    name: str | None = Field(  # type: ignore[assignment]
+        default=None, min_length=1, max_length=256, description="[This.GetName]; absent only in a recorded stub."
+    )
 
 
 class AckRecord(_Record):

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.1 (`v = 1` in the resolved config) |
-| Status | FROZEN v1.1 (2026-10-19; v1 + composition-root factories §5.1, proposal 008, maintainer decisions; 009 `health=` keyword, 010 optional extras) |
+| Version | 1.3 (`v = 1` in the resolved config) |
+| Status | FROZEN v1.3 (2026-10-19; v1 + composition-root factories §5.1, proposal 008, maintainer decisions; 009 `health=` keyword, 010 optional extras; v1.2 proposals 019 Part A `open_sink(policy=)`, 020 `paths.sae_dir` + `profile`, 021 `policy`, 022 `record`, D5 launcher entry; v1.3 `engine.rho|likelihood_clip|belief_threshold` default `null` = from policy, W1-1 landed) |
 | Owner | architect (contract, `pyproject.toml`, `src/sae/cli.py`) |
 | Producers | user (`sae.toml`, env, flags); `resolve_config` |
 | Consumers | every team |
@@ -30,11 +30,21 @@ Later wins: **built-in defaults < preset < TOML file < `SAE_*` environment < CLI
 | Section | Owner of semantics | Keys (defaults) |
 |---|---|---|
 | top level | C8 | `v` (1), `preset` (`balanced`), `adapter` (`live`), `min_level` (`H0`) |
-| `paths` | T2 | `user_dir`, `game_log`, `save_dir`, `ini_path`, `parser_exe`, `runs_dir` (all `null` = auto) |
-| `engine` | T4 | `rho` 0.02, `likelihood_clip` 3.0, `belief_threshold` 0.45, `commitment_months` 24, `max_managed` 16, `safety_floor_ship_min` 10 (unused while fleet bias is dropped, C3 v1.1), `ttl_months` 3, `seed` 0 |
+| `paths` | T2 | `user_dir`, `game_log`, `save_dir`, `ini_path`, `parser_exe`, `runs_dir`, `sae_dir` (v1.2) (all `null` = auto) |
+| `engine` | T4 | `rho` `null`, `likelihood_clip` `null`, `belief_threshold` `null` (v1.3: `null` = from the policy; built-in 0.1.0 = 0.02 / 3.0 / 0.45), `commitment_months` 24, `max_managed` 16, `safety_floor_ship_min` 10 (unused while fleet bias is dropped, C3 v1.1), `ttl_months` 3, `seed` 0 |
 | `bridge` | T1/T2 | `emit_period` 1, `quiet` 0 |
 | `governor` | T5 | C7 `GovernorConfig` |
 | `telemetry` | T6 | `enabled` false, `tier` T1, `rerun_url` null, `rrd_path` null, `viewer_memory_limit` "512MB" |
+| `profile` (v1.2) | T9 | `mode` `"off"` (`off` / `strict`), `player_key` `"default"` (`^[a-z0-9_]{1,32}$`; one profile folder per key; multi-user PCs set it per OS user). The daemon reads no profile file in v1 (C10 §3 deferred) |
+| `policy` (v1.2) | T4 | `pin` `null` (`null` = registry current, else built-in; `"builtin"`; or a policy sha256), C10 §4 |
+| `record` (v1.2) | T2 | `max_bytes` 4294967296 (per recording dir), `saves` `"all"` (`all` / `none` / `every_n`), `save_every` 12 (1–1000), `redact_plyr` true (`false` is a config error unless `preset = "dev"`); C6 §3 |
+
+**Detector keys and the policy** (v1.3, proposal 021, CHANGES W1-1 landed). `engine.rho`, `engine.likelihood_clip`
+and `engine.belief_threshold` default to `null` = take the value from the loaded PolicyVersion's `detector` (C10 §4);
+an explicitly set number overrides the policy value. `null` and an absent key mean the same, so a resolved config
+written with every field present (`--resume`) no longer overrides the policy unless a number was set. The engine
+core only receives the effective config (`effective_engine_config`), never a `null`. Behaviour is unchanged for
+the built-in policy 0.1.0, which carries exactly the old defaults (0.02 / 3.0 / 0.45).
 
 **Telemetry process memory budget** (resource proposal §2 and §8; the signoff does not change it): `sae-telemetry`
 RSS ≤ 150 MiB. Above that it logs one line and exits 1 (it is optional; the engine is unaffected). This is a fixed
@@ -56,6 +66,9 @@ softer exit tier, because losing telemetry costs no decision. A larger cap needs
   passes the resolved path on (`sae replay`/`sae synth` write it into the run's `paths.parser_exe` when the
   user left it `null`); the resolved path is logged at start, and a wrong binary is caught by the C4
   `schema_version` check.
+- `sae_dir` (v1.2) = `%LOCALAPPDATA%\sae` (Windows; `~/AppData/Local/sae` if unset) or
+  `${XDG_STATE_HOME:-~/.local/state}/sae` (Linux). Resolved only through `c8_config.sae_dir(config)` /
+  `default_sae_dir()`; holds the C10 files and the install salt (C6 §2). Never under `user_dir`.
 - `runs_dir` = `%LOCALAPPDATA%\sae\runs` (Windows) or `${XDG_STATE_HOME:-~/.local/state}/sae/runs`
   (Linux): absolute and per-user so `sae daemon` and `sae ctl` started from different directories agree;
   never under `user_dir`.
@@ -90,6 +103,16 @@ as an H1 floor. H3 is reached only by RAM triggers. **Confirmed by the maintaine
 | `sae bench` | `sae.bench.cli` (T7) | defined in T7's plan; entry point only is contracted |
 | `sae m0` | `sae.m0.cli` (T8) | defined in T8's plan; entry point only is contracted |
 
+Planned, **not dispatched yet** (added to `src/sae/cli.py` only when the module exists; plan §6 WU-5..WU-7, D5):
+
+| Command | Module (owner) | Contracted behaviour |
+|---|---|---|
+| `sae profile update\|show\|delete\|close\|exclude\|label` | `sae.profile.cli` (T9, WU-5) | C10 §1–§2; refuses while the game process is detected unless `--force`; idle priority |
+| `sae play` (launcher, maintainer D5) | `sae.profile.launcher` (T9, WU-5) | common flags; runs `sae profile update` when `profile.mode != "off"`, then starts `sae daemon` with the same flags; on a profile-update failure it prints a visible notice and **still starts the daemon**; never launches Stellaris, never touches its install or mod folder |
+| `sae tune detector` | `sae.tune.cli` (T9, WU-6) | C10 §4, plan §4 |
+| `sae policy prereg\|approve\|reject\|promote\|rollback\|pin` | `sae.profile.policy_cli` (T9, WU-7) | C10 §5 human-only rows: interactive TTY, typed 8-hex confirmation |
+| `sae gate stage1\|stage2` | `sae.bench.gate.cli` (T7, WU-7) | C10 §6 |
+
 Common flags: `--config <path>`, `--preset <name>`, `--set <k>=<v>` (repeatable), `--runs-dir <dir>`.
 `replay` and `synth` construct their adapter and call the daemon loop through one function T4 exports:
 
@@ -113,7 +136,7 @@ factory below (via `importlib`) before calling any; a missing module or attribut
 
 | Factory | Owner | Returns |
 |---|---|---|
-| `sae.bus.open_sink(run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False)` | T6 | bus writer satisfying T4's `BusSink` port (`emit`, `flush`, `close`) and C6 `GodSink`; writes `run_started` unless `resume` (C5 §1) |
+| `sae.bus.open_sink(run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False, policy: PolicyRef \| None = None)` | T6 | bus writer satisfying T4's `BusSink` port (`emit`, `flush`, `close`) and C6 `GodSink`; writes `run_started` unless `resume` (C5 §1), with `payload.policy = policy` (v1.2, proposal 019; wiring resolves the policy, C10 §4, **before** calling `open_sink`) |
 | `sae.control.open_inbox(run_dir: Path)` | T6 | C9 file inbox satisfying T4's `ControlInbox` port (`poll`, `complete`) |
 | `sae.governor.make_governor(cfg, min_level, preset, *, cpu_count=None, emit_period=None)` | T5 | C7 `Governor`; wiring passes `emit_period=config.bridge.emit_period` (C7 §1) |
 | `sae.platform.make_sensors(game_names=None)` / `make_platform()` | T5 | C7 `Sensors` / `Platform` |
@@ -156,9 +179,12 @@ runs/
 | `tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**` | T7 |
 | `docs/**` (except `docs/TEAM_PLAN.md`), `README.md`, `CHANGELOG.md`, `changelog.d/**`, `packaging/**`, `tools/m0/**`, `src/sae/m0/**` | T8 |
 | `docs/TEAM_PLAN.md` | architect |
+| `src/sae/profile/**`, `src/sae/tune/**` | T9 (v1.2) |
+| `src/sae/policies/**` (built-in policy package data) | T4, maintainer review required (C10 §4) |
 | `tests/unit/<team>/**` (e.g. `tests/unit/t4/`) | that team |
 
-Dependencies: runtime `pydantic`, `psutil` only. The daemon's import whitelist is stdlib, psutil,
+Dependencies: runtime `pydantic`, `psutil` only. Dev-only: `pytest-cov` (coverage is run explicitly with
+`uv run pytest --cov`, never in the default `addopts`; `[tool.coverage]` `fail_under = 90`). The daemon's import whitelist is stdlib, psutil,
 NumPy, pydantic (resource proposal); `rerun-sdk` is allowed only in `sae.telemetry`. Optional extras
 (proposal 010): `telemetry = ["rerun-sdk==0.39.0"]` (pinned exactly; imported lazily by `sae.telemetry`
 only) and `console = ["duckdb>=1.1,<2"]` (imported by `tools/console/` only). No CUDA, DirectML, Vulkan, torch, jax, cupy, pynvml, duckdb or polars
@@ -179,6 +205,39 @@ belief_threshold = 0.5
 
 [governor]
 pause_detection = false
+```
+
+v1.2 sections:
+
+```toml model=SaeConfig
+[paths]
+sae_dir = "D:/sae-state"
+
+[profile]
+mode = "strict"
+player_key = "danny"
+
+[policy]
+pin = "builtin"
+
+[record]
+saves = "every_n"
+save_every = 6
+max_bytes = 2147483648
+```
+
+Invalid: raw PLYR recordings outside the dev preset.
+
+```toml model=SaeConfig invalid
+[record]
+redact_plyr = false
+```
+
+Invalid: a pin that is neither `builtin` nor a sha256.
+
+```toml model=SaeConfig invalid
+[policy]
+pin = "latest"
 ```
 
 Invalid: unknown key.

@@ -399,4 +399,4 @@ def test_raising_health_does_not_drop_lines_and_parser_crash_is_health(tmp_path:
         b._apply_parse()
 
     asyncio.run(go())
-    assert any(k is HealthKind.PARSE_FAILED and "parser crashed" in (d or "") for k, d in ev)
+    assert any(k is HealthKind.PARSE_FAILED and "RuntimeError" in (d or "") for k, d in ev)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -97,3 +98,24 @@ def test_any_exception_exits_1_and_passes_resume(tmp_path: Path, monkeypatch: py
     assert cli.main("daemon", ["--runs-dir", str(tmp_path)]) == 1
     assert seen == [False] and "kaboom" in capsys.readouterr().err
     assert not (tmp_path / "CURRENT").exists()
+
+
+def test_resume_with_changed_policy_sha_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+                                                capsys: pytest.CaptureFixture[str]) -> None:
+    """C8 v1.3: the resolved config holds null engine.* so the policy decides; a new sha refuses the resume."""
+    from sae.contracts.c8_config import SaeConfig
+    from sae.daemon import policy_resolve
+
+    monkeypatch.setattr(wiring, "live_adapter_factory", lambda cfg: (lambda _p, _s: FakeAdapter()))
+    monkeypatch.setattr(wiring, "default_deps", lambda cfg, run_id, resume=False: make_deps(FakePlatform()))
+    assert cli.main("daemon", ["--runs-dir", str(tmp_path)]) == 0
+    (run_dir,) = [p for p in tmp_path.iterdir() if p.is_dir()]
+    resolved = SaeConfig.model_validate_json((run_dir / "config.resolved.json").read_text(encoding="utf-8"))
+    assert resolved.engine.rho is None and resolved.engine.belief_threshold is None
+    (run_dir / "bus.jsonl").write_text(json.dumps(
+        {"type": "run_started", "payload": {"policy": {"sha256": "0" * 64, "source": "registry"}}}) + "\n")
+    monkeypatch.undo()  # real default_deps: resolve_policy + check_resume
+    monkeypatch.setattr(wiring, "live_adapter_factory", lambda cfg: (lambda _p, _s: FakeAdapter()))
+    monkeypatch.setattr(policy_resolve, "recorded_sha", lambda *_a: "0" * 64)
+    assert cli.main("daemon", ["--resume", run_dir.name, "--runs-dir", str(tmp_path)]) == 1
+    assert "start a new run" in capsys.readouterr().err

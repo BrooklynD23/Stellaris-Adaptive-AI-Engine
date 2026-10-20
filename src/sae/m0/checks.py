@@ -194,19 +194,25 @@ CHECKS: tuple[Check, ...] = (
     ),
     Check(
         "M0-11", "autosave parse <= 3 s and fields match the UI", "core",
-        ("A-18", "A-19", "A-24", "A-30", "A-34", "A-36"),
+        ("A-18", "A-19", "A-24", "A-30", "A-34", "A-36", "A-46"),
         (
             "Build the parser once: cd {repo}/parser && cargo build --release -j 1",
             "In the M0-6 game, set autosaves to monthly in the game settings (A-24, UNVERIFIED that the option "
             "exists), play 1 month, pause.",
             "Find the newest autosave under {save_dir}/<empire>/ (A-34: autosave_*.sav).",
             "sae m0 check M0-11 --save \"<that autosave>\"   (parses twice, judges the warm run; read-only)",
-            "Compare the printed player fleet power, systems, tech count and alloy income with the UI: "
-            "sae m0 record M0-11 pass|fail --value fields_match_ui=yes|no",
+            "A-46 (UNVERIFIED): note the folder name under {save_dir}/ (one folder per campaign); start a second new "
+            "game with the same empire name and note whether it gets a new folder (yes means two campaigns share "
+            "one save_folder_key: use the C10 section 1 split-rule fallback).",
+            "Compare the printed player fleet power, systems, tech count and alloy income with the UI, then record "
+            "once (a second record replaces the first): sae m0 record M0-11 pass|fail --value fields_match_ui=yes|no "
+            "--value same_name_new_game_reuses_folder=yes|no. Pass or fail is decided by the parse criteria only "
+            "(exit 0, valid C4 output, wall <= 3 s, fields match the UI); the A-46 answer never changes the verdict.",
             "Optional: repeat on your largest mid/late-game 4.4 save and record its size.",
         ),
-        "parse wall time, peak RSS, save size, raw date, extracted god-view fields, sae_* variables present",
-        "exit 0, valid C4 output, wall <= 3 s, fields match the UI",
+        "parse wall time, peak RSS, save size, raw date, extracted god-view fields, sae_* variables present, "
+        "A-46 folder behaviour",
+        "exit 0, valid C4 output, wall <= 3 s, fields match the UI, A-46 folder behaviour recorded",
         "parse a subset of sections (--sections); dashboard parser cross-check",
         True,
     ),

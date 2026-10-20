@@ -13,6 +13,16 @@ from sae.contracts.c6_adapter import EmitReceipt, GodObservation, IntentAck, Obs
 from sae.contracts.c7_governor import GovernorConfig, GovernorDecision, SensorSample, WorkerOutcome
 from sae.contracts.c8_config import SaeConfig
 from sae.contracts.c9_control import CONTROL_COMMAND_ADAPTER, ControlResult
+from sae.contracts.c10_profile import (
+    CampaignEvent,
+    CampaignLabel,
+    CampaignSummary,
+    GateReport,
+    PolicyVersion,
+    Preregistration,
+    ProfileDoc,
+    RegistryRow,
+)
 
 #: Every JSON-shaped contract type, by the name used in ``model=<Name>`` doc fences and schema files.
 MODELS: dict[str, TypeAdapter[Any]] = {
@@ -33,4 +43,12 @@ MODELS: dict[str, TypeAdapter[Any]] = {
     "SaeConfig": TypeAdapter(SaeConfig),
     "ControlCommand": CONTROL_COMMAND_ADAPTER,
     "ControlResult": TypeAdapter(ControlResult),
+    "CampaignEvent": TypeAdapter(CampaignEvent),
+    "CampaignLabel": TypeAdapter(CampaignLabel),
+    "CampaignSummary": TypeAdapter(CampaignSummary),
+    "ProfileDoc": TypeAdapter(ProfileDoc),
+    "PolicyVersion": TypeAdapter(PolicyVersion),
+    "RegistryRow": TypeAdapter(RegistryRow),
+    "Preregistration": TypeAdapter(Preregistration),
+    "GateReport": TypeAdapter(GateReport),
 }

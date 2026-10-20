@@ -6,6 +6,13 @@ SELECT * FROM read_json('{{BUS}}', format='newline_delimited', ignore_errors=tru
            game_date:'VARCHAR', decision_id:'VARCHAR', type:'VARCHAR', fow:'VARCHAR', payload:'JSON'})
 WHERE v = 1;
 
+CREATE VIEW v_runs AS
+SELECT run_id, t_wall, payload->>'engine_version' AS engine_version, payload->>'preset' AS preset,
+       payload->>'config_sha256' AS config_sha256,
+       payload->'policy'->>'version' AS policy_version, payload->'policy'->>'sha256' AS policy_sha256,
+       payload->'policy'->>'source' AS policy_source, payload->'policy'->>'fallback_reason' AS policy_fallback_reason
+FROM v_events WHERE type = 'run_started';
+
 CREATE VIEW v_acks_final AS
 SELECT decision_id, game_date,
        CAST(payload->>'country' AS INTEGER) AS country,

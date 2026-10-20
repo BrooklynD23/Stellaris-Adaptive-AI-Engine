@@ -15,7 +15,6 @@ from sae.contracts.c4_parse import LegalView
 from sae.contracts.c5_bus import ControlPayload, HealthKind, HealthPayload
 from sae.contracts.c6_adapter import AdapterMode, EmitReceipt, GameEvent, IntentAck, ManagedState, Observation
 from sae.contracts.c7_governor import HealthLevel
-from sae.contracts.c8_config import EngineConfig
 from sae.contracts.c9_control import ControlResult, ForceStrategy
 from sae.contracts.common import CLAUSEWITZ_INT_MAX, AckCode, AckStatus, Strategy
 from sae.core import lifecycle, strategy
@@ -28,10 +27,11 @@ from sae.daemon.control import apply_item
 from sae.daemon.ports import AdapterFactory, InboxItem
 
 from .fakes import FakeGovernor, FakePlatform, FakeWorker, decision
+from .fakes_cfg import eff
 from .test_loop import CFG, EchoAdapter, go, kinds
 from .test_saveparser import Rig, _err_json, run
 
-ECFG = EngineConfig()
+ECFG = eff()
 CTX = EngineCtx(mode=AdapterMode.LIVE, cfg=ECFG)
 M0 = 2205 * 12
 TURTLE = {"systems_owned": 20, "frontier_systems": 10, "fortified_border_starbases": 8, "fleet_power_cat": 0,

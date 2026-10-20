@@ -49,7 +49,7 @@ class Block:
 
 def _blocks() -> list[Block]:
     found: list[Block] = []
-    for path in sorted(CONTRACTS.glob("C[0-9]_*.md")):
+    for path in sorted(CONTRACTS.glob("C[0-9]*_*.md")):
         text = path.read_text(encoding="utf-8")
         for match in _FENCE.finditer(text):
             words = match.group(1).split()
@@ -101,8 +101,8 @@ def _payloads(block: Block) -> list[str]:
 
 def test_every_contract_has_examples() -> None:
     docs = {b.doc for b in BLOCKS}
-    expected = {p.name for p in CONTRACTS.glob("C[0-9]_*.md")}
-    assert len(expected) == 9, sorted(expected)
+    expected = {p.name for p in CONTRACTS.glob("C[0-9]*_*.md")}
+    assert len(expected) == 10, sorted(expected)
     assert docs == expected, f"contracts without testable examples: {sorted(expected - docs)}"
 
 
@@ -125,3 +125,13 @@ def test_example(block: Block) -> None:
 def test_example_ids_are_unique() -> None:
     ids = [b.attrs["id"] for b in BLOCKS if "id" in b.attrs]
     assert len(ids) == len(set(ids))
+
+
+def test_plyr_stub_round_trips_byte_identical() -> None:
+    """C6 section 3 recorded PLYR stub parses to a nameless record and formats back unchanged."""
+    from sae.contracts.c1_log import PlayerRecord, format_log_line
+
+    stub = "SAE|v1|PLYR|2200.05.01|sid=1"
+    rec = parse_log_line(stub)
+    assert isinstance(rec, PlayerRecord) and rec.name is None
+    assert format_log_line(rec) == stub

@@ -27,6 +27,7 @@ Truncated last lines and invalid lines are skipped (`ignore_errors=true`); `payl
 | `v_unemitted` | every proposed-but-unemitted intent, `why` = `deferred` or `rejected` |
 | `v_control` | operator commands and results (`cmd` NULL when command is null) |
 | `v_belief` | posterior per archetype; `change_score_diagnostic` is diagnostic only |
+| `v_runs` | one row per run_started: engine_version, preset, config_sha256, policy_version, policy_sha256, policy_source, policy_fallback_reason (NULL on pre-v1.3 buses) |
 
 ## Compact the god bus (offline, refuses a live run)
 

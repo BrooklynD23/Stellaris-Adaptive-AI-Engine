@@ -12,3 +12,7 @@ dist/
 # SAE local outputs
 m0_results/
 .claude/settings.local.json
+
+# Coverage data files (parallel mode writes .coverage.<host>.<pid>.*)
+.coverage
+.coverage.*

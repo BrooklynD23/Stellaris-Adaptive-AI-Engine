@@ -415,3 +415,28 @@ def test_multiplayer_hello_blocks_emit(tmp_path: Path) -> None:
     asyncio.run(go())
     assert errors and set(errors) == {"multiplayer"}
     assert not (tmp_path / "scratch" / "sae_in.ini").exists()
+
+
+def test_hygienic_recording_replays_without_parse_errors(tmp_path: Path) -> None:
+    """A PLYR-redacted recording (C6 section 3 stub) replays with 0 log_parse_error and keeps the human's sid."""
+    from sae.adapters.recording import RecordGate
+    from sae.contracts.c8_config import RecordConfig
+
+    src = build_session(tmp_path)
+    gate = RecordGate(RecordConfig(), lambda k, d: None)
+    raw = (src / "game.log").read_bytes()
+    ts_old = [tuple(map(int, ln.split())) for ln in (src / "game.log.ts").read_text().split("\n") if ln]
+    out = b""
+    ts: list[str] = []
+    pos = 0
+    for off, wall in ts_old:
+        chunk = raw[pos:off].decode().splitlines()
+        out += "".join(f"{ln}\n" for ln in gate.lines(chunk)).encode()
+        ts.append(f"{len(out)} {wall}")
+        pos = off
+    assert b"|sid=1\n" in out and b"fleet=" not in out.split(b"PLYR")[1].split(b"\n")[0]
+    (src / "game.log").write_bytes(out)
+    (src / "game.log.ts").write_text("\n".join(ts) + "\n", encoding="utf-8")
+    a, _sink, ev, _ = make(tmp_path, src)
+    asyncio.run(drive(a))
+    assert [k for k, _ in ev if k == HealthKind.LOG_PARSE_ERROR] == []

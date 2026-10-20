@@ -8,14 +8,15 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from sae.contracts.c5_bus import SelectReason, StrategySelectedPayload
-from sae.contracts.c8_config import EngineConfig
 from sae.contracts.c9_control import ForceStrategy
 from sae.contracts.common import Archetype, ReasonKey, Strategy
 from sae.core.belief import ARCHS
 from sae.core.expansion import DEFAULT_EXPANSIONS
 from sae.core.strategy import StrategyState, apply_force, reanchor, select
 
-CFG = EngineConfig()
+from .fakes_cfg import eff
+
+CFG = eff()
 T = ARCHS.index(Archetype.TURTLE)
 TR = ARCHS.index(Archetype.TECH_RUSH)
 
@@ -38,7 +39,7 @@ def test_threshold_boundary() -> None:
 
 
 def test_tie_declaration_order() -> None:
-    cfg = EngineConfig(belief_threshold=0.26)
+    cfg = eff(belief_threshold=0.26)
     _, p, _ = select(StrategyState(), UNIFORM, 0, cfg, decision_id=D)
     assert p.top_archetype == ARCHS[0]
 

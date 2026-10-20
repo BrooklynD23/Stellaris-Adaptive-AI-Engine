@@ -121,11 +121,11 @@ def main(command: str, argv: list[str]) -> int:
     try:
         for sub in ("control/inbox", "control/done"):
             (run_dir / sub).mkdir(parents=True, exist_ok=True)
+        deps = wiring.default_deps(cfg, run_id, resume=state is not None)
         if state is None:
             write_resolved(run_dir, cfg)
-        deps = wiring.default_deps(cfg, run_id, resume=state is not None)
         code = asyncio.run(run_engine(cfg, factory, run_id, deps, run_dir, state))
-    except (wiring.ComponentUnavailable, wiring.ParserNotFound) as e:
+    except (wiring.ComponentUnavailable, wiring.ParserNotFound, wiring.PolicyChanged) as e:
         code = _fail(str(e), 1)
     except Exception as e:  # no traceback may escape the CLI
         log.exception("daemon failed")

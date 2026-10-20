@@ -68,6 +68,12 @@ cd parser && cargo clippy -j 1 -- -D warnings && cargo test -j 1
 uv run python3 mod/sae_bridge/tools/check_mod.py        # mod static checker (T1)
 ```
 
+**Coverage.** Run it explicitly, never from addopts: `uv run pytest --cov` (floor: 90 % line coverage,
+`fail_under = 90`). `[tool.coverage.run] parallel = true`, so each run writes `.coverage.<host>.<pid>.<rand>`
+files; merge them with `uv run coverage combine` before `uv run coverage report`. Concurrent runs (several
+agents or shells) must each set their own `COVERAGE_FILE` (for example `COVERAGE_FILE=/tmp/cov-t8`), or they
+corrupt a shared `.coverage`. `.coverage` and `.coverage.*` are git-ignored.
+
 Windows-only code sits behind platform checks, is mocked in tests and is labelled "not executed in CI on this
 machine". Tests are deterministic and seeded.
 

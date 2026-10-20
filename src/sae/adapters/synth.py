@@ -25,7 +25,9 @@ from sae.adapters import health as H
 from sae.adapters._pull import AckBox, AckPlant, handoff, parse_ack_model, write_ini_sync
 from sae.adapters.assembler import Assembler
 from sae.adapters.health import HealthFn
+from sae.adapters.keys import synth_key
 from sae.adapters.logtail import parse_lines
+from sae.adapters.recording import RecordGate, write_label
 from sae.adapters.simulator import ModSimulator, SimCountry
 from sae.contracts.c3_intent import IntentBatch
 from sae.contracts.c4_parse import FixtureSpec
@@ -39,6 +41,7 @@ from sae.contracts.c6_adapter import (
     Observation,
     SaveParser,
 )
+from sae.contracts.c8_config import RecordConfig
 from sae.contracts.common import Archetype
 
 _log = logging.getLogger("sae.adapters.synth")
@@ -121,6 +124,8 @@ class SynthAdapter:
         run_fixture: RunFixture = _subprocess_fixture,
         start: str = "2200.01.01",
         record_dir: Path | None = None,
+        record: RecordConfig | None = None,
+        run_id: str | None = None,
     ) -> None:
         if not schedule or years < 1:
             raise ValueError("synth needs a non-empty schedule and years >= 1")
@@ -146,13 +151,17 @@ class SynthAdapter:
         self._sim = ModSimulator([self._player, *self._ais])
         self._plant = AckPlant(self._sim, spec, seed)
         self._gate = H.new_gate()
-        self._asm = Assembler(god_sink, health, self._gate)
+        self._asm = Assembler(
+            god_sink, health, self._gate, fixed_key=None if run_id is None else synth_key(run_id)
+        )
         self._box = AckBox()
         self._closed = False
         self._record_dir = record_dir  # LiveAdapter record format; synchronous writes keep runs deterministic
         self._rec_size = 0
         self._rec_pulses = 0
         self._rec_failed = False
+        self._rec_gate = RecordGate(record or RecordConfig(), health)
+        self._rec_started = False
         self.specs: list[FixtureSpec] = []  # every spec built, for tests and debugging
 
     @property
@@ -328,11 +337,26 @@ class SynthAdapter:
 
     # -- recording --------------------------------------------------------------------------------
 
-    def _record_fail(self, exc: OSError) -> None:
+    def _record_fail(self, exc: Exception) -> None:
         if not self._rec_failed:
             self._rec_failed = True
             _log.error("record failed: %s", exc)
             self._health(HealthKind.INVALID_EVENT, H.truncate(f"synth record failed: {exc}"))
+
+    def _label_schedule(self) -> list[tuple[str, str]]:
+        """``(from_date, archetype)`` per distinct start year (first entry wins, as in :meth:`_profile`)."""
+        seen: dict[int, str] = {}
+        for arch, year in self._schedule:
+            seen.setdefault(year, arch.value)
+        # The simulator plays schedule[0] from month 0, so the first segment starts at the run start.
+        items = sorted(seen.items())
+        return [(_month_date(self._start, 0 if i == 0 else y * 12), a) for i, (y, a) in enumerate(items)]
+
+    def _record_start(self, record_dir: Path) -> None:
+        """Once: create the dir, the ``GOD_VIEW_INSIDE`` marker if due, and ``label.json`` (proposal 022)."""
+        self._rec_started = True
+        self._rec_gate.start(record_dir)
+        write_label(record_dir, self._label_schedule(), note=f"sae synth --record; years={self._years}")
 
     def _record_pulse(self, lines: list[str]) -> list[str]:
         """Append one pulse's lines to ``game.log`` and its ``.ts`` stamp; returns ``lines`` unchanged."""
@@ -340,14 +364,16 @@ class SynthAdapter:
         if self._record_dir is None or self._rec_failed:
             return lines
         try:
-            data = "".join(f"{ln}\n" for ln in lines).encode("utf-8")
-            self._record_dir.mkdir(parents=True, exist_ok=True)
+            if not self._rec_started:
+                self._record_start(self._record_dir)
+            data = "".join(f"{ln}\n" for ln in self._rec_gate.lines(lines)).encode("utf-8")
+            self._rec_gate.note_log(len(data))
             with (self._record_dir / "game.log").open("ab") as f:
                 f.write(data)
             self._rec_size += len(data)
             with (self._record_dir / "game.log.ts").open("a", encoding="utf-8") as f:
                 f.write(f"{self._rec_size} {self._rec_pulses * 1_000_000_000}\n")
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             self._record_fail(exc)
         return lines
 
@@ -355,6 +381,8 @@ class SynthAdapter:
         if self._record_dir is None or self._rec_failed:
             return
         try:
+            if not self._rec_gate.allow_save(path.stat().st_size):
+                return
             dest_dir = self._record_dir / "saves"
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, dest_dir / f"{self._rec_size:012d}-autosave_{date}.sav")

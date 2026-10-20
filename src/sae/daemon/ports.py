@@ -14,6 +14,7 @@ from typing import Protocol
 from sae.contracts.c6_adapter import AdapterFactory, GodSink
 from sae.contracts.c7_governor import Governor, Platform, Sensors
 from sae.contracts.c9_control import ControlCommand, ControlResult
+from sae.core.policy import ActivePolicy
 from sae.core.state import EventDraft
 
 __all__ = ["AdapterFactory", "BusSink", "ControlInbox", "DaemonDeps", "InboxItem"]
@@ -70,3 +71,5 @@ class DaemonDeps:
     reexec: Callable[[], None]
     #: Daemon session start (C9 section 3.1): commands issued before it are expired at pickup.
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    #: C10 section 4: the resolved policy; None = built-in code defaults (tests, replay).
+    policy: ActivePolicy | None = None

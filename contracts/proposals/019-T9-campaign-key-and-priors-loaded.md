@@ -1,6 +1,7 @@
 # 019-T9 — Campaign identity on the bus, policy identity on `run_started` (+ deferred `priors_loaded`)
 
-Status: PROPOSED (2026-10-19, T9 lead; revised after Fable proposal review B3, architecture review S1/S2 and
+Status: **Part A ACCEPTED-WITH-CHANGES** (2026-10-19, architect, WU-1: C6 v1.3, C5 v1.3, C8 v1.2; changes W1-6, W1-7 in `contracts/CHANGES.md`). **Part B DEFERRED** (maintainer D2: re-submit once a profile is eligible).
+Original: PROPOSED (2026-10-19, T9 lead; revised after Fable proposal review B3, architecture review S1/S2 and
 Fable plan review 1, 3, 7, 9, 13, 14). Part A is proposed now; **Part B is DEFERRED** until a profile is eligible
 (≥ 8 closed real campaigns, proposal 020) and must be re-submitted then.
 Reporter: T9. Contracts: C6 §2 (v1.2 → v1.3, two additive `Observation` fields); C5 §3 (v1.2 → v1.3,

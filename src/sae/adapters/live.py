@@ -13,8 +13,10 @@ from sae.adapters import health as H
 from sae.adapters.assembler import Assembler
 from sae.adapters.health import HealthFn
 from sae.adapters.ini_writer import IniWriter, emit_batch, neutralise
+from sae.adapters.keys import load_salt
 from sae.adapters.logtail import LogTailer, parse_lines
 from sae.adapters.paths import ResolvedPaths
+from sae.adapters.recording import RecordGate
 from sae.adapters.savewatch import IRONMAN_NAME, SaveWatcher
 from sae.contracts.c2_ini import KnobCommand
 from sae.contracts.c3_intent import IntentBatch
@@ -29,6 +31,7 @@ from sae.contracts.c6_adapter import (
     Observation,
     SaveParser,
 )
+from sae.contracts.c8_config import RecordConfig
 
 _log = logging.getLogger("sae.adapters.live")
 _Item = Observation | IntentAck | None
@@ -49,6 +52,8 @@ class LiveAdapter:
         monotonic: Callable[[], float] = time.monotonic,
         poll_s: float = 2.0,
         record_dir: Path | None = None,
+        record: RecordConfig | None = None,
+        sae_dir: Path | None = None,
     ) -> None:
         self._paths = paths
         self._parser = parser
@@ -64,7 +69,8 @@ class LiveAdapter:
         self._watcher = SaveWatcher(
             paths.save_dir, monotonic=monotonic, include_ironman=True, baseline_ironman=release
         )
-        self._asm = Assembler(god_sink, health, self._gate)
+        salt_fn = None if sae_dir is None else (lambda: load_salt(sae_dir))
+        self._asm = Assembler(god_sink, health, self._gate, salt_fn=salt_fn)
         self._writer = IniWriter(paths.ini_path, health=health)
         self._obs_q: asyncio.Queue[_Item] = asyncio.Queue()
         self._ack_q: asyncio.Queue[_Item] = asyncio.Queue()
@@ -76,7 +82,10 @@ class LiveAdapter:
         self._mp_seen = False
         self._record_dir = record_dir
         self._rec_size = 0
+        self._parse_folder: str | None = None
+        self._rec_gate = RecordGate(record or RecordConfig(), health)
         if record_dir is not None:
+            self._rec_gate.start(record_dir)
             (record_dir / "saves").mkdir(parents=True, exist_ok=True)
 
     @property
@@ -235,14 +244,15 @@ class LiveAdapter:
             return []
         exc = task.exception()
         if exc is not None:
-            _log.error("parse task failed: %r", exc)
-            self._health(HealthKind.PARSE_FAILED, H.truncate(repr(exc)))
+            _log.error("parse task failed: %s", type(exc).__name__)
+            self._health(HealthKind.PARSE_FAILED, H.truncate(type(exc).__name__))
             return []
         result = task.result()
-        return list(self._asm.on_parse(result, self._parse_epoch)) if result is not None else []
+        return list(self._asm.on_parse(result, self._parse_epoch, self._parse_folder)) if result is not None else []
 
     def _start_parse(self, path: Path) -> None:
         self._parse_epoch = self._asm.clock().session_epoch
+        self._parse_folder = path.parent.name  # A-46 UNVERIFIED: M0-11 checks folder stability on rename
         if path.name == IRONMAN_NAME and not self._release:
             self._parse_task = asyncio.create_task(self._probe_ironman(path))
         else:
@@ -270,20 +280,23 @@ class LiveAdapter:
         if self._record_dir is None or not lines:
             return
         try:
-            data = "".join(f"{ln}\n" for ln in lines).encode("utf-8")
+            data = "".join(f"{ln}\n" for ln in self._rec_gate.lines(lines)).encode("utf-8")
             with (self._record_dir / "game.log").open("ab") as f:
                 f.write(data)
             self._rec_size += len(data)
+            self._rec_gate.note_log(len(data))
             with (self._record_dir / "game.log.ts").open("a", encoding="utf-8") as f:
                 f.write(f"{self._rec_size} {time.monotonic_ns()}\n")
         except OSError as exc:
-            _log.error("record failed: %s", exc)
+            _log.error("record failed: %s", type(exc).__name__)
 
     async def _record_save(self, path: Path) -> None:
         if self._record_dir is None:
             return
         try:
+            if not self._rec_gate.allow_save(path.stat().st_size):
+                return
             dest = self._record_dir / "saves" / f"{self._rec_size:012d}-{path.name}"
             await asyncio.to_thread(shutil.copy2, path, dest)
         except OSError as exc:
-            _log.error("save record failed: %s", exc)
+            _log.error("save record failed: %s (%s)", type(exc).__name__, path.name)

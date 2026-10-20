@@ -23,6 +23,7 @@ from sae.adapters import health as H
 from sae.adapters._pull import AckBox, AckPlant, handoff, parse_ack_model, write_ini_sync
 from sae.adapters.assembler import Assembler
 from sae.adapters.health import HealthFn
+from sae.adapters.keys import synth_key
 from sae.adapters.logtail import parse_lines
 from sae.adapters.simulator import ModSimulator, SimCountry
 from sae.contracts.c1_log import AckRecord, HeartbeatRecord, LogRecord, PlayerRecord, SnapRecord
@@ -73,6 +74,7 @@ class ReplayAdapter:
         stop_at: str | None = None,
         ack_model: str = "echo",
         seed: int = 0,
+        run_id: str | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -88,7 +90,9 @@ class ReplayAdapter:
         self._sleep = sleep
         self._mono = monotonic
         self._gate = H.new_gate()
-        self._asm = Assembler(god_sink, health, self._gate)
+        self._asm = Assembler(
+            god_sink, health, self._gate, fixed_key=None if run_id is None else synth_key(run_id)
+        )
         self._box = AckBox()
         self._sim = ModSimulator([])
         self._plant = None if self._model.kind == "from_recording" else AckPlant(self._sim, self._model, seed)
@@ -273,7 +277,8 @@ class ReplayAdapter:
             )
         elif isinstance(rec, PlayerRecord) and rec.sid not in self._humans:
             self._humans.add(rec.sid)
-            self._sim.add_country(SimCountry(_HUMAN_BASE + rec.sid, rec.name, is_ai=False, sid=rec.sid))
+            name = rec.name or f"sid {rec.sid}"  # name is None in a recorded PLYR stub (C6 section 3)
+            self._sim.add_country(SimCountry(_HUMAN_BASE + rec.sid, name, is_ai=False, sid=rec.sid))
 
     def _post_line(self) -> None:
         """After an HB's previous observation was handed out: stage due files and run the §6 apply."""

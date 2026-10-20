@@ -18,6 +18,9 @@ Switch = tuple[int, str]
 #: Event types left out of the determinism digest (wall-clock or run-specific by design).
 _DIGEST_SKIP_TYPES = frozenset({"health", "run_started"})
 _DIGEST_DROP_KEYS = ("run_id", "t_wall", "t_mono_ns", "seq")
+#: Salted per install (C6 v1.3 section 2), so it differs between machines: never part of a hash or comparison.
+_VOLATILE_PAYLOAD_KEYS = ("save_folder_key",)
+_FOG_DROP_KEYS = ("run_id", "t_wall", "t_mono_ns")
 
 
 def load(run_dir: Path, *, god: bool = False) -> list[Event]:
@@ -129,16 +132,33 @@ def ci1_rate(a: Sequence[Switch], b: Sequence[Switch], window: int) -> float:
     return 1.0 if total == 0 else 2 * ci1_matched(a, b, window) / total
 
 
+def _slim(e: Event, drop: Sequence[str]) -> Event:
+    slim = {k: v for k, v in e.items() if k not in drop}
+    payload = slim.get("payload")
+    if isinstance(payload, dict):
+        payload = {k: v for k, v in payload.items() if k not in _VOLATILE_PAYLOAD_KEYS}
+        receipt = payload.get("receipt")
+        if isinstance(receipt, dict):
+            payload["receipt"] = {k: v for k, v in receipt.items() if k != "path"}
+        slim["payload"] = payload
+    return slim
+
+
+def canonical(e: Event) -> str:
+    """One event as a stable JSON line without ``run_id``, ``t_wall``, ``t_mono_ns``, ``save_folder_key``, receipt path.
+
+    Envelope ``seq`` is kept (plan section 3, F1: byte-identical). ``run_started`` (carries ``policy``, C5 v1.3)
+    is never compared: whole-bus comparisons drop it, as :func:`digest` does.
+    """
+    return json.dumps(_slim(e, _FOG_DROP_KEYS), sort_keys=True, separators=(",", ":"))
+
+
 def digest(events: Iterable[Event]) -> str:
     """Determinism digest: sha256 over non-health, non-run_started events minus wall/run fields and ``receipt.path``."""
     h = hashlib.sha256()
     for e in events:
         if e["type"] in _DIGEST_SKIP_TYPES:
             continue
-        slim = {k: v for k, v in e.items() if k not in _DIGEST_DROP_KEYS}
-        receipt = slim.get("payload", {}).get("receipt")
-        if isinstance(receipt, dict):
-            slim["payload"] = {**slim["payload"], "receipt": {k: v for k, v in receipt.items() if k != "path"}}
-        h.update(json.dumps(slim, sort_keys=True, separators=(",", ":")).encode())
+        h.update(json.dumps(_slim(e, _DIGEST_DROP_KEYS), sort_keys=True, separators=(",", ":")).encode())
         h.update(b"\n")
     return str(h.hexdigest())

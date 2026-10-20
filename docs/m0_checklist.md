@@ -1,7 +1,7 @@
 # M0 checklist
 
 Every row here is **UNVERIFIED** until the maintainer records evidence from a real Stellaris 4.4 game with
-`sae m0`. Nothing has run in the game. Sources merged: `contracts/README.md` §5 (A-01..A-45),
+`sae m0`. Nothing has run in the game. Sources merged: `contracts/README.md` §5 (A-01..A-46),
 `mod/sae_bridge/UNVERIFIED.md` (per-construct tags and fallbacks), `parser/README.md` (save key map),
 `docs/status/T3.md`, `T4.md`, `T5.md`, the integration plan's M0 tests and the resource proposal (M0-12, M1-P,
 R-x). The runbook for the weekend is [`tools/m0/README.md`](../tools/m0/README.md).
@@ -35,7 +35,7 @@ not this weekend (M1 or release gate). Result field: `m0_results/<id>.json` (`au
 | M0-8 | core | base save made after M0-5 and before M0-6 (no seed field); B: econ=military via M0-6, APPLIED, then `observe`; A: `observe`; 15 years each, one after the other | fleet power B/A ≥ 1.3 | fleet power of both | defines / full economic-plan overrides (per campaign) | `record M0-8` |
 | M0-9 | later | 20 years at 0.95 speed, emit period 1, mod on/off | < 5 % days/minute change | days per minute | emit every 3 months (`low_impact`) | `record M0-9` |
 | M0-10 | later | keystroke injection (backlog, T2) | 10/10 clean runs | — | hotkey only (v0 default) | `record M0-10 skip` |
-| M0-11 | core | build `sae-parse`, monthly autosave, parse it, compare with UI | exit 0, valid C4 output, ≤ 3 s, fields match UI | wall time, peak RSS, size, raw date, god-view fields | parse a section subset; dashboard parser cross-check | `check M0-11 --save`, `record M0-11` |
+| M0-11 | core | build `sae-parse`, monthly autosave, parse it, compare with UI; note the autosave folder name (A-46) | exit 0, valid C4 output, ≤ 3 s, fields match UI, A-46 folder behaviour recorded | wall time, peak RSS, size, raw date, god-view fields, A-46 folder behaviour | parse a section subset; dashboard parser cross-check | `check M0-11 --save`, `record M0-11` |
 | M0-12 | stretch | s/month mod off vs on, game RAM, fault counter, process name | mod ≤ 1 % of s/game-year | s/month, RSS, counter, process name | redesign emission before engine work | `record M0-12` |
 | M0-13 | stretch | additive `zz_` economic subplan, 10 years vs twin | new subplan active, StarNet's kept | resource trends | flag-gated budgets only | `record M0-13` |
 | M0-14 | stretch | Ironman game with the mod, 2 months | Ironman save parses, `ironman` flagged; meta entry has `ironman=yes` (key UNVERIFIED) and `sae-parse --sections meta` reads it as true; behaviour recorded | `meta.ironman`, SAE lines, console blocked | Ironman stays observe-only (settled) | `check M0-14 --save`, `record M0-14` |
@@ -46,7 +46,7 @@ not this weekend (M1 or release gate). Result field: `m0_results/<id>.json` (`au
 R-1, R-2, R-4, R-6 are release gates owned by T7 (`sae bench`, procedures in [`bench/README.md`](../bench/README.md));
 none has run. They are not part of M0; their UNVERIFIED inputs are X-12..X-14 in table C.
 
-## B. Assumptions A-01..A-45
+## B. Assumptions A-01..A-46
 
 | Id | Assumption | Test | Evidence to collect | Fallback |
 |---|---|---|---|---|
@@ -95,6 +95,7 @@ none has run. They are not part of M0; their UNVERIFIED inputs are X-12..X-14 in
 | A-43 | The game process is named `stellaris.exe` (Windows, Proton) / `stellaris` (Linux) | M0-12 | Task Manager process name | `make_sensors(game_names=...)` |
 | A-44 | `IsIconic` on the game's top-level window detects minimise | M0-12 | Governor CLOSED after 10 min minimised (later, with the daemon) | CLOSED only when the game is absent |
 | A-45 | A `psutil.process_iter` rescan on Windows stays under the 100 ms probe bound | M0-12 | `sae daemon` health timing (later) | longer rescan interval |
+| A-46 | Each campaign's autosaves live in one folder under `save games/`; a folder name is reused only by a new game of the same empire name | M0-11 | folder names seen across two new games of the same empire (`save_folder_key` stability) | §1 split rule (user confirms) + profile exclude (C10 §1) |
 
 ## C. Items outside the registry
 

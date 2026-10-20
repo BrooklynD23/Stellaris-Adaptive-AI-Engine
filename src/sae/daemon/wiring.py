@@ -2,7 +2,8 @@
 
 Expected factories (UNVERIFIED until proposal 004 / T5 / T6 / T2 confirm; M0/integration would import each):
 
-* ``sae.bus.open_sink(run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False) -> BusSink``
+* ``sae.bus.open_sink(run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False,
+  policy: PolicyRef | None = None) -> BusSink`` (``policy`` feature-detected, C8 section 5.1)
   (writes ``run_started`` unless ``resume``; C5 section 1, C7 section 4.6)
 * ``sae.governor.make_governor(config.governor, min_level, preset, emit_period=) -> Governor``
 * ``sae.platform.make_sensors() -> Sensors`` and ``sae.platform.make_platform() -> Platform``
@@ -27,6 +28,7 @@ from typing import Any
 from sae.contracts.c5_bus import HealthKind
 from sae.contracts.c6_adapter import GameAdapter, GodSink, SaveParser
 from sae.contracts.c8_config import SaeConfig
+from sae.daemon.policy_resolve import PolicyChanged, check_resume, resolve_policy
 from sae.daemon.ports import AdapterFactory, DaemonDeps
 from sae.daemon.runs import make_reexec
 from sae.daemon.runs_dir import default_runs_dir
@@ -34,7 +36,7 @@ from sae.daemon.runs_dir import default_runs_dir
 #: C6 section 1.8 adapter health hook (proposal 009).
 HealthFn = Callable[[HealthKind, str | None], None]
 
-__all__ = ["ComponentUnavailable", "ParserNotFound", "default_deps", "live_adapter_factory"]
+__all__ = ["ComponentUnavailable", "ParserNotFound", "PolicyChanged", "default_deps", "live_adapter_factory"]
 
 
 class ParserNotFound(Exception):
@@ -84,7 +86,12 @@ def default_deps(config: SaeConfig, run_id: str, resume: bool = False) -> Daemon
     parser_exe: str | None = resolve_parser_exe(config.paths)  # C8 section 3, proposal 014-T2
     if parser_exe is None:
         raise ParserNotFound  # before anything is opened: no orphan run_started
-    sink = open_sink(run_dir, run_id, config, resume=resume)
+    policy = resolve_policy(config)  # C10 section 4: before open_sink, so run_started carries it
+    if resume:
+        check_resume(policy, run_dir)  # PolicyChanged -> exit 1 before anything is reopened
+    # Feature-detected until T6's open_sink takes ``policy=`` (C8 section 5.1).
+    sink = (open_sink(run_dir, run_id, config, resume=resume, policy=policy.ref) if _takes(open_sink, "policy")
+            else open_sink(run_dir, run_id, config, resume=resume))
     governor = make_governor(config.governor, config.min_level, config.preset,
                              emit_period=config.bridge.emit_period)
     sensors = make_sensors()
@@ -96,7 +103,7 @@ def default_deps(config: SaeConfig, run_id: str, resume: bool = False) -> Daemon
     return DaemonDeps(
         sink=sink, governor=governor, sensors=sensors, platform=platform, inbox=inbox,
         parser_exe=parser_exe, monotonic=time.monotonic,
-        reexec=make_reexec(run_id, base), started_at=started_at,
+        reexec=make_reexec(run_id, base), started_at=started_at, policy=policy,
     )
 
 

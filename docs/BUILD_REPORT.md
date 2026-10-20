@@ -86,6 +86,14 @@ Open:
 
 (Proposal 015's status line was fixed by the maintainer on 2026-10-19: ACCEPTED-WITH-CHANGES.)
 
+## 7a. Update 2026-10-20: expansion X0 and coverage
+
+Expansion X0 (contracts C10; WU-2 policy loading, WU-3 campaign key / game version / recording limits, WU-4 fog
+checks, WU-8 docs) is done. Coverage: 96.58% overall, every Python package ≥ 90% (`fail_under = 90`). Fable
+architecture review 2 (`docs/status/ARCHITECTURE_alignment_review_2.md`): performance/memory ON TARGET,
+telemetry ON TARGET, adaptive engine AT RISK and learning from saves AT RISK (both need real-game data or WU-5..7);
+all 5 review actions closed. Exact gate results: `docs/handoff/NEXT_ORCHESTRATOR.md` §9.
+
 ## 8. Recommended next step
 
 Run the M0 weekend on the maintainer's PC with `sae m0` (`tools/m0/README.md`, `docs/m0_checklist.md`), then

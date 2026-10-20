@@ -8,12 +8,13 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from sae.contracts.c5_bus import BeliefUpdatePayload
-from sae.contracts.c8_config import EngineConfig
 from sae.contracts.common import Archetype
 from sae.core.belief import ARCHS, BeliefState, LikelihoodModel, update
 from sae.core.features import FeatureVector
 
-CFG = EngineConfig()
+from .fakes_cfg import eff
+
+CFG = eff()
 T = ARCHS.index(Archetype.TURTLE)
 E = ARCHS.index(Archetype.EARLY_AGGRESSION)
 
@@ -108,7 +109,7 @@ def test_change_score_nonneg_and_isolated() -> None:
 
 def test_k_zero_does_not_advance_cusum() -> None:
     s0 = BeliefState(change_score=1.5, surprise_mean=0.7, surprise_n=3)
-    s1, _ = update(s0, FeatureVector(fleet_power_cat=2), True, 0, EngineConfig(), mi=5)
+    s1, _ = update(s0, FeatureVector(fleet_power_cat=2), True, 0, eff(), mi=5)
     assert (s1.change_score, s1.surprise_mean, s1.surprise_n) == (1.5, 0.7, 3)
     assert s1.posterior == s0.posterior
 

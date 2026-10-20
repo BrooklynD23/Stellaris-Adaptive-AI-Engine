@@ -7,6 +7,7 @@ Synchronous; the only side channels are the god sink and the health callback. Go
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from pydantic import ValidationError
@@ -14,6 +15,7 @@ from pydantic import ValidationError
 from sae.adapters import health as H
 from sae.adapters.acks import to_intent_ack
 from sae.adapters.health import HealthFn, HealthGate
+from sae.adapters.keys import SaltError, folder_key
 from sae.contracts.c1_log import (
     AckRecord,
     HeartbeatRecord,
@@ -56,7 +58,23 @@ class _Pending:
 class Assembler:
     """Stateful record-to-observation assembler. Never raises."""
 
-    def __init__(self, god_sink: GodSink, health: HealthFn, gate: HealthGate) -> None:
+    def __init__(
+        self,
+        god_sink: GodSink,
+        health: HealthFn,
+        gate: HealthGate,
+        *,
+        salt_fn: Callable[[], bytes] | None = None,
+        fixed_key: str | None = None,
+    ) -> None:
+        """``salt_fn`` (live/release; may raise :class:`SaltError`) or ``fixed_key`` (replay/synth) enables
+        ``save_folder_key``; with neither it stays None."""
+        self._salt_fn = salt_fn
+        self._fixed_key = fixed_key
+        self._salt: bytes | None = None
+        self._salt_failed = False
+        self._folder_key: str | None = None
+        self._game_version: str | None = None
         self._god = god_sink
         self._health = health
         self._gate = gate
@@ -130,6 +148,8 @@ class Assembler:
         self._epoch += 1
         self._snaps.clear()
         self._save = None
+        self._folder_key = None
+        self._game_version = None
         self._last_obs_date = None
         self._date = date
         H.reset_session(self._gate)
@@ -196,8 +216,25 @@ class Assembler:
         obs = self._build("log", date, p.m, p.epoch, p.events)
         return [] if obs is None else [obs]
 
-    def on_parse(self, result: ParseResult, epoch: int) -> list[Observation]:
+    def _key_for(self, folder: str | None) -> str | None:
+        """C6 section 2 ``save_folder_key``; the salt is read once, a bad salt reports ``invalid_event`` once."""
+        if self._fixed_key is not None:
+            return self._fixed_key
+        if folder is None or self._salt_fn is None or self._salt_failed:
+            return None
+        if self._salt is None:
+            try:
+                self._salt = self._salt_fn()
+            except SaltError as exc:
+                self._salt_failed = True
+                self._invalid(f"salt: {exc}")
+                return None
+        return folder_key(self._salt, folder)
+
+    def on_parse(self, result: ParseResult, epoch: int, folder: str | None = None) -> list[Observation]:
         """Route god data and emit the save observation; a result from an older epoch is dropped.
+
+        ``folder`` is the parsed save's parent folder name (live/release); it is hashed, never stored.
 
         Does not flush the pending log observation: callers apply results after a poll's records
         and then call :meth:`flush`.
@@ -212,6 +249,8 @@ class Assembler:
         if result.god is not None:
             self._route_god(result.meta.date, "save", god=result.god)
         self._save = result
+        self._folder_key = self._key_for(folder) or self._folder_key
+        self._game_version = result.meta.game_version[:64]
         events = (GameEvent.SAVE_PARSED, *self._events)
         self._events = []
         self._bumped = False
@@ -250,6 +289,8 @@ class Assembler:
                 player_legal=legal,
                 legal_as_of=save.meta.date if save else None,
                 events=events,
+                save_folder_key=self._folder_key,
+                game_version=self._game_version,
             )
         except ValidationError as exc:
             self._invalid(f"observation: {exc.errors(include_url=False)[0]['msg']}")

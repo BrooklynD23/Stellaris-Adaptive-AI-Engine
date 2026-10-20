@@ -64,6 +64,12 @@ def reanchor(state: StrategyState, mi: int) -> StrategyState:
     return replace(state, commit_from_mi=commit_from, commit_until_mi=commit_until, forced=forced, last_mi=mi)
 
 
+def _threshold(cfg: EngineConfig) -> float:
+    if cfg.belief_threshold is None:
+        raise ValueError("core needs an effective EngineConfig (belief_threshold filled from the policy)")
+    return cfg.belief_threshold
+
+
 def _floor_ok(strategy: Strategy, cfg: EngineConfig, templates: Mapping[Strategy, Template]) -> bool:
     """Static check: a template exists for the strategy (C3 v1.1 has no fleet weights to floor-check)."""
     return strategy in templates
@@ -90,7 +96,7 @@ def select(
         chosen, reason, is_forced = forced[0], SelectReason.FORCED, True
     elif window_open and state.strategy is not None:
         chosen, reason, is_forced = state.strategy, SelectReason.COMMITMENT_HOLD, state.window_forced
-    elif conf >= cfg.belief_threshold:
+    elif conf >= _threshold(cfg):
         chosen, reason, is_forced = COUNTER_TABLE[ARCHS[top]], SelectReason.TABLE, False
     else:
         chosen, reason, is_forced = Strategy.BASELINE, SelectReason.BELOW_THRESHOLD, False

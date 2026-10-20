@@ -25,11 +25,14 @@ from sae.contracts.c6_adapter import AdapterMode, EmitReceipt, GameAdapter, Obse
 from sae.contracts.c7_governor import GameState, HealthLevel, SensorSample, SpmSample, Trigger
 from sae.contracts.c8_config import SaeConfig
 from sae.contracts.c9_control import ControlResult, command_expired
+from sae.contracts.c10_profile import pin_matches
 from sae.core import engine
 from sae.core.dates import mi_of
+from sae.core.policy import load_builtin
 from sae.core.state import EngineCtx, EngineState, EventDraft, Outputs
 from sae.daemon import disk
 from sae.daemon.control import apply_item
+from sae.daemon.policy_resolve import effective_engine_config
 from sae.daemon.ports import AdapterFactory, DaemonDeps, InboxItem
 from sae.daemon.saveparser import GovernedSaveParser
 from sae.daemon.statefile import save_state
@@ -43,7 +46,7 @@ __all__ = ["run_engine"]
 _CTL, _OBS = 0, 1  # queue priorities: control/exit first
 _MAX_DETAIL = 500
 _FAIL_HEALTH_S = 60.0
-Component = Literal["daemon", "governor", "parser", "adapter"]
+Component = Literal["daemon", "governor", "parser", "adapter", "engine"]
 #: C6 section 1.7 (proposal 011): observation N+1 is pulled only after N is fully handled.
 LOCKSTEP_MODES = frozenset({AdapterMode.REPLAY, AdapterMode.SYNTH})
 
@@ -107,6 +110,9 @@ class _Loop:
         self.exit_logged = False
         self.pending: set[str] = set()  # inbox handles queued or in progress
         self.last_fail_health: float | None = None
+        self.pin_checked = False
+        self.engine_cfg = effective_engine_config(
+            config.engine, deps.policy if deps.policy is not None else load_builtin())
         if isinstance(adapter, GameAdapter):
             self.adapter = adapter
         else:
@@ -306,9 +312,25 @@ class _Loop:
                 self._on_ctl(adapter, item)
 
     def _ctx(self, adapter: GameAdapter, o: Observation | None = None) -> EngineCtx:
-        return EngineCtx(mode=adapter.mode, cfg=self.cfg.engine, knob_request=self.knob,
+        pol = self.deps.policy
+        return EngineCtx(mode=adapter.mode, cfg=self.engine_cfg, knob_request=self.knob,
                          emit_period=self.cfg.bridge.emit_period, game_state=self.gstate, level=self.level,
-                         observe_only=is_ironman(adapter, o))
+                         observe_only=is_ironman(adapter, o),
+                         likelihood=pol.likelihood if pol else None, templates=pol.templates if pol else None,
+                         outcome_weights=pol.weights if pol else None)
+
+    def _check_pin(self, o: Observation) -> None:
+        """C10 section 4 step 5: one ``policy_pin_mismatch`` on the first observed game version; policy is kept.
+
+        UNVERIFIED (M0: real save meta.game_version): the ``game_version`` format (e.g. ``Cepheus v4.4.4``).
+        ``pin_checked`` is per process, so a reexec/resume may emit one more mismatch in the same run.
+        """
+        pol = self.deps.policy
+        if pol is None or self.pin_checked or o.game_version is None:
+            return
+        self.pin_checked = True
+        if not pin_matches(pol.game_version_pin, o.game_version):
+            self._health(HealthKind.POLICY_PIN_MISMATCH, "engine", f"{pol.game_version_pin} vs {o.game_version}")
 
     def _spm(self, o: Observation) -> None:
         if o.source != "log" or o.m is None:
@@ -323,6 +345,7 @@ class _Loop:
 
     async def _on_obs(self, adapter: GameAdapter, o: Observation) -> None:
         self._spm(o)
+        self._check_pin(o)
         before = self.state.last_decided_mi
         self.state, out = engine.on_observation(self.state, o, self._ctx(adapter, o))
         self._publish(out)

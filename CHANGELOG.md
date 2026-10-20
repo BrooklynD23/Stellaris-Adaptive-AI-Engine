@@ -93,6 +93,21 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
   today's circular synth evidence (likelihoods are fitted to the synth profiles), e.g. V-1 calibration on 5
   hand-labelled real campaigns, V-2 the in-game knob A/B (M0-8). None has run; all need the game or real saves.
 
+#### Expansion X0 and coverage (2026-10-20)
+
+- Contract C10 (profile store, campaign index, versioned policy and registry); proposals 019 Part A, 020 §1–§2,
+  021, 022 and 024 accepted; C1 PLYR `name` optional for the redacted recording stub; C8 v1.3 (`engine.*`
+  defaults null, filled from the policy). Details: `contracts/CHANGES.md`.
+- WU-2 (T4): the daemon loads a versioned policy at start (built-in 0.1.0 equals the former code constants, sha
+  `0455844e…`), puts it on `run_started`, and `--resume` exits 1 when the policy sha changed.
+- WU-3 (T2): `save_folder_key` and `game_version` on observations; recording limits and PLYR redaction that still
+  replays (stub `SAE|v1|PLYR|<date>|sid=<n>`); `label.json` from `sae synth --record`.
+- WU-4 (T7): fog-perturbation checks F0–F4 (F3 waits for WU-5); C10 doc examples now validated; CI coverage step.
+- WU-8 (T8): privacy, policy registry, rollback and recording-hygiene docs; A-46 in the M0 checklist.
+- Coverage tooling: `pytest-cov` with `fail_under = 90` and parallel mode; measured 96.58% overall, every Python
+  package ≥ 90%. Built-in policy JSON ships in the wheel.
+- Fable architecture review 2 (`docs/status/ARCHITECTURE_alignment_review_2.md`): 5 of 5 actions closed.
+
 #### Expansion and process
 
 - T9 expansion plan (planning only, no code): `docs/expansion/player_profile_and_rsi_plan.md`, with proposals

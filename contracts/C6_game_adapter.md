@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 (`schema_version = 1` on `Observation`/`GodObservation`) |
-| Status | FROZEN v1.2 (2026-10-19; v1.1 multiplayer write guard §1.6, proposals 009 health hook §1.8, 011 replay/synth lockstep §1.7; v1.2 proposal 017: neutralise on close/`mp=1` §1.9, Ironman observe-only §1.10, `EmitReceipt.error = "ironman"`, `SaveParser.parse(..., sections=)`) |
+| Version | 1.3 (`schema_version = 1` on `Observation`/`GodObservation`) |
+| Status | FROZEN v1.2 (2026-10-19; v1.1 multiplayer write guard §1.6, proposals 009 health hook §1.8, 011 replay/synth lockstep §1.7; v1.2 proposal 017: neutralise on close/`mp=1` §1.9, Ironman observe-only §1.10, `EmitReceipt.error = "ironman"`, `SaveParser.parse(..., sections=)`; v1.3 proposals 019 Part A `Observation.save_folder_key`/`game_version` §2, 022 recording hygiene §3; §3 recorded PLYR stub keeps `sid`, review 2 B1) |
 | Owner | architect (contract); T2 implements the adapters |
 | Producers | LiveAdapter, ReplayAdapter, SynthAdapter, release mode (T2) |
 | Consumers | Engine core and daemon loop (T4); bus writer (T6) for `observation`/`observation_god` |
@@ -117,6 +117,14 @@ Semantics:
 | `player_legal` | latest parsed save's `legal` | carried forward unchanged until the next parse |
 | `legal_as_of` | that save's date | lets T4 age features |
 | `events` | adapter | `hello`, `date_regressed`, `save_parsed` |
+| `save_folder_key` (v1.3) | adapter | `live`/`release`: `"f-" + hmac.new(salt, <folder name UTF-8>, sha256).hexdigest()[:16]` of the latest parsed save's parent folder under `save_dir` (A-46); `replay`/`synth`: `"f-synth-" + sha256(run_id UTF-8).hexdigest()[:8]` (unique per run, so these runs never merge). `None` before the first parsed save; carried forward like `player_legal`. The folder name itself never reaches any SAE file |
+| `game_version` (v1.3) | adapter | latest parsed save's `meta.game_version` (C4), ≤ 64 chars; `None` before the first parse; carried forward |
+
+**Install salt** (v1.3): 32 bytes from `secrets.token_bytes(32)` in `<sae_dir>/salt` (`c8_config.sae_dir()`).
+The adapter that first needs it creates it with `os.open(path, O_CREAT|O_EXCL|O_WRONLY)` (parent dirs created);
+a loser of the race (`FileExistsError`) re-reads the winner's file. A salt file that is not exactly 32 bytes →
+`health invalid_event` once and no folder key for the run (`None`), never a rewrite. Deleting the salt makes all
+older folder keys unlinkable (privacy reset, documented by T8).
 
 Integer bound (proposal 007): `sid`, `m`, every seq field (`applied_seq`, `pending_seq`, `IntentAck.seq`/`applied`,
 `EmitReceipt.seq`) and every `LegalView` integer are at most `CLAUSEWITZ_INT_MAX` = 1,000,000 (A-17).
@@ -137,6 +145,20 @@ the number the engine steers. The engine never manages a country the mod did not
 | `replay` | a recorded session dir `{game.log, game.log.ts, saves/, bus.jsonl?}`; options `speed` (`realtime`, `<N>x`, `max`), `from`, `stop_at` (game dates) | writes the ini into the session's scratch dir; never to the real game folder | per `ack_model`: `echo` (the Python mod simulator applies C2 §5 to each written file and emits C1 ACKs), `drop:<p>`, `delay:<months>`, `from_recording` |
 | `synth` | archetype-labelled generator (`archetype` schedule, `seed`, `years`) producing FixtureSpecs → `sae-parse fixture` → `SaveParser.parse`, plus synthetic HB/SNAP lines; optional `record_dir` writes the replay session format (`game.log`, `game.log.ts` with `i*1e9` ns, `saves/<offset:012d>-autosave_<date>.sav`; proposal 015) | as replay | as replay (default `echo`) |
 | `release` | saves (and the log if it works in Ironman, A-20); no live input | `EmitReceipt(ok=False, error="release_mode")` | none |
+
+**Recording hygiene** (v1.3, proposal 022; C8 `record`): `live --record` and `synth --record` honour
+`record.saves` (`all`; `none` = log-only strict recording; `every_n` = every `record.save_every`-th eligible save,
+so `saves/` stays a valid replay session) and `record.max_bytes` (per recording dir: when the next save copy would
+exceed it, save copies stop, the log keeps recording, one `health record_capped`). Nothing is ever deleted. With
+`record.redact_plyr = true` (default) every PLYR line in the recorded `game.log` is redacted **but keeps its
+identity** (review 2 B1): a line that parses under C1 is recorded as exactly `SAE|v1|PLYR|<date>|sid=<n>` (stats
+and `name` removed, `sid` and the date kept as parsed); replay parses that stub as a stat-less `PlayerRecord`
+(C1 §3), so the echo simulator registers the human's sid and acks match the live run, and no `log_parse_error` is
+emitted for it. A PLYR line that fails C1 parsing is recorded in the bus-redaction form `SAE|v1|PLYR[|<date>]`
+(`sae.adapters.logtail._redact`, proposal 012) and replays as the same `log_parse_error` the live run saw. The `sid`
+is a country index, not god data; `name` and every stat are. `false` (dev preset only) also writes an empty marker file
+`GOD_VIEW_INSIDE` in the recording dir. A recording may carry `label.json` (C10 §1 `CampaignLabel`); `synth
+--record` writes it from its schedule.
 
 `game.log.ts` (replay sidecar) is a text file of `<byte_offset> <monotonic_ns>` lines written while
 recording; it lets replay reproduce wall-clock pacing. Replay and synth are deterministic for a given
@@ -178,6 +200,19 @@ The engine may only use what a player in the AI's seat could plausibly see (Alie
  "legal_as_of": "2231.03.01", "events": []}
 ```
 
+v1.3: after the first parsed save (live), and a synth run's key:
+
+```jsonl model=Observation
+{"game_date": "2231.05.01", "m": 376, "session_epoch": 1, "source": "save", "player_sid": 1, "managed": [], "player_legal": [], "legal_as_of": "2231.05.01", "events": ["save_parsed"], "save_folder_key": "f-9c1185a5c5e9fc54", "game_version": "Cepheus v4.4.4"}
+{"game_date": "2201.02.01", "m": 1, "session_epoch": 0, "source": "save", "player_sid": 1, "managed": [], "player_legal": [], "legal_as_of": "2201.02.01", "events": ["save_parsed"], "save_folder_key": "f-synth-0a1b2c3d", "game_version": "Cepheus v4.4.4"}
+```
+
+Invalid: a raw folder name in the key field.
+
+```json model=Observation invalid
+{"game_date": "2231.05.01", "m": 376, "session_epoch": 1, "source": "save", "player_sid": 1, "managed": [], "player_legal": [], "legal_as_of": "2231.05.01", "save_folder_key": "united_nations_of_earth"}
+```
+
 Invalid: a god-view field smuggled into the observation.
 
 ```json model=Observation invalid
@@ -208,6 +243,8 @@ produce them; only the engine does, C3 §5.)
 
 Adding a protocol method or an `Observation` field is a contract change (proposal; T2 and T4 update
 together). `schema_version` becomes 2 when a field is removed or its meaning changes.
+v1.3 adds two optional `Observation` fields (`save_folder_key`, `game_version`, default `None`) and the recording
+rules of §3; `schema_version` stays 1 because both fields are optional and every reader validates with this model.
 v1.2 adds `EmitReceipt.error = "ironman"`, the keyword `SaveParser.parse(..., *, sections=None)`
 (implementations must accept it) and rules §1.9/§1.10; no `Observation` field, `schema_version` stays 1.
 v1.1 adds one `EmitReceipt.error` value and rule §1.6; no `Observation` field changes (the engine
@@ -221,4 +258,5 @@ does not need `mp`: the adapter enforces the guard), so `schema_version` stays 1
 | A-13 | `HELLO` `mp=1` really marks a multiplayer session (`is_multiplayer` exists) | M0-6 | Guard inert; live mode documented as single-player only |
 | A-24 | Autosave can be monthly in dev | M0-11 | Log channel carries monthly signal |
 | A-34 | Autosave file names `autosave_*.sav` / `ironman.sav` | M0-11 | Config glob |
+| A-46 | Each campaign's autosaves live in one folder under `save games/`; a folder name is reused only by a new game of the same empire name | M0-11 | C10 §1 split rule + `sae profile exclude` |
 | A-32 | The mod can detect "in contact with the player" in script to set `sae_managed` | M0-6 | Engine-chosen list staged via a C2 v2 line |

@@ -27,8 +27,8 @@ jobs:
       - name: Build parser
         working-directory: parser
         run: cargo build --release -j 1
-      - name: pytest
-        run: uv run pytest -q
+      - name: pytest with coverage (single full run, line coverage gate)
+        run: uv run pytest -q --cov --cov-fail-under=90
       - name: mypy
         run: uv run mypy --strict src
       - name: ruff

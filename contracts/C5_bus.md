@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 (`v = 1` in every line) |
-| Status | FROZEN v1.2 (2026-10-19; payload enums follow C3/C6/C7 v1.1; CUSUM settled; v1.2 health kinds `ini_neutralised`, `ironman_observe_only` and receipt error `ironman`, proposal 017) |
+| Version | 1.3 (`v = 1` in every line) |
+| Status | FROZEN v1.2 (2026-10-19; payload enums follow C3/C6/C7 v1.1; CUSUM settled; v1.2 health kinds `ini_neutralised`, `ironman_observe_only` and receipt error `ironman`, proposal 017; v1.3 `run_started.policy` (019 Part A), health kinds `record_capped` (022) and `policy_pin_mismatch` (021)) |
 | Owner | architect (contract); T6 implements the writer and readers |
 | Producer | the daemon only (single writer per run): engine (T4), Governor (T5), adapters (T2) via the bus writer (T6) |
 | Consumers | `sae-telemetry` and Rerun (T6), DuckDB views (T6), ReplayAdapter (T2), CI-1/CI-2 and e2e checks (T7), `sae ctl status` (T6) |
@@ -47,7 +47,7 @@ decision audit is a DuckDB view joining rows on `decision_id`.
 
 | type | fow | Payload (model) | Emitted when |
 |---|---|---|---|
-| `run_started` | none | `RunStartedPayload`: engine version, contract versions, adapter mode, preset, config sha256, platform, python | first line of each file |
+| `run_started` | none | `RunStartedPayload`: engine version, contract versions, adapter mode, preset, config sha256, platform, python; since v1.3 `policy` (`PolicyRef`: `version`, `sha256`, `source` `builtin\|registry\|pinned`, `fallback_reason`; C10 §4) | first line of each file |
 | `observation` | legal | C6 `Observation` | each observation the engine consumes |
 | `observation_god` | god | C6 `GodObservation` | **bus.god.jsonl only** |
 | `belief_update` | legal | prior, loglik, posterior over the 4 archetypes; entropy; features used (`null` = unobserved); ≤ 5 `top_evidence` (feature, archetype, llr); optional diagnostic `change_score` (CUSUM: logged, **never acted on**; settled for v0 by the maintainer 2026-10-19) | each belief step |
@@ -64,6 +64,9 @@ decision audit is a DuckDB view joining rows on `decision_id`.
 `ack_alarm`, `daemon_exit`, `invalid_event`, and since v1.2 (proposal 017, component `adapter`):
 `ini_neutralised` (detail `close` or `multiplayer`; the adapter rewrote `sae_in.ini` as the C2 §2.1
 neutral file) and `ironman_observe_only` (once per daemon run; detail names the save; C6 §1.10).
+Since v1.3: `record_capped` (component `adapter`; once per recording dir when C8 `record.max_bytes` stops save
+copies; `metrics.bytes_used`; proposal 022) and `policy_pin_mismatch` (component `engine`; once per run when the
+first observed `game_version` does not fit the loaded policy's `game_version_pin`; the policy is kept; C10 §4).
 `intent_emitted.receipt.error` may be `ironman` (C6 v1.2). Monthly `health` metrics keys (T0 tier, resource proposal §7):
 `avail_ram_bytes`, `fault_rate`, `spm`, `spm_med6`, `spm_med24`, `daemon_rss_bytes`, `daemon_cpu_pct`,
 `parse_rss_peak_bytes`, `parse_cpu_s`, `parse_wall_s`, `saves_skipped`, `workers_killed`, `pause_fraction`.
@@ -128,6 +131,20 @@ Invalid lines (each must fail `BusEvent` validation):
 {"v":1,"run_id":"20261019-031500-synth-0a1b","seq":11,"t_wall":"2026-10-19T04:00:01.000Z","t_mono_ns":12000,"game_date":"2233.04.01","type":"control","fow":"none","payload":{"command":null,"result":{"command_id":"unknown","accepted":true,"applied_at":null,"status":null}}}
 ```
 
+v1.3 `run_started` with a policy (built-in after a registry fallback) and a capped recording:
+
+```jsonl model=BusEvent
+{"v":1,"run_id":"20261101-200000-live-3e4f","seq":0,"t_wall":"2026-11-01T20:00:00.000Z","t_mono_ns":1000,"game_date":null,"type":"run_started","fow":"none","payload":{"engine_version":"0.1.0","contracts":{"C1":1,"C2":1,"C3":1,"C4":1,"C5":1,"C6":1,"C7":1,"C8":1,"C9":1,"C10":1},"adapter_mode":"live","preset":"balanced","config_sha256":"3f0c9a8d2b7e4f61a5c3d9e8b7a6f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4","platform":"win-amd64","python":"3.12.3","policy":{"version":"0.1.0","sha256":"0455844eb53cc7c608159f0192b83f7f506951c9c19aa6f2b4f4ac8925da8cfc","source":"builtin","fallback_reason":"registry: seq gap at line 4"}}}
+{"v":1,"run_id":"20261101-200000-live-3e4f","seq":90,"t_wall":"2026-11-01T23:00:00.000Z","t_mono_ns":90000,"game_date":"2261.01.01","type":"health","fow":"none","payload":{"kind":"record_capped","component":"adapter","state":"PLAYING","level":"H0","metrics":{"bytes_used":4294000000},"detail":"record.max_bytes reached; saves no longer copied"}}
+{"v":1,"run_id":"20261101-200000-live-3e4f","seq":2,"t_wall":"2026-11-01T20:01:00.000Z","t_mono_ns":3000,"game_date":"2230.01.01","type":"health","fow":"none","payload":{"kind":"policy_pin_mismatch","component":"engine","state":"PLAYING","level":"H0","detail":"v4.4.* vs Corvus v4.5.0"}}
+```
+
+A policy with a fallback reason must be the built-in one:
+
+```jsonl model=BusEvent invalid
+{"v":1,"run_id":"20261101-200000-live-3e4f","seq":0,"t_wall":"2026-11-01T20:00:00.000Z","t_mono_ns":1000,"game_date":null,"type":"run_started","fow":"none","payload":{"engine_version":"0.1.0","contracts":{"C5":1},"adapter_mode":"live","preset":"balanced","config_sha256":"3f0c9a8d2b7e4f61a5c3d9e8b7a6f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4","platform":"win-amd64","python":"3.12.3","policy":{"version":"0.2.0","sha256":"7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e","source":"registry","fallback_reason":"x"}}}
+```
+
 (Line 1: god event in the legal bus. Line 2: decision event without `decision_id`. Line 3: wrong
 `fow`. Line 4: unknown version. Line 5: timestamp without timezone. Line 6: `command: null` on an
 accepted result.)
@@ -153,6 +170,11 @@ v1.1 stays `v = 1`: every reader validates with the contract adapters, which cha
 commit (new `Trigger` and `EmitReceipt.error` values; `FLEET_COMPOSITION_BIAS` intents no longer
 validate). A pre-v1.1 dev bus holding fleet-bias intents loses those `intent_emitted` lines as
 counted invalid lines on replay (§5); no player bus exists yet.
+
+v1.3 stays `v = 1`: `run_started.policy` is optional (`null`/absent on older buses; readers assume the built-in
+policy 0.1.0) and the two health kinds are additive. Whole-bus comparisons (tests, determinism hashes) drop
+`run_started.policy`; replay-determinism hashes also drop `observation.payload.save_folder_key` (salted per
+install, C6 §2).
 
 ## 7. UNVERIFIED assumptions
 

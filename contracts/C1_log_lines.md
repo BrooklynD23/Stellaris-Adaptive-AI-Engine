@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Version | 1 |
-| Status | FROZEN v1 (2026-10-19; §5 PLYR redaction clarified by proposal 012) |
+| Status | FROZEN v1 (2026-10-19; §5 PLYR redaction clarified by proposal 012; §3 recorded PLYR stub, review 2 B1) |
 | Owner | architect (contract); T1 implements the producer |
 | Producer | `sae_bridge` mod (T1); Python mod simulator (T2) |
 | Consumers | LiveAdapter and ReplayAdapter log tailer (T2); Governor spm sensing via HB (T5, through T2) |
@@ -50,7 +50,7 @@ Rules:
 | `HELLO` | At game start, and when the mod first initialises in a running campaign (006 R6); on save load only if A-35 holds (mod 0.1.0 has no load hook, so a reloaded session may start with `HB`); **never suppressed** | `mod` (str), `schema` (int ≥ 1), `period` (1–12), `quiet` (0/1) | `mp` (0/1) |
 | `HB` | Every game month, **never suppressed** by `sae_quiet` (signoff change 1) | `m` (int ≥ 0, mod month counter), `period`, `quiet` | — |
 | `SNAP` | Per managed AI, staggered by slot: when `(m + sid) mod period == 0`; suppressed by `sae_quiet=1` | `sid`, `seq` (0..1,000,000, `sae_seq_applied`), `name` | `fleet`, `navcap_used`, `navcap`, `en`, `mi`, `al`, `al_inc` (dec); `wars` (int ≥ 0); `econ` (0–4), `mil` (0–3), `contact` (0/1) |
-| `PLYR` | The player country, same stagger and quiet rule as SNAP | `sid`, `name` | same stats as SNAP (no `seq/econ/mil/contact`) |
+| `PLYR` | The player country, same stagger and quiet rule as SNAP | `sid`; `name` (the mod always emits it) | same stats as SNAP (no `seq/econ/mil/contact`) |
 | `ACK` | Once per (country, seq) the mod processes, including duplicates and rejections; **never suppressed** | `sid`, `seq` (1..1,000,000), `status`, `code` | `reason` (0–6, applied ReasonKey code); `applied` (0..1,000,000, `sae_seq_applied`; required by convention on DUPLICATE) |
 
 - `sid` is the **SAE country id**: the mod assigns every country (player and AIs) a unique integer
@@ -61,6 +61,10 @@ Rules:
 - `m` is the mod's month counter (global, +1 per monthly pulse). C2 expiry is expressed in `m`.
 - Integer bound (proposal 007): `sid` (1..), `m` (0..) and every seq-valued key (`seq`, `applied`) are at most
   `CLAUSEWITZ_INT_MAX` = 1,000,000 (A-17). A larger value makes the line a parse error.
+- **Recorded PLYR stub** (C6 §3, review 2 B1): a hygienic recording replaces each valid PLYR line with exactly
+  `SAE|v1|PLYR|<date>|sid=<n>` (stats and `name` removed, `sid` kept). Consumers parse it as a `PlayerRecord` with
+  `name = None` and every stat `None`. The mod itself never omits `name`; a name-less PLYR in a live `game.log` is
+  accepted the same way. SNAP still requires `name`.
 - `econ`/`mil` are the *applied* codes (C3 table); `0` means "never set by SAE".
 - Mod 0.1.0 omits the optional `en`, `mi`, `al`, `al_inc` from SNAP/PLYR (no exportable source known,
   A-38; proposal 006 R9). Consumers must treat every optional stat as possibly absent.
@@ -91,6 +95,7 @@ SAE|v1|HB|2231.04.01|m=375|period=1|quiet=0
 SAE|v1|SNAP|2231.04.01|sid=3|seq=17|fleet=8450|navcap_used=110|navcap=140|en=412.5|mi=1180|al=96.25|al_inc=14.5|wars=1|econ=2|mil=3|contact=1|name=Tzynn Empire
 SAE|v1|SNAP|2231.04.01|sid=4|seq=0.000|econ=0|mil=0|name=Kel-Azaan | Hegemony
 SAE|v1|PLYR|2231.04.01|sid=1|fleet=12010|al_inc=40|wars=0|name=United Nations of Earth
+SAE|v1|PLYR|2231.04.01|sid=1
 SAE|v1|ACK|2231.05.01|sid=3|seq=17|status=APPLIED|code=OK|reason=1
 SAE|v1|ACK|2231.05.01|sid=4|seq=17|status=REJECTED|code=BAD_TARGET
 SAE|v1|ACK|2231.06.01|sid=3|seq=17|status=DUPLICATE|code=SEQ_OLD|applied=18
@@ -104,6 +109,8 @@ SAE|v2|HB|2231.04.01|m=375|period=1|quiet=0
 SAE|v1|HB|2231.04.01|m=375|period=13|quiet=0
 SAE|v1|HB|2231.13.01|m=375|period=1|quiet=0
 SAE|v1|SNAP|2231.04.01|sid=3|name=Missing seq
+SAE|v1|SNAP|2231.04.01|sid=3|seq=1
+SAE|v1|PLYR|2231.04.01|name=Missing sid
 SAE|v1|SNAP|2231.04.01|sid=0|seq=1|name=Zero sid
 SAE|v1|SNAP|2231.04.01|sid=3|seq=1|fleet=1,234|name=Thousands separator
 SAE|v1|SNAP|2231.04.01|sid=3|seq=1|fleet=1e5|name=Exponent
@@ -139,6 +146,8 @@ Byte offsets are tracked on the raw file; the tailer reads at most every 2 s (C7
   still needs a change proposal so T2 updates first).
 - Removing a key, changing a type, adding a record type or changing semantics requires `v2`.
   Consumers drop lines whose version they do not know.
+- Making a required key optional on the consumer side only (PLYR `name`, 2026-10-19) stays v1: every line that
+  parsed before still parses to the same record, and the producer's obligation is unchanged.
 
 ## 7. UNVERIFIED assumptions (M0 checklist)
 

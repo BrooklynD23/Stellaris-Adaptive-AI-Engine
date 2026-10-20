@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "Archetype": {
+      "description": "Player archetypes the v0/v1 belief filter tracks (settled decision).",
+      "enum": [
+        "turtle",
+        "tech_rush",
+        "early_aggression",
+        "balanced"
+      ],
+      "title": "Archetype",
+      "type": "string"
+    },
+    "SummaryFeature": {
+      "additionalProperties": false,
+      "description": "One profile feature of one campaign (None = never observed, or never at war for first_war_year).",
+      "properties": {
+        "n_obs": {
+          "minimum": 0,
+          "title": "N Obs",
+          "type": "integer"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value",
+        "n_obs"
+      ],
+      "title": "SummaryFeature",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``profile/<key>/summaries/<campaign_id>.json`` (a rebuildable cache).",
+  "properties": {
+    "builder_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Builder Version",
+      "type": "string"
+    },
+    "campaign_id": {
+      "pattern": "^c-[0-9a-f]{16}$",
+      "title": "Campaign Id",
+      "type": "string"
+    },
+    "features": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SummaryFeature"
+      },
+      "propertyNames": {
+        "enum": [
+          "expansion_rate_early",
+          "expansion_rate_late",
+          "border_fort_ratio",
+          "first_war_year",
+          "war_share",
+          "fleet_power_cat_mean",
+          "tech_cat_mean",
+          "economy_cat_mean"
+        ]
+      },
+      "title": "Features",
+      "type": "object"
+    },
+    "final_belief": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Final Belief"
+    },
+    "game_versions": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Game Versions",
+      "type": "array"
+    },
+    "last_date": {
+      "title": "Last Date",
+      "type": "string"
+    },
+    "policy_sha256": {
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Policy Sha256",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "start_date": {
+      "title": "Start Date",
+      "type": "string"
+    }
+  },
+  "required": [
+    "campaign_id",
+    "builder_version",
+    "game_versions",
+    "policy_sha256",
+    "start_date",
+    "last_date",
+    "features",
+    "final_belief"
+  ],
+  "title": "CampaignSummary",
+  "type": "object"
+}

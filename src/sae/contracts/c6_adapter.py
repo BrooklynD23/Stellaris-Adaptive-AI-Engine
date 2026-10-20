@@ -15,7 +15,7 @@ from pydantic import Field
 
 from sae.contracts.c3_intent import IntentBatch
 from sae.contracts.c4_parse import GodView, LegalView, ParseResult
-from sae.contracts.common import AckCode, AckStatus, Frozen, GameDate, MonthIndex, Seq, SeqOrZero, Sid
+from sae.contracts.common import AckCode, AckStatus, FolderKey, Frozen, GameDate, MonthIndex, Seq, SeqOrZero, Sid
 
 SCHEMA_VERSION: Final = 1
 
@@ -71,6 +71,12 @@ class Observation(Frozen):
     player_legal: tuple[LegalView, ...] = Field(description="Per managed observer; from the latest save.")
     legal_as_of: GameDate | None = Field(description="Save date player_legal was computed from.")
     events: tuple[GameEvent, ...] = ()
+    save_folder_key: FolderKey | None = Field(
+        default=None, description="Salted key of the latest parsed save's folder (C6 v1.3 section 2); carried forward."
+    )
+    game_version: str | None = Field(
+        default=None, max_length=64, description="Latest parsed save's meta.game_version (C4); carried forward."
+    )
 
 
 class GodObservation(Frozen):

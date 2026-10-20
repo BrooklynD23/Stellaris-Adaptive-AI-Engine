@@ -13,7 +13,6 @@ from sae.contracts.c3_intent import IntentBatch
 from sae.contracts.c5_bus import BUS_EVENT_ADAPTER, HealthKind, SelectReason
 from sae.contracts.c6_adapter import AdapterMode, EmitReceipt, GameEvent
 from sae.contracts.c7_governor import GameState, HealthLevel
-from sae.contracts.c8_config import EngineConfig
 from sae.contracts.c9_control import ControlCommand, ForceStrategy, Pause, Resume, Status
 from sae.contracts.common import COUNTER_TABLE, Archetype, Strategy
 from sae.core import belief
@@ -21,8 +20,9 @@ from sae.core.engine import EventDraft, Outputs, initial_state, next_boundary, o
 from sae.core.state import EngineState
 
 from .fake_synth import Sim, date_for
+from .fakes_cfg import eff
 
-CFG = EngineConfig()
+CFG = eff()
 MONTHS = 372  # through 2230.12
 SEEDS = (1, 2, 3, 4)
 

@@ -148,13 +148,14 @@ def _run(command: str, args: argparse.Namespace, cfg: SaeConfig, parser_exe: str
                 return ReplayAdapter(
                     Path(args.session_dir), parser, god, health=health, scratch_dir=scratch, speed=args.speed,
                     from_=args.from_, stop_at=args.stop_at, ack_model=args.ack_model, seed=cfg.engine.seed,
+                    run_id=run_id,
                 )
             assert parser_exe is not None
             seed = cfg.engine.seed if args.seed is None else args.seed
             return SynthAdapter(
                 parse_schedule(args.archetype), seed, args.years, parser, god,
                 health=health, parser_exe=parser_exe, scratch_dir=scratch,
-                record_dir=None if args.record is None else Path(args.record),
+                record_dir=None if args.record is None else Path(args.record), record=cfg.record, run_id=run_id,
             )
 
         return int(asyncio.run(daemon.run(cfg, factory, run_id)))

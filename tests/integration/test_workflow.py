@@ -41,7 +41,9 @@ def test_uses_pinned_to_sha() -> None:
 
 def test_named_ci_steps_never_run_tests_twice() -> None:
     """CI-1/3/4/5 steps are collection guards only; the single full run is the ``pytest`` step."""
-    assert TEXT.count("uv run pytest -q\n") == 2  # linux + windows, each one full run
+    # linux: the full run carries the coverage gate (maintainer target 90 %); windows: plain full run
+    assert TEXT.count("uv run pytest -q --cov --cov-fail-under=90\n") == 1
+    assert TEXT.count("uv run pytest -q\n") == 1
     for line in TEXT.splitlines():
         if "pytest" in line and "tests/" in line:
             assert "--co -q" in line, line

@@ -37,15 +37,22 @@
     },
     "EngineConfig": {
       "additionalProperties": false,
-      "description": "Engine core numbers (T4).",
+      "description": "Engine core numbers (T4).\n\n``rho``/``likelihood_clip``/``belief_threshold``: ``None`` (default, C8 v1.3) = take the value from the loaded\nPolicyVersion's ``detector`` (C10 section 4); a number overrides the policy. The engine core only ever sees the\neffective config with all three filled (``sae.daemon.policy_resolve.effective_engine_config``).",
       "properties": {
         "belief_threshold": {
-          "default": 0.45,
-          "description": "Below: baseline.",
-          "exclusiveMaximum": 1.0,
-          "exclusiveMinimum": 0.25,
-          "title": "Belief Threshold",
-          "type": "number"
+          "anyOf": [
+            {
+              "exclusiveMaximum": 1.0,
+              "exclusiveMinimum": 0.25,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Below: baseline; null = policy.",
+          "title": "Belief Threshold"
         },
         "commitment_months": {
           "default": 24,
@@ -54,11 +61,18 @@
           "type": "integer"
         },
         "likelihood_clip": {
-          "default": 3.0,
-          "description": "L: per-feature |log-lik| cap.",
-          "exclusiveMinimum": 0,
-          "title": "Likelihood Clip",
-          "type": "number"
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "L: |log-lik| cap per feature; null=policy.",
+          "title": "Likelihood Clip"
         },
         "max_managed": {
           "default": 16,
@@ -69,12 +83,19 @@
           "type": "integer"
         },
         "rho": {
-          "default": 0.02,
-          "description": "Fixed-share forgetting per month.",
-          "maximum": 0.2,
-          "minimum": 0.0,
-          "title": "Rho",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 0.2,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fixed-share forgetting/month; null = policy.",
+          "title": "Rho"
         },
         "safety_floor_ship_min": {
           "default": 10,
@@ -389,6 +410,19 @@
           "description": "None = %LOCALAPPDATA%/sae/runs or ~/.local/state/sae/runs.",
           "title": "Runs Dir"
         },
+        "sae_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Per-user SAE state (profile, policies, salt); None = %LOCALAPPDATA%/sae or ~/.local/state/sae.",
+          "title": "Sae Dir"
+        },
         "save_dir": {
           "anyOf": [
             {
@@ -417,6 +451,94 @@
         }
       },
       "title": "PathsConfig",
+      "type": "object"
+    },
+    "PolicyConfig": {
+      "additionalProperties": false,
+      "description": "Which PolicyVersion the daemon loads (C10 sections 4-5, proposal 021).",
+      "properties": {
+        "pin": {
+          "anyOf": [
+            {
+              "const": "builtin",
+              "type": "string"
+            },
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None = registry current, else built-in; 'builtin'; or a policy sha256.",
+          "title": "Pin"
+        }
+      },
+      "title": "PolicyConfig",
+      "type": "object"
+    },
+    "ProfileConfig": {
+      "additionalProperties": false,
+      "description": "Player profile (C10 sections 1-2, proposal 020). The daemon reads no profile file in v1.",
+      "properties": {
+        "mode": {
+          "default": "off",
+          "enum": [
+            "off",
+            "strict"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "player_key": {
+          "default": "default",
+          "pattern": "^[a-z0-9_]{1,32}$",
+          "title": "Player Key",
+          "type": "string"
+        }
+      },
+      "title": "ProfileConfig",
+      "type": "object"
+    },
+    "RecordConfig": {
+      "additionalProperties": false,
+      "description": "Session recording hygiene for ``--record`` (proposal 022).",
+      "properties": {
+        "max_bytes": {
+          "default": 4294967296,
+          "description": "Per recording dir; then saves stop, log goes on.",
+          "minimum": 0,
+          "title": "Max Bytes",
+          "type": "integer"
+        },
+        "redact_plyr": {
+          "default": true,
+          "description": "False only with preset = dev (GOD_VIEW_INSIDE marker).",
+          "title": "Redact Plyr",
+          "type": "boolean"
+        },
+        "save_every": {
+          "default": 12,
+          "description": "With saves = every_n: copy every N-th save.",
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Save Every",
+          "type": "integer"
+        },
+        "saves": {
+          "default": "all",
+          "enum": [
+            "all",
+            "none",
+            "every_n"
+          ],
+          "title": "Saves",
+          "type": "string"
+        }
+      },
+      "title": "RecordConfig",
       "type": "object"
     },
     "TelemetryConfig": {
@@ -494,11 +616,11 @@
     "engine": {
       "$ref": "#/$defs/EngineConfig",
       "default": {
-        "belief_threshold": 0.45,
+        "belief_threshold": null,
         "commitment_months": 24,
-        "likelihood_clip": 3.0,
+        "likelihood_clip": null,
         "max_managed": 16,
-        "rho": 0.02,
+        "rho": null,
         "safety_floor_ship_min": 10,
         "seed": 0,
         "ttl_months": 3
@@ -560,8 +682,15 @@
         "ini_path": null,
         "parser_exe": null,
         "runs_dir": null,
+        "sae_dir": null,
         "save_dir": null,
         "user_dir": null
+      }
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyConfig",
+      "default": {
+        "pin": null
       }
     },
     "preset": {
@@ -573,6 +702,22 @@
       ],
       "title": "Preset",
       "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/ProfileConfig",
+      "default": {
+        "mode": "off",
+        "player_key": "default"
+      }
+    },
+    "record": {
+      "$ref": "#/$defs/RecordConfig",
+      "default": {
+        "max_bytes": 4294967296,
+        "redact_plyr": true,
+        "save_every": 12,
+        "saves": "all"
+      }
     },
     "telemetry": {
       "$ref": "#/$defs/TelemetryConfig",

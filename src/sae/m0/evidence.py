@@ -167,7 +167,8 @@ def check_log_channel(game_log: Path) -> Verdict:
     hb_count = len(_of(scan, HeartbeatRecord))
     dups = duplicate_heartbeats(scan.records)
     skipped = skipped_months(scan.records)
-    names = [r.name for r in scan.records if isinstance(r, SnapRecord | PlayerRecord)]
+    # C1: a redacted PLYR stub carries no name (C6 §3), so only named records count here.
+    names = [r.name for r in scan.records if isinstance(r, SnapRecord | PlayerRecord) and r.name is not None]
     hellos = _of(scan, HelloRecord)
     evidence: dict[str, object] = {
         "sae_lines": len(scan.records),

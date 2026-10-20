@@ -1,0 +1,449 @@
+{
+  "$defs": {
+    "Archetype": {
+      "description": "Player archetypes the v0/v1 belief filter tracks (settled decision).",
+      "enum": [
+        "turtle",
+        "tech_rush",
+        "early_aggression",
+        "balanced"
+      ],
+      "title": "Archetype",
+      "type": "string"
+    },
+    "DetectorParams": {
+      "additionalProperties": false,
+      "description": "The only mutable surface in v1 (bounds match C8 ``engine``).",
+      "properties": {
+        "belief_threshold": {
+          "maximum": 0.9,
+          "minimum": 0.3,
+          "title": "Belief Threshold",
+          "type": "number"
+        },
+        "likelihood": {
+          "$ref": "#/$defs/LikelihoodParams"
+        },
+        "likelihood_clip": {
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Likelihood Clip",
+          "type": "number"
+        },
+        "rho": {
+          "maximum": 0.2,
+          "minimum": 0,
+          "title": "Rho",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rho",
+        "likelihood_clip",
+        "belief_threshold",
+        "likelihood"
+      ],
+      "title": "DetectorParams",
+      "type": "object"
+    },
+    "EconPlan": {
+      "description": "``SET_ECON_PLAN`` values; ``code`` is written to ``sae_p_econ``.",
+      "enum": [
+        "balanced",
+        "military",
+        "research",
+        "expansion"
+      ],
+      "title": "EconPlan",
+      "type": "string"
+    },
+    "FixedParams": {
+      "additionalProperties": false,
+      "description": "Copied verbatim from the parent and never tuned in v1; the counter table must equal C3 section 6.",
+      "properties": {
+        "counter_table": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Strategy"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Counter Table",
+          "type": "object"
+        },
+        "outcome_weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "maxProperties": 32,
+          "propertyNames": {
+            "maxLength": 64
+          },
+          "title": "Outcome Weights",
+          "type": "object"
+        },
+        "templates": {
+          "additionalProperties": {
+            "$ref": "#/$defs/TemplateSpec"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Strategy"
+          },
+          "title": "Templates",
+          "type": "object"
+        }
+      },
+      "required": [
+        "counter_table",
+        "templates",
+        "outcome_weights"
+      ],
+      "title": "FixedParams",
+      "type": "object"
+    },
+    "LikelihoodParams": {
+      "additionalProperties": false,
+      "description": "Per-archetype likelihood tables (``sae.core.belief.LikelihoodModel``); all four archetypes required.",
+      "properties": {
+        "border": {
+          "additionalProperties": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 100,
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Border",
+          "type": "object"
+        },
+        "expansion": {
+          "additionalProperties": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 100,
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Expansion",
+          "type": "object"
+        },
+        "fleet": {
+          "additionalProperties": {
+            "maxItems": 5,
+            "minItems": 5,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Fleet",
+          "type": "object"
+        },
+        "tech": {
+          "additionalProperties": {
+            "maxItems": 5,
+            "minItems": 5,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Tech",
+          "type": "object"
+        },
+        "war_now": {
+          "additionalProperties": {
+            "exclusiveMaximum": 1,
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "War Now",
+          "type": "object"
+        }
+      },
+      "required": [
+        "border",
+        "expansion",
+        "fleet",
+        "tech",
+        "war_now"
+      ],
+      "title": "LikelihoodParams",
+      "type": "object"
+    },
+    "Posture": {
+      "description": "``SET_MILITARY_POSTURE`` values; ``code`` is written to ``sae_p_mil``.",
+      "enum": [
+        "defensive",
+        "deterrent",
+        "offensive"
+      ],
+      "title": "Posture",
+      "type": "string"
+    },
+    "ReasonKey": {
+      "description": "Pre-authored localisation keys for the in-game flavour event.\n\n``code`` is written to ``sae_p_reason``; 0 means \"no reason / do not fire\". The localisation key\nis ``sae_reason_<value>``; T1 authors the strings.",
+      "enum": [
+        "turtle_siege",
+        "tech_rush_punish",
+        "aggression_hold",
+        "baseline",
+        "operator_forced",
+        "safety_floor"
+      ],
+      "title": "ReasonKey",
+      "type": "string"
+    },
+    "Strategy": {
+      "description": "Counter-strategy templates. ``baseline`` is the safety-floor default.",
+      "enum": [
+        "outscale_siege",
+        "early_punish",
+        "hold_counterpunch",
+        "baseline"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    },
+    "TemplateSpec": {
+      "additionalProperties": false,
+      "description": "One strategy template (``sae.core.expansion.Template``).",
+      "properties": {
+        "econ": {
+          "$ref": "#/$defs/EconPlan"
+        },
+        "posture": {
+          "$ref": "#/$defs/Posture"
+        },
+        "reason_key": {
+          "$ref": "#/$defs/ReasonKey"
+        }
+      },
+      "required": [
+        "econ",
+        "posture",
+        "reason_key"
+      ],
+      "title": "TemplateSpec",
+      "type": "object"
+    },
+    "TuningManifest": {
+      "additionalProperties": false,
+      "description": "How a policy was produced.",
+      "properties": {
+        "campaign_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^c-[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "maxItems": 1024,
+          "title": "Campaign Ids",
+          "type": "array"
+        },
+        "kappa": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kappa"
+        },
+        "likelihood_source": {
+          "enum": [
+            "synth_aligned",
+            "fitted_real"
+          ],
+          "title": "Likelihood Source",
+          "type": "string"
+        },
+        "method": {
+          "enum": [
+            "builtin",
+            "manual",
+            "loco_shrinkage"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "synth_seeds": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 1024,
+          "title": "Synth Seeds",
+          "type": "array"
+        },
+        "tuner_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Tuner Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "likelihood_source",
+        "tuner_version"
+      ],
+      "title": "TuningManifest",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``<sae_dir>/policies/<sha256>.json`` or the built-in package file; identity = :func:`policy_sha256`.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "detector": {
+      "$ref": "#/$defs/DetectorParams"
+    },
+    "fixed": {
+      "$ref": "#/$defs/FixedParams"
+    },
+    "game_version_pin": {
+      "description": "e.g. \"v4.4.*\"",
+      "pattern": "^v\\d+\\.\\d+\\.(\\d+|\\*)$",
+      "title": "Game Version Pin",
+      "type": "string"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    },
+    "parent_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Parent Sha256"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tuning": {
+      "$ref": "#/$defs/TuningManifest"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "created_at",
+    "game_version_pin",
+    "parent_sha256",
+    "detector",
+    "fixed",
+    "tuning"
+  ],
+  "title": "PolicyVersion",
+  "type": "object"
+}

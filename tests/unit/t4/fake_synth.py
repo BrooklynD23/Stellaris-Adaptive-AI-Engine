@@ -16,6 +16,8 @@ from sae.contracts.common import AckCode, AckStatus, Archetype
 from sae.core.engine import EngineCtx, Outputs, initial_state, on_ack, on_emitted, on_observation
 from sae.core.state import EngineState
 
+from .fakes_cfg import eff
+
 START_YEAR = 2200
 PLAYER = 1
 AIS = (2, 3)
@@ -47,7 +49,7 @@ class Sim:
 
     archetype: Archetype
     seed: int
-    cfg: EngineConfig = field(default_factory=EngineConfig)
+    cfg: EngineConfig = field(default_factory=eff)
     mode: AdapterMode = AdapterMode.SYNTH
     save_every: int = 12
     keep_every: int = 1

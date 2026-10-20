@@ -10,11 +10,12 @@ from hypothesis import strategies as st
 from sae.contracts.c3_intent import SetEconPlan, SetMilitaryPosture
 from sae.contracts.c5_bus import RejectRule
 from sae.contracts.c6_adapter import AdapterMode
-from sae.contracts.c8_config import EngineConfig
 from sae.contracts.common import EconPlan, Posture
 from sae.core.validator import ValidationContext, validate
 
-CFG = EngineConfig()
+from .fakes_cfg import eff
+
+CFG = eff()
 BASE: dict[str, Any] = {"decision_id": "d-2200.01-01", "ttl_months": 3}
 
 
@@ -86,7 +87,7 @@ def test_fleet_bias_reserved_in_v11() -> None:
 
 
 def test_safety_floor_cannot_fire_in_v11() -> None:
-    acc, rej = validate([econ(), posture()], ctx(cfg=EngineConfig(safety_floor_ship_min=100)))
+    acc, rej = validate([econ(), posture()], ctx(cfg=eff(safety_floor_ship_min=100)))
     assert len(acc) == 2 and not rej
 
 
@@ -97,7 +98,7 @@ def test_rate_limit_second_batch_and_reemission() -> None:
 
 
 def test_rate_limit_country_cap() -> None:
-    cfg = EngineConfig(max_managed=2)
+    cfg = eff(max_managed=2)
     ids = frozenset(range(2, 6))
     intents = [econ(n, c) for n, c in [(1, 5), (2, 3), (3, 2), (4, 4)]]
     acc, rej = validate(intents, ctx(managed=ids, cfg=cfg))

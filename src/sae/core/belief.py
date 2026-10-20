@@ -155,6 +155,8 @@ def update(
             prior=pri, loglik=dict.fromkeys(ARCHS, 0.0), posterior=pri, entropy=_entropy(b),
             features=fdict, top_evidence=(), change_score=state.change_score,
         )
+    if cfg.rho is None or cfg.likelihood_clip is None:
+        raise ValueError("core needs an effective EngineConfig (rho, likelihood_clip filled from the policy)")
     kk = max(0, k)
     decay = (1.0 - cfg.rho) ** kk
     prior = _norm([1 / n + decay * (x - 1 / n) for x in b])

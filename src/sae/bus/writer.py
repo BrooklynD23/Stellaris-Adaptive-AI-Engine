@@ -34,6 +34,7 @@ from sae.contracts.c5_bus import (
     GodBusEvent,
     HealthKind,
     HealthPayload,
+    PolicyRef,
     RunStartedPayload,
 )
 from sae.contracts.c6_adapter import GodObservation
@@ -199,7 +200,8 @@ class BusWriter:
     """Implements ``sae.daemon.ports.BusSink`` over ``bus.jsonl`` and ``bus.god.jsonl``."""
 
     def __init__(self, run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False,
-                 wall: Callable[[], datetime] | None = None, mono: Callable[[], int] | None = None) -> None:
+                 wall: Callable[[], datetime] | None = None, mono: Callable[[], int] | None = None,
+                 policy: PolicyRef | None = None) -> None:
         self._run_id = run_id
         self._dev = config.preset == "dev"
         self._wall = wall or (lambda: datetime.now(UTC))
@@ -212,7 +214,7 @@ class BusWriter:
         self._started = RunStartedPayload(
             engine_version=sae.__version__, contracts=dict(CONTRACT_VERSIONS), adapter_mode=config.adapter,
             preset=config.preset, config_sha256=config_sha256(config),
-            platform=f"{sys.platform}-{platform.machine()}", python=platform.python_version())
+            platform=f"{sys.platform}-{platform.machine()}", python=platform.python_version(), policy=policy)
         self._bus = _Stream(run_dir / BUS_FILE, BUS_EVENT_ADAPTER, resume=resume, run_id=run_id)
         try:
             self._god = _Stream(run_dir / GOD_FILE, GOD_BUS_EVENT_ADAPTER, resume=resume, run_id=run_id)
@@ -323,6 +325,11 @@ def _first_error(exc: BaseException) -> str:
 
 
 def open_sink(run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False,
-              wall: Callable[[], datetime] | None = None, mono: Callable[[], int] | None = None) -> BusWriter:
-    """Open (or resume) the run's bus files and return the writer."""
-    return BusWriter(run_dir, run_id, config, resume=resume, wall=wall, mono=mono)
+              wall: Callable[[], datetime] | None = None, mono: Callable[[], int] | None = None,
+              policy: PolicyRef | None = None) -> BusWriter:
+    """Open (or resume) the run's bus files and return the writer.
+
+    ``policy`` (C8 section 5.1 v1.2 / C5 v1.3) is the PolicyVersion the daemon resolved; it goes in
+    ``run_started.payload.policy``. ``None`` keeps the pre-v1.3 shape (built-in 0.1.0 implied).
+    """
+    return BusWriter(run_dir, run_id, config, resume=resume, wall=wall, mono=mono, policy=policy)

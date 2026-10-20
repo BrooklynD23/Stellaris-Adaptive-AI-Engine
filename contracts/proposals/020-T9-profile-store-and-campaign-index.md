@@ -1,6 +1,7 @@
 # 020-T9 — Profile store, campaign index, label manifest, engine priors (new C10 §1–§3; C8 v1.2)
 
-Status: PROPOSED (2026-10-19, T9 lead; revised after Fable proposal review B2, B3, M3, M7, M8 and
+Status: **§1–§2 ACCEPTED-WITH-CHANGES** as C10 v1 §0–§2 + C8 v1.2 (2026-10-19, architect, WU-1; changes W1-7, W1-9). **§3 DEFERRED** (maintainer D2).
+Original: PROPOSED (2026-10-19, T9 lead; revised after Fable proposal review B2, B3, M3, M7, M8 and
 architecture review S2, S4). Reporter: T9. Contracts: new **C10 Profile and policy** (§1–§3 here, §4–§6 in
 021); C8 §2, §6, §7 (v1.1 → v1.2, additive). Consumers: T9 (writes everything here), T4 (nothing now; reads `priors.json`
 only when §3 is re-submitted), T2 + T7 (read `label.json` in recordings), T6 (console views), T8 (privacy docs).

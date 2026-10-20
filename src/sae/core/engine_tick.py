@@ -15,7 +15,7 @@ from sae.contracts.c7_governor import GameState, HealthLevel
 from sae.contracts.common import CLAUSEWITZ_INT_MAX, ReasonKey
 from sae.core import belief, features, lifecycle, outcome, strategy
 from sae.core.dates import date_of
-from sae.core.expansion import desired_intents
+from sae.core.expansion import DEFAULT_EXPANSIONS, desired_intents
 from sae.core.state import DesiredSig, EngineCtx, EngineState, EventDraft
 from sae.core.validator import ValidationContext, validate
 
@@ -82,24 +82,26 @@ def run_tick(
             kind=HealthKind.ACK_ALARM, component="engine", state=ctx.game_state, level=ctx.level,
             detail="no ACK after re-emission; press the run hotkey")))
     mem, fv, new_ev, k = features.extract(s.features, obs)
-    bel, bp = belief.update(s.belief, fv, new_ev, k, cfg, mi=mi)
+    bel, bp = belief.update(s.belief, fv, new_ev, k, cfg, ctx.likelihood, mi=mi)
     drafts.append(EventDraft(type="belief_update", payload=bp, game_date=date, decision_id=did))
     s = s.model_copy(update={"lifecycle": lc, "features": mem, "belief": bel, "last_decided_mi": mi,
                              "last_decision_id": did})
     if s.suspended:
         return s, drafts, None
-    strat, sp, closed = strategy.select(s.strategy, bel.posterior, mi, cfg, decision_id=did)
+    strat, sp, closed = strategy.select(s.strategy, bel.posterior, mi, cfg, decision_id=did,
+                                         templates=ctx.templates or DEFAULT_EXPANSIONS)
     drafts.append(EventDraft(type="strategy_selected", payload=sp, game_date=date, decision_id=did))
     contact_set = frozenset(v.observer_sid for v in obs.player_legal if v.in_contact)
     now = outcome.snapshot(obs.managed, contact_set)
     if closed is not None:
-        drafts.append(EventDraft(type="outcome", payload=outcome.build(closed, s.window_open, now),
+        drafts.append(EventDraft(type="outcome", payload=outcome.build(closed, s.window_open, now, ctx.outcome_weights),
                                  game_date=date, decision_id=closed.opened_by or did))
     s = s.model_copy(update={"strategy": strat,
                              "window_open": now if strat.opened_by == did else s.window_open})
     managed = [m.sid for m in obs.managed]
     intents, next_id = desired_intents(sp.strategy, sp.reason_key or ReasonKey.BASELINE, managed,
-                                       obs.player_legal, obs.player_sid, cfg, did, s.next_intent_id)
+                                       obs.player_legal, obs.player_sid, cfg, did, s.next_intent_id,
+                                       ctx.templates or DEFAULT_EXPANSIONS)
     sig, contact = signature(intents), tuple(sorted(contact_set))
     want = sig != s.last_desired or bool(contact_set - set(s.contact)) or lc.resync_needed
     due = want or ctx.knob_request is not None

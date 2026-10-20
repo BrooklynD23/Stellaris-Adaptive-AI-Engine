@@ -83,3 +83,23 @@ def test_kit_assumptions_are_registered() -> None:
     for check in CHECKS:
         for a_id in check.assumptions:
             assert a_id in registry, f"{check.id} lists unregistered {a_id}"
+
+
+def test_m0_11_has_exactly_one_record_step() -> None:
+    """`save_manual` replaces the whole manual block, so a second record would erase the first."""
+    steps = BY_ID["M0-11"].steps
+    records = [s for s in steps if "record M0-11" in s]
+    assert len(records) == 1
+    assert "fields_match_ui" in records[0]
+    assert "same_name_new_game_reuses_folder" in records[0]
+
+
+def test_save_manual_second_call_replaces_first(tmp_path: Path) -> None:
+    """Pins the overwrite that the single-record runbook avoids."""
+    from sae.m0.results import save_manual
+
+    save_manual(tmp_path, "M0-11", "pass", "", {"fields_match_ui": "yes"})
+    path = save_manual(tmp_path, "M0-11", "pass", "", {"same_name_new_game_reuses_folder": "yes"})
+    text = path.read_text(encoding="utf-8")
+    assert "same_name_new_game_reuses_folder" in text
+    assert "fields_match_ui" not in text

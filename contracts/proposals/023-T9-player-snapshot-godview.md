@@ -1,6 +1,6 @@
 # 023-T9 — Player snapshot inside the god view (`GodView.snapshot`)
 
-Status: PROPOSED — **CONDITIONAL** (2026-10-19, T9 lead). Build only if the maintainer approves plan
+Status: **PARKED** (2026-10-19, architect: maintainer D1 = no for v1; WU-9 does not start). Original: PROPOSED — **CONDITIONAL** (2026-10-19, T9 lead). Build only if the maintainer approves plan
 decision D1 (a `reputation` profile mode, or snapshot capture for offline analysis only). The v1 profile is
 strict and needs none of this (Fable proposal review B2 and cut list); the architecture review's S3 seam is
 satisfied by this text being ready. Reporter: T9 (expansion: player profile and bounded RSI).

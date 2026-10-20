@@ -16,14 +16,26 @@ from sae.contracts.c6_adapter import AdapterMode, EmitReceipt, GodObservation, O
 from sae.contracts.c7_governor import GameState, HealthLevel, Trigger
 from sae.contracts.c8_config import PresetName
 from sae.contracts.c9_control import ControlCommand, ControlResult
-from sae.contracts.common import AckCode, AckStatus, Archetype, Frozen, GameDate, ReasonKey, Seq, Sid, Strategy
+from sae.contracts.common import (
+    AckCode,
+    AckStatus,
+    Archetype,
+    Frozen,
+    GameDate,
+    ReasonKey,
+    RunId,
+    SemVer,
+    Seq,
+    Sha256Hex,
+    Sid,
+    Strategy,
+)
 
 BUS_VERSION: Final = 1
 BUS_FILE = "bus.jsonl"
 GOD_FILE = "bus.god.jsonl"
 MAX_LINE_BYTES = 1024 * 1024
 
-RunId = Annotated[str, Field(pattern=r"^\d{8}-\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$")]
 Prob = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
@@ -39,6 +51,26 @@ class _Envelope(Frozen):
     decision_id: DecisionId | None = None
 
 
+class PolicyRef(Frozen):
+    """Which PolicyVersion (C10 section 4) the daemon loaded at start (proposal 019 Part A, C5 v1.3).
+
+    ``source``: ``builtin`` (no pin and no registry pointer, ``policy.pin = "builtin"``, or any fallback),
+    ``registry`` (the registry's current pointer, C10 section 5), ``pinned`` (``policy.pin = <sha256>``).
+    ``fallback_reason`` is set only when the daemon wanted another policy and fell back to the built-in one.
+    """
+
+    version: SemVer
+    sha256: Sha256Hex
+    source: Literal["builtin", "registry", "pinned"]
+    fallback_reason: str | None = Field(default=None, max_length=256)
+
+    @model_validator(mode="after")
+    def _fallback_is_builtin(self) -> PolicyRef:
+        if self.fallback_reason is not None and self.source != "builtin":
+            raise ValueError("fallback_reason requires source = builtin")
+        return self
+
+
 class RunStartedPayload(Frozen):
     """First event of every bus file."""
 
@@ -49,6 +81,7 @@ class RunStartedPayload(Frozen):
     config_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     platform: str
     python: str
+    policy: PolicyRef | None = Field(default=None, description="None only on pre-v1.3 buses (built-in 0.1.0).")
 
 
 class RunStartedEvent(_Envelope):
@@ -270,6 +303,8 @@ class HealthKind(StrEnum):
     INVALID_EVENT = "invalid_event"
     INI_NEUTRALISED = "ini_neutralised"  # C2 section 2.1, C6 section 1.9 (v1.2)
     IRONMAN_OBSERVE_ONLY = "ironman_observe_only"  # C6 section 1.10 (v1.2)
+    RECORD_CAPPED = "record_capped"  # C8 record.max_bytes reached (v1.3, proposal 022)
+    POLICY_PIN_MISMATCH = "policy_pin_mismatch"  # C10 section 4 game_version_pin (v1.3, proposal 021)
 
 
 class HealthPayload(Frozen):

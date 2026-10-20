@@ -7,16 +7,19 @@ Layer order (later wins): built-in defaults < preset < TOML file < ``SAE_*`` env
 from __future__ import annotations
 
 import json
+import os
 import secrets
+import sys
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Final, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from sae.contracts.c6_adapter import AdapterMode
 from sae.contracts.c7_governor import GovernorConfig, TelemetryTier
-from sae.contracts.common import Frozen
+from sae.contracts.common import Frozen, Sha256Hex
 
 SCHEMA_VERSION: Final = 1
 ENV_PREFIX = "SAE_"
@@ -36,14 +39,25 @@ class PathsConfig(Frozen):
     ini_path: str | None = Field(default=None, description="Default <user_dir>/sae_in.ini (UNVERIFIED A-08).")
     runs_dir: str | None = Field(default=None, description="None = %LOCALAPPDATA%/sae/runs or ~/.local/state/sae/runs.")
     parser_exe: str | None = Field(default=None, description="Default: PATH, else repo parser/target/{release,debug}.")
+    sae_dir: str | None = Field(
+        default=None,
+        description="Per-user SAE state (profile, policies, salt); None = %LOCALAPPDATA%/sae or ~/.local/state/sae.",
+    )
 
 
 class EngineConfig(Frozen):
-    """Engine core numbers (T4)."""
+    """Engine core numbers (T4).
 
-    rho: float = Field(default=0.02, ge=0.0, le=0.2, description="Fixed-share forgetting per month.")
-    likelihood_clip: float = Field(default=3.0, gt=0, description="L: per-feature |log-lik| cap.")
-    belief_threshold: float = Field(default=0.45, gt=0.25, lt=1.0, description="Below: baseline.")
+    ``rho``/``likelihood_clip``/``belief_threshold``: ``None`` (default, C8 v1.3) = take the value from the loaded
+    PolicyVersion's ``detector`` (C10 section 4); a number overrides the policy. The engine core only ever sees the
+    effective config with all three filled (``sae.daemon.policy_resolve.effective_engine_config``).
+    """
+
+    rho: float | None = Field(default=None, ge=0.0, le=0.2, description="Fixed-share forgetting/month; null = policy.")
+    likelihood_clip: float | None = Field(default=None, gt=0, description="L: |log-lik| cap per feature; null=policy.")
+    belief_threshold: float | None = Field(
+        default=None, gt=0.25, lt=1.0, description="Below: baseline; null = policy."
+    )
     commitment_months: int = Field(default=24, ge=1)
     max_managed: int = Field(default=16, ge=1, le=16, description="Mod caps sae_managed at 16 (C6 section 2).")
     safety_floor_ship_min: int = Field(
@@ -70,6 +84,30 @@ class TelemetryConfig(Frozen):
     viewer_memory_limit: str = "512MB"
 
 
+class ProfileConfig(Frozen):
+    """Player profile (C10 sections 1-2, proposal 020). The daemon reads no profile file in v1."""
+
+    mode: Literal["off", "strict"] = "off"
+    player_key: str = Field(default="default", pattern=r"^[a-z0-9_]{1,32}$")
+
+
+class PolicyConfig(Frozen):
+    """Which PolicyVersion the daemon loads (C10 sections 4-5, proposal 021)."""
+
+    pin: Literal["builtin"] | Sha256Hex | None = Field(
+        default=None, description="None = registry current, else built-in; 'builtin'; or a policy sha256."
+    )
+
+
+class RecordConfig(Frozen):
+    """Session recording hygiene for ``--record`` (proposal 022)."""
+
+    max_bytes: int = Field(default=4 * 1024**3, ge=0, description="Per recording dir; then saves stop, log goes on.")
+    saves: Literal["all", "none", "every_n"] = "all"
+    save_every: int = Field(default=12, ge=1, le=1000, description="With saves = every_n: copy every N-th save.")
+    redact_plyr: bool = Field(default=True, description="False only with preset = dev (GOD_VIEW_INSIDE marker).")
+
+
 class SaeConfig(Frozen):
     """The fully resolved configuration; written to ``runs/<id>/config.resolved.json``."""
 
@@ -82,6 +120,15 @@ class SaeConfig(Frozen):
     bridge: BridgeConfig = BridgeConfig()
     governor: GovernorConfig = GovernorConfig()
     telemetry: TelemetryConfig = TelemetryConfig()
+    profile: ProfileConfig = ProfileConfig()
+    policy: PolicyConfig = PolicyConfig()
+    record: RecordConfig = RecordConfig()
+
+    @model_validator(mode="after")
+    def _raw_plyr_only_in_dev(self) -> SaeConfig:
+        if not self.record.redact_plyr and self.preset != "dev":
+            raise ValueError("record.redact_plyr = false is allowed only with preset = dev")
+        return self
 
 
 #: Preset overrides, applied on top of defaults (C8 section 4).
@@ -171,3 +218,18 @@ def resolve_config(*layers: Mapping[str, Any]) -> SaeConfig:
 def new_run_id(mode: AdapterMode, now: datetime) -> str:
     """``YYYYMMDD-HHMMSS-<mode>-<4 hex>`` in UTC (C5 RunId)."""
     return f"{now.strftime('%Y%m%d-%H%M%S')}-{mode.value}-{secrets.token_hex(2)}"
+
+
+def default_sae_dir(environ: Mapping[str, str] | None = None, platform: str | None = None) -> Path:
+    """``%LOCALAPPDATA%\\sae`` on Windows, else ``${XDG_STATE_HOME:-~/.local/state}/sae`` (C8 section 3)."""
+    env = os.environ if environ is None else environ
+    if (sys.platform if platform is None else platform).startswith("win"):
+        local = env.get("LOCALAPPDATA")
+        return (Path(local) if local else Path.home() / "AppData" / "Local") / "sae"
+    xdg = env.get("XDG_STATE_HOME")
+    return (Path(xdg) if xdg else Path.home() / ".local" / "state") / "sae"
+
+
+def sae_dir(config: SaeConfig, environ: Mapping[str, str] | None = None) -> Path:
+    """``paths.sae_dir`` if set, else :func:`default_sae_dir`. Every team resolves ``<sae_dir>`` here."""
+    return Path(config.paths.sae_dir) if config.paths.sae_dir else default_sae_dir(environ)

@@ -360,6 +360,20 @@
       "title": "Game Date",
       "type": "string"
     },
+    "game_version": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Latest parsed save's meta.game_version (C4); carried forward.",
+      "title": "Game Version"
+    },
     "legal_as_of": {
       "anyOf": [
         {
@@ -413,6 +427,20 @@
         }
       ],
       "title": "Player Sid"
+    },
+    "save_folder_key": {
+      "anyOf": [
+        {
+          "pattern": "^f-([0-9a-f]{16}|synth-[0-9a-f]{8})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Salted key of the latest parsed save's folder (C6 v1.3 section 2); carried forward.",
+      "title": "Save Folder Key"
     },
     "schema_version": {
       "const": 1,

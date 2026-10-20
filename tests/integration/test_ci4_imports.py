@@ -13,7 +13,7 @@ FORBIDDEN_TOP = {
     "torch", "jax", "jaxlib", "cupy", "rerun", "rerun_bindings", "duckdb", "polars", "pyarrow",
     "pynvml", "onnxruntime", "tensorflow",
 }
-FORBIDDEN_SAE = {"sae.telemetry", "sae.bench", "sae.m0"}
+FORBIDDEN_SAE = {"sae.telemetry", "sae.bench", "sae.m0", "sae.profile", "sae.tune"}
 
 
 def _allowed() -> set[str]:

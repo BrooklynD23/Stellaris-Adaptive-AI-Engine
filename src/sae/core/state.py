@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from sae.contracts.c2_ini import KnobCommand
 from sae.contracts.c3_intent import IntentBatch
@@ -12,8 +13,9 @@ from sae.contracts.c6_adapter import AdapterMode
 from sae.contracts.c7_governor import GameState, HealthLevel
 from sae.contracts.c8_config import EngineConfig
 from sae.contracts.c9_control import ForceStrategy
-from sae.contracts.common import Frozen
-from sae.core.belief import BeliefState
+from sae.contracts.common import Frozen, Strategy
+from sae.core.belief import BeliefState, LikelihoodModel
+from sae.core.expansion import Template
 from sae.core.features import FeatureMemory
 from sae.core.lifecycle import LifecycleState
 from sae.core.outcome import WindowSnapshot
@@ -78,6 +80,8 @@ class Outputs(Frozen):
 class EngineCtx(Frozen):
     """Per-observation context from the daemon."""
 
+    model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
+
     mode: AdapterMode
     cfg: EngineConfig
     knob_request: KnobCommand | None = None
@@ -87,3 +91,7 @@ class EngineCtx(Frozen):
     #: Wave 3 N6 (maintainer): Ironman reported by the adapter -> observe only (beliefs update, nothing emitted,
     #: no ack_alarm; proposed intents are audited as intent_rejected rule ``mode``, detail ``ironman``).
     observe_only: bool = False
+    #: C10 section 4: tables from the resolved policy; None = code defaults (built-in 0.1.0).
+    likelihood: LikelihoodModel | None = None
+    templates: Mapping[Strategy, Template] | None = None
+    outcome_weights: Mapping[str, float] | None = None

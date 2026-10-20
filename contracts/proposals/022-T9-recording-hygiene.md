@@ -1,6 +1,7 @@
 # 022-T9 — Recording size cap and PLYR-redacted recordings (C8 v1.2 `record` section; C5 health kind)
 
-Status: PROPOSED (2026-10-19, T9 lead, from architecture review S5 and Wave 3 N2/N4). Reporter: T9 on behalf
+Status: **ACCEPTED-WITH-CHANGES** (2026-10-19, architect, WU-1: C8 v1.2 `record`, C6 v1.3 §3, C5 v1.3 `record_capped`; change W1-8).
+Original: PROPOSED (2026-10-19, T9 lead, from architecture review S5 and Wave 3 N2/N4). Reporter: T9 on behalf
 of the expansion plan; implementation owners T2 (recorder) and T4 (`sae daemon --record` wiring).
 Contracts: C8 §2 (new `record` section, v1.2 together with 020/021); C6 §3 (recording rule text); C5 §3
 (one `health.kind`, v1.3 together with 019). Consumers: T2, T4, T6 (console alert), T7 (tests), T8 (user guide).

@@ -9,14 +9,15 @@ exported from them; `tests/contract/` validates every example in these documents
 | Id | Contract | Version | Status | Producer → Consumers |
 |---|---|---|---|---|
 | C1 | [`SAE|v1|` log lines](C1_log_lines.md) | 1 | FROZEN v1 | T1 mod (T2 simulator) → T2 adapters, T5 via HB |
-| C2 | [`sae_in.ini` command file](C2_sae_in_ini.md) | 1.1 | FROZEN v1.1 | T4 compiler, T2 writer → game console, T1 mod, T2 simulator |
-| C3 | [Intent schema v1 + mapping to C2](C3_intents.md) | 1.1 | FROZEN v1.1 | T4 → T2, T6, T1 |
+| C2 | [`sae_in.ini` command file](C2_sae_in_ini.md) | 1.2 | FROZEN v1.2 | T4 compiler, T2 writer → game console, T1 mod, T2 simulator |
+| C3 | [Intent schema v1 + mapping to C2](C3_intents.md) | 1.2 | FROZEN v1.2 | T4 → T2, T6, T1 |
 | C4 | [`sae-parse` CLI, JSON, fixtures](C4_sae_parse.md) | 1 | FROZEN v1 | T3 → T4/T5 daemon, T2, T7 |
-| C5 | [`bus.jsonl` envelope and events](C5_bus.md) | 1.1 | FROZEN v1.1 | daemon (T4/T5/T2 via T6 writer) → T6, T2 replay, T7 |
-| C6 | [GameAdapter, Observation, fog boundary](C6_game_adapter.md) | 1.1 | FROZEN v1.1 | T2 → T4 |
+| C5 | [`bus.jsonl` envelope and events](C5_bus.md) | 1.3 | FROZEN v1.3 | daemon (T4/T5/T2 via T6 writer) → T6, T2 replay, T7 |
+| C6 | [GameAdapter, Observation, fog boundary](C6_game_adapter.md) | 1.3 | FROZEN v1.3 | T2 → T4 |
 | C7 | [Resource Governor](C7_governor.md) | 1.1 | FROZEN v1.1 | T5 → T4, T6, T7 |
-| C8 | [Config, layout, presets, CLI](C8_config_cli.md) | 1.1 | FROZEN v1.1 | all |
+| C8 | [Config, layout, presets, CLI](C8_config_cli.md) | 1.3 | FROZEN v1.3 | all |
 | C9 | [Control plane](C9_control_plane.md) | 1 | FROZEN v1 | T6 `sae ctl` → T4 daemon |
+| C10 | [Player profile and policy](C10_profile_policy.md) | 1 | FROZEN v1 | T9 `sae profile`/`tune`/`policy`, T7 gate → T4 daemon (policy, read-only), T6, T8 |
 
 Status values: `DRAFT` (Wave 0, open to the adversary loop) → `FROZEN v<N>` (teams build against it;
 changes only through §3).
@@ -33,6 +34,7 @@ changes only through §3).
 | T5 Governor + platform | `src/sae/governor/**`, `src/sae/platform/**` | C7 | C4 exit codes, C5 health |
 | T6 Telemetry + console | `src/sae/bus/**`, `src/sae/telemetry/**`, `src/sae/control/**`, `tools/console/**` | C5 writer/readers, C9 `sae ctl` + inbox, `sae telemetry` | all event payloads |
 | T7 QA/CI/bench | `tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**` | CI-1..CI-5, fog import test (C6 §4) | all |
+| T9 Profile + tuning | `src/sae/profile/**`, `src/sae/tune/**`, `tests/unit/t9/**` | C10 §1–§2 producer, C10 §4–§5 writers (`sae tune`, `sae policy`), `sae play` launcher | C5, C6, C10 |
 | T8 Release/docs/M0 | `docs/**` (not TEAM_PLAN), `README.md`, `CHANGELOG.md`, `changelog.d/**`, `packaging/**`, `tools/m0/**`, `src/sae/m0/**` | M0 checklist from §5 | all |
 
 ## 3. Change protocol
@@ -124,3 +126,4 @@ proposal. Nothing here is VERIFIED without evidence from the game.
 | A-43 | The game process is named `stellaris.exe` (Windows, Proton) / `stellaris` (Linux) | M0-12 | C7 |
 | A-44 | `IsIconic` on the game's top-level window detects minimise | M0-12 | C7 |
 | A-45 | A `psutil.process_iter` rescan on Windows stays under the 100 ms probe bound | M0-12 | C7 |
+| A-46 | Each campaign's autosaves live in one folder under `save games/`; a folder name is reused only by a new game of the same empire name | M0-11 | C6, C10 |

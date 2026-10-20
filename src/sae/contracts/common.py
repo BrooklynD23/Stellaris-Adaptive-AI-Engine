@@ -1,4 +1,4 @@
-"""Shared types for all SAE contracts (C1-C9).
+"""Shared types for all SAE contracts (C1-C10).
 
 Every enum here is part of a frozen contract. Integer codes are the values written into the game
 (C2) and read back from it (C1); changing one is a breaking change that needs a proposal.
@@ -53,6 +53,19 @@ SeqOrZero = Annotated[int, Field(ge=0, le=CLAUSEWITZ_INT_MAX)]
 
 #: A non-negative game count; bounded like every other integer that crosses the game boundary (A-17).
 GameCount = Annotated[int, Field(ge=0, le=CLAUSEWITZ_INT_MAX)]
+
+#: Lower-case hex sha256 digest (C5 ``run_started.policy``, C10 hashes). Proposal 019.
+Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+
+#: ``YYYYMMDD-HHMMSS-<mode>-<4 hex>`` in UTC (C8 ``new_run_id``; C5 envelope; C10 campaign index).
+RunId = Annotated[str, Field(pattern=r"^\d{8}-\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$")]
+
+#: Salted campaign-folder key (C6 ``Observation.save_folder_key``, C10 section 1): ``f-`` + 16 hex of
+#: HMAC-SHA256(install salt, folder name); replay and synth runs use ``f-synth-`` + 8 hex of sha256(run_id).
+FolderKey = Annotated[str, Field(pattern=r"^f-([0-9a-f]{16}|synth-[0-9a-f]{8})$")]
+
+#: ``MAJOR.MINOR.PATCH`` (C10 PolicyVersion.version, C5 PolicyRef.version).
+SemVer = Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+$")]
 
 
 class Frozen(BaseModel):

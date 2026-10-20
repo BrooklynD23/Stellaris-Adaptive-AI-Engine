@@ -3,6 +3,74 @@
 Newest first. Every accepted proposal adds an entry: date, contracts, version change, proposal file,
 summary.
 
+## 2026-10-19 — Architecture review 2 actions 1, 3, 4, 5 (C1 clarification; C6 §3; C8 → v1.3; C10 §5)
+
+Source: `docs/status/ARCHITECTURE_alignment_review_2.md` §7.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| B1 recorded PLYR stub (action 1, blocking) | C6 §3; C1 §3, §4, §6 | Redacted PLYR keeps its identity: a C1-valid PLYR line is recorded as exactly `SAE\|v1\|PLYR\|<date>\|sid=<n>`; a C1-invalid one keeps the bus form `SAE\|v1\|PLYR[\|<date>]`. C1 PLYR `name` becomes optional on the consumer side (`PlayerRecord.name: str \| None = None`; SNAP unchanged; the mod still always emits it). Stub and `name`-less invalid examples added to C1 §4 | clarification, C1 stays v1 (every old line parses the same); C6 stays v1.3 |
+| W1-1 landed (action 4) | C8 §2 | `engine.rho`, `engine.likelihood_clip`, `engine.belief_threshold` default `null` = from the policy; a number overrides. `SaeConfig.schema.json` regenerated | C8 v1.3 (wire `v = 1`) |
+| Registry trust (action 5) | C10 §5 | `by: human:*` rows are trust-on-write; WU-7's `append_registry_row` raises `RegistryError` for a `human:` row unless stdin and stdout are a TTY | doc rule for WU-7 |
+| D-V4 (action 5) | `docs/TEAM_PLAN.md` T4 + V-4 | `early_punish` vs `outscale_siege` decision recorded with both outcomes tied to the M0-7 result | plan |
+| tooling (action 3, packaging) | `pyproject.toml` | `[tool.coverage.run] parallel = true`; wheel `artifacts = ["src/sae/policies/*.json"]` (already shipped by hatch; now explicit, verified in the built wheel) | tooling |
+
+Follow-ups (each team's own paths; `uv run mypy --strict src/sae` shows 6 errors until they land):
+T2 — `src/sae/adapters/recording.py:34` write the stub `SAE|v1|PLYR|<rec.date>|sid=<rec.sid>` for a line that
+parses as `PlayerRecord` (else keep `_redact`); `src/sae/adapters/replay.py:280` `SimCountry` needs a `str` name
+(use e.g. `rec.name or f"sid {rec.sid}"`); `tests/e2e/test_replay_chain.py::test_echo_chain_clean` green and 0
+`log_parse_error` on a replayed hygienic recording. T4 — `src/sae/core/policy.py:64` `builtin_policy_doc` must not
+read `EngineConfig()` (now `None`: raises `ValidationError`); use the literal 0.02 / 3.0 / 0.45; `core/belief.py:159,162`
+and `core/strategy.py:93` type errors (the core needs a filled config: narrow or take an effective type);
+`daemon/loop.py:113-114` and `daemon/cli.py:128` must also fill from the built-in policy when `deps.policy is None`;
+T4 tests that pass `EngineConfig()` straight into core (`tests/unit/t4/test_engine.py:25`, `test_hardening.py:34`,
+`test_expansion.py:11`, `test_belief.py:16,111`, `test_strategy.py:18`, `test_validator.py:17`, `test_policy.py:87,407,418`)
+need the effective config; drop the `model_fields_set` clause in `effective_engine_config`. T8 —
+`src/sae/m0/evidence.py:170,182` skip `name is None`. T7 — add a C1 round-trip check that the stub formats back
+byte-identical; F1's PLYR leg becomes non-vacuous once T2 lands.
+
+## 2026-10-19 — Proposals 019 Part A, 020 §1–§2, 021, 022 ACCEPTED-WITH-CHANGES (C5, C6 → v1.3; C8 → v1.2; new C10 v1)
+
+WU-1 of `docs/expansion/player_profile_and_rsi_plan.md` §6. Parked: 023 (maintainer D1 = no). Deferred: 019 Part B
+(`priors_loaded`) and 020 §3 (`EnginePriors`), re-submitted once a profile is eligible (D2).
+
+| Proposal | Contracts | Change | Kind |
+|---|---|---|---|
+| 019 Part A | C6 §2; C5 §3; C8 §5.1; common | `Observation.save_folder_key` (`FolderKey`), `Observation.game_version`; install salt rule; `RunStartedPayload.policy: PolicyRef \| None`; `open_sink(..., *, policy=None)`; aliases `Sha256Hex`, `RunId` (moved from C5), `FolderKey`, `SemVer` in `common.py` | additive, v1.3 / v1.2 |
+| 020 §1–§2 | new C10 §0–§2; C8 §2, §3, §7 | `<sae_dir>` layout; `CampaignEvent`, `CampaignLabel`/`LabelSegment`, `CampaignSummary`, `ProfileDoc`; `paths.sae_dir`, `profile.mode`, `profile.player_key`; `c8_config.sae_dir()`/`default_sae_dir()`; T9 paths | new contract + additive keys |
+| 021 | new C10 §4–§6; C8 §2; C5 §3 | `PolicyVersion` (+ `DetectorParams`, `LikelihoodParams`, `FixedParams`, `TemplateSpec`, `TuningManifest`), `canonical_json`, `policy_sha256`, `pin_matches`; `RegistryRow`, `fold_registry` → `RegistryState`, `RegistryError`; `Preregistration`, `GateCheck`, `GateReport`; `policy.pin`; health kind `policy_pin_mismatch` | new contract + additive |
+| 022 | C8 §2; C6 §3; C5 §3 | `record.max_bytes` (4 GiB), `saves`, `save_every`, `redact_plyr`; health kind `record_capped`; `GOD_VIEW_INSIDE` marker | additive, v1.3 / v1.2 |
+| D5 launcher | C8 §5 | `sae play` (T9, `sae.profile.launcher`) contracted as planned, not dispatched | doc |
+| tooling | `pyproject.toml` | dev dependency `pytest-cov`; `[tool.coverage.run]` `source = ["src/sae"]`, `branch = false`; `[tool.coverage.report]` `fail_under = 90`; not in `addopts` | tooling |
+
+`CONTRACT_VERSIONS` gains `"C10": 1` (every new bus's `run_started.contracts` lists it). Wire fields stay
+`v = 1` / `schema_version = 1`.
+
+### Changes vs the proposals
+
+| # | Proposal | Decision | Why |
+|---|---|---|---|
+| W1-1 | 021 C8 `engine.*` defaults → `null` | **Landed 2026-10-19 (C8 v1.3, entry above)**; was staged: numeric defaults stay in v1.2; the switch to `null` lands in one change with WU-2 (T4 + architect), pre-accepted | `sae.core.belief` (`1.0 - cfg.rho`) and `strategy` read the floats today; flipping now breaks the engine before T4 can load a policy |
+| W1-2 | 021 pin check "at start" | daemon cannot know the game version at start; first `game_version` mismatch → one `health policy_pin_mismatch`, policy kept; offline checks in `sae policy promote` and Stage 1 | no mid-run policy switch (settled) |
+| W1-3 | 021 `policy.pin = <sha>` | pinned sha must be in `fold_registry(...).approved` (complete human-approved chain) | pin must not bypass approval |
+| W1-4 | 021 `DetectorParams.rho ≤ 0.5` | `≤ 0.2`, matching C8 `engine.rho` | a policy must not hold a value the config rejects |
+| W1-5 | 021 `append_registry_row` | rule in C10 §5; code lands with WU-7, the first writer | nothing writes the registry before WU-7 |
+| W1-6 | 019 `FolderKey` pattern `f-(synth-)?[0-9a-f]{8,16}` | `f-([0-9a-f]{16}\|synth-[0-9a-f]{8})`; replay runs use the synth rule | exact lengths; replay saves all sit in `saves/` |
+| W1-7 | 020 `RunId` `[a-z]+` | reuse the C5 pattern (mode enum), moved to `common.py` | one definition |
+| W1-8 | 022 `redact_plyr` "false only in dev" | model rule: `false` with `preset != dev` is a config error; default `true` in every preset | privacy default |
+| W1-9 | 020/021 consistency | model-enforced: `ProfileDoc.eligible`/`drift_alarm`, `GateReport.passed`, `Preregistration.budget ≥ min_n`, `CampaignEvent` per-event fields, `RegistryRow` writer per action and evidence presence, `FixedParams.counter_table == C3 §6` | derived flags cannot drift from their rule |
+| W1-10 | 021 package data entry | none needed: hatch ships every file under `src/sae` | — |
+| W1-11 | plan WU-1 "`profile\|tune\|policy\|gate` subcommands in `cli.py`" | not added; C8 §5 lists them as planned | no implementation exists yet (WU-5..WU-7) |
+
+Follow-ups (exact refs in the proposals' status lines and `docs/TEAM_PLAN.md` "T9 expansion"):
+T2 — WU-3: C6 §2 folder key/salt/`game_version` in `src/sae/adapters/assembler.py`; C6 §3 recording rules in
+`live.py`/`synth.py`; `label.json` from `sae synth --record`. T4 — WU-2: C10 §4 resolution in
+`src/sae/daemon/wiring.py` before `open_sink`, `src/sae/policies/builtin-0.1.0.json`, model from policy,
+`policy_pin_mismatch`, resume sha check. T6 — C8 §5.1 `open_sink(..., policy=)` in `src/sae/bus/writer.py:325`.
+T7 — WU-4: bus checks accept v1.3, whole-bus comparisons drop `run_started.policy`, determinism drops
+`save_folder_key`, CI-4 `FORBIDDEN_SAE` += `sae.profile`, `sae.tune`; `tests/contract` glob for `C10_*.md`.
+T8 — WU-8: A-46 in the M0 checklist, user-guide privacy/policy/recording sections.
+
 ## 2026-10-19 — Architecture review follow-ups (no version moves)
 
 | Item | Contracts | Change | Kind |

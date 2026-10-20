@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from sae.contracts.c3_intent import IntentBatch, SetEconPlan, SetMilitaryPosture
 from sae.contracts.c4_parse import LegalView
-from sae.contracts.c8_config import EngineConfig
 from sae.contracts.common import EconPlan, Posture, ReasonKey, Strategy
 from sae.core.expansion import DEFAULT_EXPANSIONS, desired_intents
 
-CFG = EngineConfig()
+from .fakes_cfg import eff
+
+CFG = eff()
 D = "d-2200.01-01"
 
 

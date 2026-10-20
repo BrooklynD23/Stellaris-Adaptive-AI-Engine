@@ -296,3 +296,35 @@ def test_invalid_event_health_throttled_with_count(tmp_path: Path) -> None:
     ev = [e for e in read_events(tmp_path / BUS_FILE).events if isinstance(e, HealthEvent)]
     assert len(ev) == 2
     assert "(+3 suppressed)" in (ev[1].payload.detail or "")
+
+
+def test_open_sink_policy_on_run_started(tmp_path: Path) -> None:
+    from sae.contracts.c5_bus import PolicyRef
+
+    ref = PolicyRef(version="0.1.0", sha256="a" * 64, source="pinned")
+    wall, mono = clocks()
+    open_sink(tmp_path, RUN_ID, cfg("balanced"), wall=wall, mono=mono, policy=ref).close()
+    first = json.loads((tmp_path / BUS_FILE).read_text().splitlines()[0])
+    assert first["type"] == "run_started" and first["payload"]["policy"] == ref.model_dump(mode="json")
+    assert json.loads((tmp_path / GOD_FILE).read_text().splitlines()[0])["payload"]["policy"]["sha256"] == "a" * 64
+
+
+def test_open_sink_without_policy_still_works(tmp_path: Path) -> None:
+    _open(tmp_path).close()
+    assert json.loads((tmp_path / BUS_FILE).read_text().splitlines()[0])["payload"]["policy"] is None
+
+
+def test_resume_with_policy_keeps_first_run_started(tmp_path: Path) -> None:
+    from sae.contracts.c5_bus import PolicyRef
+
+    ref_a = PolicyRef(version="0.1.0", sha256="a" * 64, source="pinned")
+    ref_b = PolicyRef(version="0.2.0", sha256="b" * 64, source="pinned")
+    wall, mono = clocks()
+    open_sink(tmp_path, RUN_ID, cfg("balanced"), wall=wall, mono=mono, policy=ref_a).close()
+    w = open_sink(tmp_path, RUN_ID, cfg("balanced"), resume=True, wall=wall, mono=mono, policy=ref_b)
+    w.emit(DRAFTS[0])
+    w.close()
+    lines = [json.loads(x) for x in (tmp_path / BUS_FILE).read_text().splitlines()]
+    started = [e for e in lines if e["type"] == "run_started"]
+    assert len(started) == 1
+    assert started[0]["payload"]["policy"]["sha256"] == "a" * 64

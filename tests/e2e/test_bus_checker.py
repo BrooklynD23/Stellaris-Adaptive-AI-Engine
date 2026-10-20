@@ -157,3 +157,15 @@ def test_load_ignores_partial_last_line(tmp_path: Path) -> None:
 
 def test_month_index() -> None:
     assert _bus.month_index("2200.03.01") - _bus.month_index("2200.01.01") == 2
+
+
+def test_digest_and_canonical_ignore_save_folder_key_and_policy() -> None:
+    """C5 v1.3: a salted ``save_folder_key`` and ``run_started.policy`` never separate two otherwise equal runs."""
+    a = [_ev(1, "run_started", None, {"policy": {"sha256": "a" * 64}}), _ev(2, "observation", "d", {"x": 1})]
+    b = copy.deepcopy(a)
+    b[0]["payload"] = {"policy": {"sha256": "b" * 64}}
+    b[1]["payload"] = {"x": 1, "save_folder_key": "k" * 16}
+    assert _bus.digest(a) == _bus.digest(b)
+    assert _bus.canonical(a[1]) == _bus.canonical(b[1])
+    b[1]["payload"] = {"x": 2, "save_folder_key": "k" * 16}
+    assert _bus.digest(a) != _bus.digest(b), "vacuous: a real payload difference must still show"

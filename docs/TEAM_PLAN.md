@@ -129,6 +129,15 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
 - Depends on: C3, C5, C6, C7, C8, C9. Feeds: Wave 2 integration.
 - Backlog: bandit across campaigns (condition C), CUSUM-triggered commitment breaks, BetweenSessionEmitter
   for release mode, LLM condition D (M4, never in the runtime loop before then).
+- **Open decision D-V4 (review 1 action 3b, review 2 action 5; tracked as V-4): `early_punish` vs
+  `outscale_siege`.** Today both expand to the same knobs (MILITARY + OFFENSIVE) and differ only in
+  `sae_p_reason`, so the counter table is 3-way in game terms. Interim (settled decision 5, unchanged): keep both
+  until M0-7. At the M0-7 result the architect and maintainer pick exactly one and record it in
+  `contracts/CHANGES.md`: (a) M0-7 passes (A-22 per-size knob exists) → a C3 v1.2 proposal gives `early_punish` a
+  distinct template, a new PolicyVersion carries it in `fixed.templates` and V-4 is run; (b) M0-7 fails → the C3 §6
+  counter table collapses to 3 counters (turtle and builder map to one strategy) and `FixedParams.counter_table`
+  follows. Either way it is a C3 + C10 change plus a new policy version, never an edit to the built-in 0.1.0. T4
+  reports the state of D-V4 in every wave status until it is closed.
 
 ## T5 — Governor and platform (`src/sae/governor/**`, `src/sae/platform/**`)
 
@@ -176,7 +185,7 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
 
 - Deliverables: user and developer docs (honest pitch: "a strategic director that reshapes the AI's
   economy and posture", the influence ceiling; fleet doctrine only after M0-7); the M0 spike kit — `tools/m0/` scripts
-  plus `docs/m0_checklist.md` with one row per A-xx in contracts/README.md §5 (A-01..A-45) and per M0 test (pass/fail criterion,
+  plus `docs/m0_checklist.md` with one row per A-xx in contracts/README.md §5 (A-01..A-46) and per M0 test (pass/fail criterion,
   fallback, result field), a timestamping log tailer for M0-4, a parse timer for M0-11, an
   `m0_results.md` template; `sae m0` CLI; packaging plan (mod zip, Python wheel, `sae-parse` binary);
   changelog stewardship (merge `changelog.d/` fragments at Wave 3).
@@ -184,6 +193,27 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
   fallback; `sae m0 --help` works; docs reference only contracted commands and paths.
 - Depends on: C1–C9 (read-only). Feeds: maintainer's M0 weekend.
 - Backlog: mod page text after M3; Workshop packaging.
+
+## T9 — Player profile and tuning (`src/sae/profile/**`, `src/sae/tune/**`, `tests/unit/t9/**`)
+
+Plan: `docs/expansion/player_profile_and_rsi_plan.md` (maintainer decisions D1–D6, §8). Contracts: C10 v1, C8 v1.2,
+C6 v1.3, C5 v1.3 (`contracts/CHANGES.md`, 2026-10-19 entry). Settled decisions hold: no LLM at runtime, zero GPU,
+three processes (`sae profile`/`tune`/`policy`/`gate`/`play` are offline CLIs, never imported by the daemon),
+runtime self-modification OFF (only validated, versioned, human-approved policies are promoted; personal only, D4).
+
+| WU | Owner | Work (contract refs) | State |
+|---|---|---|---|
+| WU-1 | architect | 019 Part A, 020 §1–§2, 021, 022 decided; C10, C8 v1.2, C5/C6 v1.3, schemas, coverage tooling | DONE 2026-10-19 |
+| WU-2 | T4 (+ T6) | C10 §4 daemon resolution in `src/sae/daemon/wiring.py` before `open_sink`; `src/sae/policies/builtin-0.1.0.json` (+ test: equals code constants); `LikelihoodModel`/templates/weights from the policy; `run_started.policy`; `health policy_pin_mismatch`; `--resume` sha check (exit 1); with the architect, the C8 §2 `engine.*` → `null` switch. T6: C8 §5.1 `open_sink(..., policy=)` | open |
+| WU-3 | T2 | C6 §2 `save_folder_key` + salt + `game_version` (`src/sae/adapters/assembler.py`); C6 §3 recording rules (`live.py`, `synth.py`), `record_capped`; `label.json` from `sae synth --record` | open |
+| WU-4 | T7 | F0–F4 fog checks on synth (plan §3); CI-4 `FORBIDDEN_SAE` += `sae.profile`, `sae.tune`; bus checks for C5 v1.3; whole-bus comparisons drop `run_started.policy`, determinism hashes drop `save_folder_key` | open |
+| WU-5 | T9 | `sae profile update\|show\|delete\|close\|exclude\|label` (C10 §1–§2) and the `sae play` launcher (C8 §5, D5) | after WU-1, WU-3 |
+| WU-6 | T9 | `sae tune detector` (plan §4) | after WU-2, WU-5, M2 labels |
+| WU-7 | T7 + T9 (+ architect) | `sae gate stage1\|stage2` (T7), `sae policy …` (T9), `c10_profile.append_registry_row` (architect) | after WU-2, WU-4, WU-6 |
+| WU-8 | T8 | docs (privacy, policy registry and rollback, recording hygiene, launcher); A-46 in the M0 checklist | after WU-1 |
+
+Parked: proposal 023 / WU-9 (D1 = no). Deferred: 019 Part B, 020 §3 (D2, once a profile is eligible).
+Coverage: `uv run pytest --cov` (opt-in, `[tool.coverage]` `fail_under = 90`; maintainer target ≥ 90 % lines).
 
 ## Validation backlog (Fable architecture review, 2026-10-19)
 
@@ -198,7 +228,7 @@ installed); each needs the maintainer's saves or the game. Added on the maintain
 | V-1 | Calibrate on real campaigns: hand-label 5 real campaigns with the player's archetype; fit likelihoods with leave-one-campaign-out | Expected calibration error (ECE) ≤ 0.10 on each held-out campaign; correct counter chosen on ≥ 4 of 5 | 5 labelled real campaigns (saves + logs), label manifest (seam S4) | T4 + T9 | M2 |
 | V-2 | Knob A/B in game: does an applied econ plan change AI behaviour? | Fleet power B/A ≥ 1.3 after 15 years (already M0-8 in `docs/m0_checklist.md`) | the game, M0 weekend | maintainer, T8 kit | M0 |
 | V-3 | Adaptation has signal, not noise: long runs must show real strategy switches and a reward spread | On recorded real or replayed campaigns: > 1 switch where the player changes style; rewards not all within ±0.02 (a 200-year synth run gave 1 switch, 3 batches, 99 rewards within ±0.02) | V-1 data or real recordings | T4 + T7 | M2 |
-| V-4 | Turtle vs builder counters really differ | `outscale_siege` and `early_punish` produce measurably different AI behaviour once the hull mix returns | M0-7 pass (A-22) | T4 + T1 | after M0-7 |
+| V-4 | Turtle vs builder counters really differ (decision D-V4 in the T4 section: distinct template if M0-7 passes, else collapse the table to 3 counters) | `outscale_siege` and `early_punish` produce measurably different AI behaviour once the hull mix returns; if M0-7 fails, V-4 closes by the collapse recorded in `contracts/CHANGES.md` | M0-7 result (A-22) | T4 + T1; decision architect + maintainer | at the M0-7 result |
 | V-5 | Fog-perturbation test on real saves: hide one god-only field and confirm beliefs don't move | Belief change = 0 for every god-only perturbation | `ReplayAdapter(parser=...)` seam, real recordings | T9 + T7 | M2 |
 
 The runtime still ships only validated, versioned policies approved by a human; no test here turns on

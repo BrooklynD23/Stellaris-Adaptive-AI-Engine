@@ -183,6 +183,51 @@
       "title": "ObservationGodEvent",
       "type": "object"
     },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "description": "Which PolicyVersion (C10 section 4) the daemon loaded at start (proposal 019 Part A, C5 v1.3).\n\n``source``: ``builtin`` (no pin and no registry pointer, ``policy.pin = \"builtin\"``, or any fallback),\n``registry`` (the registry's current pointer, C10 section 5), ``pinned`` (``policy.pin = <sha256>``).\n``fallback_reason`` is set only when the daemon wanted another policy and fell back to the built-in one.",
+      "properties": {
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "builtin",
+            "registry",
+            "pinned"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "sha256",
+        "source"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    },
     "RunStartedEvent": {
       "additionalProperties": false,
       "description": "``run_started``: identifies the run; config itself is in config.resolved.json (C8).",
@@ -294,6 +339,18 @@
         "platform": {
           "title": "Platform",
           "type": "string"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None only on pre-v1.3 buses (built-in 0.1.0)."
         },
         "preset": {
           "enum": [

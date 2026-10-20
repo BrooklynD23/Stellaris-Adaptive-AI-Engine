@@ -1,0 +1,141 @@
+{
+  "additionalProperties": false,
+  "description": "One line of ``<sae_dir>/campaigns.jsonl`` (append-only; written by ``sae profile`` only).",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "campaign_id": {
+      "pattern": "^c-[0-9a-f]{16}$",
+      "title": "Campaign Id",
+      "type": "string"
+    },
+    "event": {
+      "enum": [
+        "seen",
+        "closed",
+        "labelled",
+        "excluded",
+        "deleted"
+      ],
+      "title": "Event",
+      "type": "string"
+    },
+    "folder_key": {
+      "anyOf": [
+        {
+          "pattern": "^f-([0-9a-f]{16}|synth-[0-9a-f]{8})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Folder Key"
+    },
+    "game_versions": {
+      "default": [],
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Game Versions",
+      "type": "array"
+    },
+    "label_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label Sha256"
+    },
+    "last_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Date"
+    },
+    "policy_sha256": {
+      "default": [],
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Policy Sha256",
+      "type": "array"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "run_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+        "type": "string"
+      },
+      "maxItems": 1024,
+      "title": "Run Ids",
+      "type": "array"
+    },
+    "seq": {
+      "description": "Gapless per file, from 0.",
+      "minimum": 0,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "start_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Start Date"
+    },
+    "v": {
+      "const": 1,
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "seq",
+    "at",
+    "campaign_id",
+    "event"
+  ],
+  "title": "CampaignEvent",
+  "type": "object"
+}
