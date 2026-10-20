@@ -12,9 +12,9 @@ TEXT = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
 
 def test_job_names() -> None:
-    """The three jobs exist (stdlib only: two-space keys under ``jobs:``; actionlint validated the YAML)."""
+    """The four jobs exist (stdlib only: two-space keys under ``jobs:``; actionlint validated the YAML)."""
     jobs = TEXT.split("\njobs:\n", 1)[1]
-    assert set(re.findall(r"^  ([\w-]+):$", jobs, re.M)) == {"python-linux", "rust-linux", "windows"}
+    assert set(re.findall(r"^  ([\w-]+):$", jobs, re.M)) == {"python-linux", "mod", "rust-linux", "windows"}
 
 
 @pytest.mark.parametrize("cmd", [
@@ -22,7 +22,8 @@ def test_job_names() -> None:
     "uv run ruff check", "tests/e2e/test_ci1.py", "tests/unit/t5", "ci3 or ram_ramp or fault_spike",
     "--co -q", "tests/integration/test_ci4_*.py", "tests/e2e/test_ci5.py", "cargo fmt --check",
     "cargo clippy -j 1 -- -D warnings", "cargo test -j 1", "rustup target add x86_64-pc-windows-gnu",
-    "cargo check -j 1 --target x86_64-pc-windows-gnu",
+    "cargo check -j 1 --target x86_64-pc-windows-gnu", "mod/sae_bridge/tools/check_mod.py",
+    "uv run pytest -q mod/sae_bridge/tests", "cargo clippy -j 1 --all-targets -- -D warnings", "feat/**",
 ])
 def test_gate_command_present(cmd: str) -> None:
     """Each gate command appears in the workflow."""

@@ -2,8 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -45,6 +46,18 @@ jobs:
       - name: CI-5 collected
         run: test "$(uv run pytest tests/e2e/test_ci5.py --co -q | grep -c '::' || true)" -gt 0
 
+  mod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - run: uv sync --all-extras
+      - name: Mod static checker
+        run: uv run python3 mod/sae_bridge/tools/check_mod.py
+      - name: Mod tool tests
+        run: uv run pytest -q mod/sae_bridge/tests
+
   rust-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -57,7 +70,7 @@ jobs:
         with:
           components: rustfmt, clippy
       - run: cargo fmt --check
-      - run: cargo clippy -j 1 -- -D warnings
+      - run: cargo clippy -j 1 --all-targets -- -D warnings
       - run: cargo test -j 1
       - run: rustup target add x86_64-pc-windows-gnu
       - run: cargo check -j 1 --target x86_64-pc-windows-gnu

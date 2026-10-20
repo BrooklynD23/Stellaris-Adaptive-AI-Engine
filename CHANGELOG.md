@@ -132,6 +132,11 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 - Proposal 017: `sae_in.ini` is rewritten knob-only on exit, on SIGTERM and on multiplayer; Ironman is detected from save metadata and switches to observe-only (C2, C5, C6 v1.2). Amended by maintainer decision: the knob-only exit rewrite also happens under Ironman; only intent writes are blocked.
 - Proposal 018: deferred batches are audited with their own `deferred` rule id, separate from real rejections (C3 v1.2).
 
+#### CI
+
+- `.github/workflows/ci.yml` also runs on pushes to `feat/**` and on manual dispatch; a new `mod` job runs
+  `check_mod.py` and the mod tool tests; Linux clippy uses `--all-targets` to match the pre-commit hook.
+
 ### Fixed
 
 #### T4 Engine core and daemon
