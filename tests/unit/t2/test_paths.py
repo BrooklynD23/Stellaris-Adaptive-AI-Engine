@@ -60,4 +60,4 @@ def test_default_repo_root_finds_real_build() -> None:
 def test_resolve_parser_exe_config_wins_and_none_when_absent(tmp_path: Path) -> None:
     from sae.adapters.paths import resolve_parser_exe
 
-    assert resolve_parser_exe(PathsConfig(parser_exe="/x/p")) == "/x/p"
+    assert resolve_parser_exe(PathsConfig(parser_exe="/x/p")) == str(Path("/x/p"))

@@ -7,14 +7,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 _SRC = Path(__file__).parents[3] / "src" / "sae"
 _MODS = ["sae.bus", "sae.control", "sae.control.cli", "sae.daemon.wiring", "sae.daemon.loop",
          "sae.daemon.cli", "sae.cli"]
 _FORBIDDEN = {"rerun", "duckdb", "pyarrow", "polars", "torch"}
 
 
-def test_no_heavy_imports() -> None:
-    code = ("import sys\n" + "".join(f"import {m}\n" for m in _MODS)
+@pytest.mark.parametrize("mod", ["sys", *_MODS])
+def test_no_heavy_imports(mod: str) -> None:
+    """One interpreter per module: a Windows start-up failure (0xC0000142) names the import; ``sys`` is control."""
+    code = (f"import sys\nimport {mod}\n"
             + "bad = sorted(m for m in sys.modules if m.split('.')[0] in "
             + repr(_FORBIDDEN) + " or m == 'sae.telemetry' or m.startswith('sae.telemetry.'))\n"
             + "print(','.join(bad))\n")
@@ -39,5 +43,5 @@ def test_sources_clean() -> None:
 
 def test_rerun_only_in_stream_and_blueprint() -> None:
     rx = re.compile(r"^\s*(from|import)\s+rerun\b", re.M)
-    hits = {str(p.relative_to(_SRC)) for p in _SRC.rglob("*.py") if rx.search(p.read_text(encoding="utf-8"))}
+    hits = {p.relative_to(_SRC).as_posix() for p in _SRC.rglob("*.py") if rx.search(p.read_text(encoding="utf-8"))}
     assert hits <= {"telemetry/stream.py", "telemetry/blueprint.py"}
