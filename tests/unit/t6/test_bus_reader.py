@@ -11,6 +11,7 @@ from sae.bus import BusTail, final_acks, iter_events, read_events
 from sae.contracts.c5_bus import BUS_EVENT_ADAPTER, IntentAckEvent
 
 from ._fixtures import RUN_ID
+from .test_telemetry_mapping import doc_lines
 
 _DOC = (Path(__file__).parents[3] / "contracts" / "C5_bus.md").read_text(encoding="utf-8")
 
@@ -75,3 +76,21 @@ def test_final_acks_last_wins() -> None:
     later = ack.model_copy(update={"seq": 99, "payload": ack.payload.model_copy(update={"attempt": 2})})
     res = final_acks([ack, later])
     assert res == {(ack.payload.country, ack.payload.seq): later} and RUN_ID
+
+
+def test_tail_small_batch_reads_a_line_longer_than_the_batch(tmp_path: Path) -> None:
+    """An explicit batch_bytes below one C5 line still yields that line; MAX_LINE_BYTES + 1 is the skip limit."""
+    from sae.contracts.c5_bus import MAX_LINE_BYTES
+
+    lines = doc_lines()
+    p = tmp_path / "bus.jsonl"
+    p.write_text("".join(ln + "\n" for ln in lines), encoding="utf-8")
+    tail = BusTail(p, batch_bytes=16)
+    got = []
+    for _ in range(len(lines) + 1):
+        got += tail.poll()
+    assert len(got) == len(lines) and tail.invalid == 0
+    big = tmp_path / "big.jsonl"
+    big.write_bytes(b"x" * (MAX_LINE_BYTES + 1) + b"\n")
+    tail = BusTail(big, batch_bytes=16)
+    assert tail.poll() == [] and tail.invalid == 1 and tail.offset == MAX_LINE_BYTES + 1

@@ -16,7 +16,7 @@ from sae.contracts.c7_governor import TelemetryTier
 from sae.control.cli import RUN_ID_RE, load_config
 from sae.control.runlive import is_run_live
 from sae.daemon.runs_dir import default_runs_dir
-from sae.telemetry.stream import RerunSink, Sink, run_stream
+from sae.telemetry.stream import RerunSink, Sink, limit_process_memory, run_stream
 
 log = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ def main(command: str, argv: list[str], *, exit_hard: Callable[[int], object] = 
               file=sys.stderr)
     url = ns.rerun_url or (None if ns.rrd else cfg.telemetry.rerun_url)
     target = url or ns.rrd or cfg.telemetry.rrd_path or str(run_dir / "telemetry.rrd")
+    limit_process_memory()  # before RerunSink imports rerun
     try:
         sink: Sink = RerunSink(ns.run, target, url=url is not None)
     except ImportError:

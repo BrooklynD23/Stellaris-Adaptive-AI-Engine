@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sae.contracts.c5_bus import (
     BUS_EVENT_ADAPTER,
     GOD_BUS_EVENT_ADAPTER,
+    MAX_LINE_BYTES,
     BeliefUpdateEvent,
     ControlEvent,
     HealthEvent,
@@ -99,9 +100,10 @@ def read_events(path: Path, *, god: bool = False) -> ReadResult:
 class BusTail:
     """Incremental reader: ``poll()`` returns events appended since the last call (LF-complete lines only)."""
 
-    def __init__(self, path: Path, *, god: bool = False) -> None:
+    def __init__(self, path: Path, *, god: bool = False, batch_bytes: int | None = None) -> None:
         self.path = path
         self.god = god
+        self.batch_bytes = batch_bytes  # bytes per poll; None: TAIL_BATCH_BYTES (read at poll time)
         self.offset = 0
         self.invalid = 0
         self.restarted = False
@@ -117,11 +119,16 @@ class BusTail:
             self.restarted = True
         if size == self.offset:
             return []
+        batch = TAIL_BATCH_BYTES if self.batch_bytes is None else self.batch_bytes
+        # An explicit small batch never drops a C5-valid line (<= MAX_LINE_BYTES): it reads on to one full line.
+        limit = max(batch, MAX_LINE_BYTES + 1) if self.batch_bytes is not None else batch
         with self.path.open("rb") as fh:
             fh.seek(self.offset)
-            chunk = fh.read(TAIL_BATCH_BYTES)
+            chunk = fh.read(batch)
+            if len(chunk) == batch < limit and b"\n" not in chunk:
+                chunk += fh.read(limit - batch)
         end = chunk.rfind(b"\n") + 1
-        if end == 0 and len(chunk) == TAIL_BATCH_BYTES:  # one oversized line: skip it, never stall
+        if end == 0 and len(chunk) == limit:  # one oversized line: skip it, never stall
             self.offset += len(chunk)
             self.invalid += 1
             return []

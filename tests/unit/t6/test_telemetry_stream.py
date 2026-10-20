@@ -97,8 +97,6 @@ def test_rrd_written(tmp_path: Path) -> None:
 def test_drain_beyond_one_batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import json
 
-    import sae.bus.reader as reader_mod
-
     health = json.loads(next(ln for ln in doc_lines() if '"type":"health"' in ln))
     rows = []
     for i in range(20):
@@ -106,7 +104,7 @@ def test_drain_beyond_one_batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
         rows.append(json.dumps(health, separators=(",", ":")) + "\n")
     assert len(rows[0]) < 600 < len(rows[0]) * 2
     (tmp_path / "bus.jsonl").write_text("".join(rows), encoding="utf-8")
-    monkeypatch.setattr(reader_mod, "TAIL_BATCH_BYTES", 600)
+    monkeypatch.setattr(stream_mod, "TAIL_BYTES", 600)
     for live in (False, True):
         sink = ListSink()
         is_live = functools.partial(next, iter([live, False]), False)
@@ -134,30 +132,79 @@ def test_rerun_close_survives_flush_runtimeerror(caplog: pytest.LogCaptureFixtur
     assert "unable to connect" in caplog.text
 
 
-def test_missing_month_disables_timeline() -> None:
+def test_log_batch_groups_columns_and_skips_month_index() -> None:
+    """One send_columns per (entity, kind, has-month); no game_month index for month-less records."""
     pytest.importorskip("rerun")
     from datetime import UTC, datetime
 
     from sae.telemetry.mapping import Record
 
     sink = RerunSink.__new__(RerunSink)
-    seen: list[tuple[str, str]] = []
+    sent: list[tuple[str, list[str], object]] = []
 
     class Rec:
-        def set_time(self, name: str, **kw: object) -> None:
-            seen.append(("set", name))
-
-        def disable_timeline(self, name: str) -> None:
-            seen.append(("disable", name))
-
-        def log(self, *a: object, **k: object) -> None:
-            pass
+        def send_columns(self, entity: str, *, indexes: list[tuple[str, list[object]]], columns: object) -> None:
+            sent.append((entity, [name for name, _ in indexes], columns))
 
     class RR:
-        Scalars = staticmethod(lambda v: v)
+        @staticmethod
+        def TimeColumn(name: str, **kw: list[object]) -> tuple[str, list[object]]:
+            return (name, next(iter(kw.values())))
+
+        class Scalars:
+            @staticmethod
+            def columns(*, scalars: list[float]) -> tuple[str, list[float]]:
+                return ("scalars", scalars)
+
+        class TextLog:
+            @staticmethod
+            def columns(*, text: list[str], level: list[str]) -> tuple[str, list[str], list[str]]:
+                return ("text", text, level)
 
     sink._rec = Rec()
     sink._rr = RR()
     when = datetime(2026, 1, 1, tzinfo=UTC)
-    sink.log(Record(seq=1, t_wall=when, game_month=None, kind="scalar", entity="a", value=1.0))
-    assert ("disable", "game_month") in seen
+    sink.log_batch([
+        Record(seq=1, t_wall=when, game_month=None, kind="scalar", entity="a", value=1.0),
+        Record(seq=2, t_wall=when, game_month=5, kind="scalar", entity="a", value=2.0),
+        Record(seq=3, t_wall=when, game_month=6, kind="scalar", entity="a", value=3.0),
+        Record(seq=3, t_wall=when, game_month=6, kind="text", entity="log", text="hi", level="WARN"),
+    ])
+    assert sent == [
+        ("a", ["seq", "t_wall"], ("scalars", [1.0])),
+        ("a", ["seq", "t_wall", "game_month"], ("scalars", [2.0, 3.0])),
+        ("log", ["seq", "t_wall", "game_month"], ("text", ["hi"], ["WARN"])),
+    ]
+
+
+def test_limit_process_memory_env_and_thp(tmp_path: Path) -> None:
+    """Env defaults apply before rerun loads, a user value wins, and THP is off for the process (Linux)."""
+    import json
+    import os
+    import subprocess
+    import sys
+
+    code = (
+        "import ctypes, json, os, sys\n"
+        "from sae.telemetry.stream import LOW_MEMORY_ENV, limit_process_memory\n"
+        "limit_process_memory()\n"
+        "thp = ctypes.CDLL(None).prctl(42, 0, 0, 0, 0) if sys.platform == 'linux' else None\n"
+        "print(json.dumps({'env': {k: os.environ[k] for k in LOW_MEMORY_ENV}, 'thp_disabled': thp}))\n"
+    )
+    env = {k: v for k, v in os.environ.items() if k not in stream_mod.LOW_MEMORY_ENV}
+    env["OPENBLAS_NUM_THREADS"] = "3"
+    out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True,
+                         cwd=tmp_path)
+    got = json.loads(out.stdout)
+    assert got["env"] == {**stream_mod.LOW_MEMORY_ENV, "OPENBLAS_NUM_THREADS": "3"}
+    if sys.platform == "linux" and got["thp_disabled"] != -1:  # -1: prctl blocked (gVisor, seccomp)
+        assert got["thp_disabled"] == 1
+
+
+def test_cap_message_has_anon_file_split(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    import sys
+
+    bus(tmp_path)
+    assert run_stream(tmp_path, ListSink(), T2, is_live=lambda: False, rss=lambda: (1 << 40) + 1) == 1
+    if sys.platform == "linux":
+        assert "anon " in caplog.text and "file " in caplog.text
