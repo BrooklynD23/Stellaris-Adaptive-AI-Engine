@@ -432,7 +432,7 @@ def test_game_running_helper(monkeypatch: pytest.MonkeyPatch, caplog: pytest.Log
 def test_lower_priority_swallows_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     fresh = cli
     calls: list[int] = []
-    monkeypatch.setattr(fresh.os, "nice", lambda n: calls.append(n) or 0)
+    monkeypatch.setattr(fresh.os, "nice", lambda n: calls.append(n) or 0, raising=False)  # absent on Windows
     monkeypatch.setattr(fresh.sys, "platform", "linux")
     REAL_LOWER_PRIORITY()
     assert calls == [19]
@@ -440,7 +440,7 @@ def test_lower_priority_swallows_errors(monkeypatch: pytest.MonkeyPatch) -> None
     def deny(n: int) -> int:
         raise PermissionError("no")
 
-    monkeypatch.setattr(fresh.os, "nice", deny)
+    monkeypatch.setattr(fresh.os, "nice", deny, raising=False)
     REAL_LOWER_PRIORITY()  # must not raise
 
     class Proc:
