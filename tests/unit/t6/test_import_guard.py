@@ -18,7 +18,9 @@ def test_no_heavy_imports() -> None:
             + "bad = sorted(m for m in sys.modules if m.split('.')[0] in "
             + repr(_FORBIDDEN) + " or m == 'sae.telemetry' or m.startswith('sae.telemetry.'))\n"
             + "print(','.join(bad))\n")
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False,
+                         stdin=subprocess.DEVNULL)
+    assert out.returncode == 0, f"rc={out.returncode:#x} stderr={out.stderr}"
     assert out.stdout.strip() == ""
 
 
@@ -26,7 +28,7 @@ _IMPORT = re.compile(r"^\s*(from|import)\s+(rerun|duckdb)\b", re.M)
 
 
 def _hits(sub: str) -> list[str]:
-    return [str(p.relative_to(_SRC)) for p in (_SRC / sub).rglob("*.py")
+    return [p.relative_to(_SRC).as_posix() for p in (_SRC / sub).rglob("*.py")
             if _IMPORT.search(p.read_text(encoding="utf-8"))]
 
 

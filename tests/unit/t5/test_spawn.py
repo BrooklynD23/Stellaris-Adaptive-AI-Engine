@@ -69,6 +69,7 @@ def test_systemd_probe_failure_no_prefix(monkeypatch: pytest.MonkeyPatch) -> Non
     assert os.path.isabs(with_sd[with_sd.index("--user") - 1]) or shutil.which("systemd-run") is None
 
 
+@linux_only
 def test_systemd_probe_requires_memory_controller(monkeypatch: pytest.MonkeyPatch) -> None:
     if shutil.which("systemd-run") is None:
         monkeypatch.setattr(shutil, "which", lambda _n: "/usr/bin/systemd-run")

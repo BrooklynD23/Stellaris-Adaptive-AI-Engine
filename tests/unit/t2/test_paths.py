@@ -30,7 +30,7 @@ def test_win32_documents_mocked_and_repo_exe(tmp_path: Path) -> None:
 
 
 def test_path_exe_and_overrides(tmp_path: Path) -> None:
-    cfg = PathsConfig(user_dir=str(tmp_path / "u"), ini_path=str(tmp_path / "i.ini"), parser_exe="/x/p")
+    cfg = PathsConfig(user_dir=str(tmp_path / "u"), ini_path=str(tmp_path / "i.ini"), parser_exe=str(Path("/x/p")))
     r = resolve_paths(cfg, platform="linux", which=lambda _: "/usr/bin/sae-parse")
     assert r.user_dir == tmp_path / "u" and r.ini_path == tmp_path / "i.ini"
     assert r.game_log == tmp_path / "u/logs/game.log" and r.parser_exe == Path("/x/p")

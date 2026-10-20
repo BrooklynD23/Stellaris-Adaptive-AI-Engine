@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import sys
 import types
 from collections.abc import Callable
 from typing import Any
@@ -53,7 +54,8 @@ def fake_win(monkeypatch: pytest.MonkeyPatch) -> dict[str, Dll]:
     return dlls
 
 
-def test_require_win32_raises_on_linux() -> None:
+def test_require_win32_raises_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")  # also exercise the guard when the host is Windows
     with pytest.raises(OSError, match="unavailable"):
         _win32.set_self_below_normal_and_eco()
     with pytest.raises(OSError):

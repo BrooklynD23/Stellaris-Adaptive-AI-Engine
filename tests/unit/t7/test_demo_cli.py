@@ -54,7 +54,7 @@ def test_demo_fake_runner(tmp_path: Path) -> None:
     assert "match=no" in lines[3] and str(tmp_path / "balanced.rrd") in lines[3]
     synth = fr.cmds[0]
     assert synth[:4] == [sys.executable, "-m", "sae", "synth"]
-    assert 'paths.parser_exe="/x/sae-parse"' in synth and "--seed" in synth
+    assert f"paths.parser_exe={json.dumps(str(Path('/x/sae-parse')))}" in synth and "--seed" in synth
 
 
 def test_demo_rrd_skipped_and_failure(tmp_path: Path) -> None:

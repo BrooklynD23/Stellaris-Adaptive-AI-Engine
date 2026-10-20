@@ -93,7 +93,8 @@ class FileInbox:
         try:
             fd = os.open(path, flags)
         except OSError as e:
-            if path.is_symlink() or e.errno in (errno.ELOOP, errno.ENXIO):
+            # Windows: os.open on a directory raises PermissionError (EACCES), not EISDIR
+            if path.is_symlink() or e.errno in (errno.ELOOP, errno.ENXIO) or path.is_dir():
                 return _error("invalid", "not a regular file", stem)
             raise
         try:

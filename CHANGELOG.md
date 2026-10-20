@@ -139,6 +139,11 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 
 ### Fixed
 
+#### Windows CI
+
+- Product: `FileInbox` now reports a directory named `c-*.json` as `invalid` on Windows (`os.open` on a directory raises `PermissionError` there, so it was logged and skipped silently).
+- Tests only (portability): `/x/p` and `/x/sae-parse` path expectations built via `Path`/`json.dumps`; `\` vs `/` in the rerun-import guard (`as_posix`); POSIX-only systemd probe test marked `linux_only`; `_win32` guard test forces `sys.platform="linux"`; 6.1 KB parametrize id shortened (exceeded the 32767-char `PYTEST_CURRENT_TEST` limit); import-guard subprocess now reports rc/stderr (exit 0xC0000142 DLL_INIT_FAILED, cause unconfirmed, likely runner-side).
+
 #### T4 Engine core and daemon
 
 - early_aggression misclassified as turtle and 30-year belief drift (likelihoods aligned with synth profiles, memoryless `at_war` feature, `first_war_month` report-only); balanced xfails resolved; real `sae synth` acceptance test. `sae daemon` resolves `sae-parse` via T2's resolver (proposal 014).

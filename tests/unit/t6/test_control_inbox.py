@@ -67,6 +67,7 @@ def test_ordering_and_tmp_ignored(tmp_path: Path, box: FileInbox) -> None:
     assert [i.handle for i in box.poll()] == [CID, b]
 
 
+# short ids: a 6 KB id overflows the Windows env var limit
 @pytest.mark.parametrize(
     ("name", "text", "error"),
     [
@@ -74,7 +75,7 @@ def test_ordering_and_tmp_ignored(tmp_path: Path, box: FileInbox) -> None:
         (f"{CID}.json", '{"v":1}', "invalid"),
         (f"{CID}.json", body(cmd="reboot"), "unknown_cmd"),
         (f"{CID}.json", body("c-20261019T031800Z-ffffff"), "invalid"),
-        (f"{CID}.json", b"x" * (MAX_COMMAND_BYTES + 1), "too_large"),
+        pytest.param(f"{CID}.json", b"x" * (MAX_COMMAND_BYTES + 1), "too_large", id="too-large"),
         (f"{CID}.json", "[]", "invalid"),
     ],
 )
