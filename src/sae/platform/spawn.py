@@ -42,7 +42,7 @@ def probe_systemd_scope(read_controllers: Callable[[str], str] = _read_controlle
     Needs the ``memory`` controller delegated to the user manager, else MemoryMax is silently ignored.
     """
     exe = shutil.which("systemd-run")
-    if exe is None:
+    if exe is None or sys.platform == "win32":
         return None
     uid = os.getuid()
     try:
@@ -151,7 +151,7 @@ class SystemPlatform:
         try:
             if self._system == "win32":
                 self._win32.set_self_below_normal_and_eco()
-            else:
+            elif sys.platform != "win32":  # narrows for mypy on Windows
                 os.setpriority(os.PRIO_PROCESS, 0, max(os.getpriority(os.PRIO_PROCESS, 0), 10))
         except Exception:
             log.warning("lower_self_priority failed", exc_info=True)
@@ -176,6 +176,8 @@ class SystemPlatform:
             flags = self._win32.IDLE_PRIORITY_CLASS | CREATE_NO_WINDOW
             proc = await self._exec(spec.exe, *spec.args, creationflags=flags, **common)
             return _Handle(proc, self._assign_job(proc, spec.mem_cap_bytes), self._win32)
+        if sys.platform == "win32":  # unreachable at runtime; narrows the POSIX path for mypy on Windows
+            raise OSError(f"POSIX spawn path reached on win32 (system={self._system!r})")
         cap = spec.mem_cap_bytes
         import resource  # POSIX only; never reached on win32
 

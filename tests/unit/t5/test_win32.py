@@ -68,7 +68,11 @@ def test_require_win32_raises_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
         _win32.is_minimized(1)
 
 
-def test_close_handle_noop_on_linux() -> None:
+def test_close_handle_noop_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Pin the platform: on a real Windows host close_handle(7) would CloseHandle a live handle of the pytest
+    # process (breaking later child-process creation with 0xC0000142).
+    monkeypatch.setattr(_win32, "sys", types.SimpleNamespace(platform="linux"))
+    monkeypatch.setattr(_win32.ctypes, "WinDLL", lambda *_a, **_k: pytest.fail("WinDLL touched"), raising=False)
     _win32.close_handle(7)  # must not raise or touch ctypes.WinDLL
 
 

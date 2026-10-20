@@ -142,6 +142,9 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
 #### Windows CI
 
 - Product: `FileInbox` now reports a directory named `c-*.json` as `invalid` on Windows (`os.open` on a directory raises `PermissionError` there, so it was logged and skipped silently).
+- Root cause of the Windows child-process failures (0xC0000142): `test_close_handle_noop_on_linux` called the real `CloseHandle(7)` on Windows and closed a live handle of the pytest process; it now pins `sys.platform` (proved on CI run 39449962091).
+- `src/sae/platform/spawn.py`: `sys.platform` guards so `mypy --strict src` passes on Windows (POSIX calls were reachable only behind a runtime variable mypy cannot narrow); no behaviour change.
+- CI: the CI-1/3/4/5 "collected" steps pass `-o addopts=` (the `-q` in addopts made `--co -q` print no node ids, so the count was 0).
 - Tests only (portability): `/x/p` and `/x/sae-parse` path expectations built via `Path`/`json.dumps`; `\` vs `/` in the rerun-import guard (`as_posix`); POSIX-only systemd probe test marked `linux_only`; `_win32` guard test forces `sys.platform="linux"`; 6.1 KB parametrize id shortened (exceeded the 32767-char `PYTEST_CURRENT_TEST` limit); import-guard subprocess now reports rc/stderr (exit 0xC0000142 DLL_INIT_FAILED, cause unconfirmed, likely runner-side).
 
 #### T6 Telemetry

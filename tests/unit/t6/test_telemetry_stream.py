@@ -216,7 +216,8 @@ def test_private_bytes_is_anon_on_linux_and_below_rss() -> None:
     import psutil
 
     priv = stream_mod.private_bytes()
-    assert 0 < priv <= psutil.Process().memory_info().rss
-    if sys.platform == "linux":
+    assert priv > 0
+    if sys.platform == "linux":  # Windows private bytes is commit charge and may exceed the working set
+        assert priv <= psutil.Process().memory_info().rss
         anon = stream_mod._status_kib()["RssAnon"] << 10
         assert abs(priv - anon) < 8 << 20  # sampled a moment apart

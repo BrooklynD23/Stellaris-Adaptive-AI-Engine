@@ -35,16 +35,16 @@ jobs:
       - name: ruff
         run: uv run ruff check
       - name: CI-1 collected
-        run: test "$(uv run pytest tests/e2e/test_ci1.py --co -q | grep -c '::' || true)" -gt 0
+        run: test "$(uv run pytest tests/e2e/test_ci1.py --co -q -o addopts= | grep -c '::' || true)" -gt 0
       - name: CI-3 collected
         run: |
-          n=$(uv run pytest tests/unit/t5 -k "ci3 or ram_ramp or fault_spike or no_flapping or random_traces" --co -q | grep -c "::" || true)
+          n=$(uv run pytest tests/unit/t5 -k "ci3 or ram_ramp or fault_spike or no_flapping or random_traces" --co -q -o addopts= | grep -c "::" || true)
           echo "collected $n"
           test "$n" -gt 0
       - name: CI-4 collected
-        run: test "$(uv run pytest tests/integration/test_ci4_*.py --co -q | grep -c '::' || true)" -gt 0
+        run: test "$(uv run pytest tests/integration/test_ci4_*.py --co -q -o addopts= | grep -c '::' || true)" -gt 0
       - name: CI-5 collected
-        run: test "$(uv run pytest tests/e2e/test_ci5.py --co -q | grep -c '::' || true)" -gt 0
+        run: test "$(uv run pytest tests/e2e/test_ci5.py --co -q -o addopts= | grep -c '::' || true)" -gt 0
 
   mod:
     runs-on: ubuntu-latest
