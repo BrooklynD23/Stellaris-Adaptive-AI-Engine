@@ -17,7 +17,7 @@ from .test_telemetry_mapping import doc_lines
 @pytest.fixture(autouse=True)
 def _no_rss_cap(monkeypatch: pytest.MonkeyPatch) -> None:
     """The pytest process (duckdb, rerun, hypothesis loaded) is far above the 150 MiB telemetry cap."""
-    monkeypatch.setattr(stream_mod, "RSS_LIMIT", 1 << 40)
+    monkeypatch.setattr(stream_mod, "MEM_LIMIT", 1 << 40)
     # limit_process_memory sets env vars and prctl/mallopt: keep them out of the pytest process.
     monkeypatch.setattr(cli_mod, "limit_process_memory", lambda: None)
 

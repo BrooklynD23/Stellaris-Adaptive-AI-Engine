@@ -20,7 +20,7 @@ T1, T2 = TelemetryTier.T1, TelemetryTier.T2
 @pytest.fixture(autouse=True)
 def _no_rss_cap(monkeypatch: pytest.MonkeyPatch) -> None:
     """The pytest process (duckdb, rerun, hypothesis loaded) is far above the 150 MiB telemetry cap."""
-    monkeypatch.setattr(stream_mod, "RSS_LIMIT", 1 << 40)
+    monkeypatch.setattr(stream_mod, "MEM_LIMIT", 1 << 40)
 
 
 def bus(tmp_path: Path, n: int | None = None) -> Path:
@@ -62,12 +62,12 @@ def test_follow_growing_file_stops_on_dead_pid(tmp_path: Path) -> None:
     assert any(r.seq == 4 for r in sink.records)  # events appended mid-follow were read
 
 
-def test_rss_over_limit_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(stream_mod, "RSS_LIMIT", 150 * 1024 * 1024)  # C8 section 2 cap
+def test_private_memory_over_limit_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(stream_mod, "MEM_LIMIT", 150 * 1024 * 1024)  # C8 section 2 cap
     bus(tmp_path)
     sink = ListSink()
-    assert run_stream(tmp_path, sink, T2, is_live=lambda: False, rss=lambda: 151 * 1024 * 1024) == 1
-    assert run_stream(tmp_path, ListSink(), T2, is_live=lambda: False, rss=lambda: 149 * 1024 * 1024) == 0
+    assert run_stream(tmp_path, sink, T2, is_live=lambda: False, mem=lambda: 151 * 1024 * 1024) == 1
+    assert run_stream(tmp_path, ListSink(), T2, is_live=lambda: False, mem=lambda: 149 * 1024 * 1024) == 0
     assert sink.closed
 
 
@@ -205,6 +205,18 @@ def test_cap_message_has_anon_file_split(tmp_path: Path, caplog: pytest.LogCaptu
     import sys
 
     bus(tmp_path)
-    assert run_stream(tmp_path, ListSink(), T2, is_live=lambda: False, rss=lambda: (1 << 40) + 1) == 1
+    assert run_stream(tmp_path, ListSink(), T2, is_live=lambda: False, mem=lambda: (1 << 40) + 1) == 1
     if sys.platform == "linux":
-        assert "anon " in caplog.text and "file " in caplog.text
+        assert "RSS " in caplog.text and "anon " in caplog.text and "file " in caplog.text
+
+
+def test_private_bytes_is_anon_on_linux_and_below_rss() -> None:
+    import sys
+
+    import psutil
+
+    priv = stream_mod.private_bytes()
+    assert 0 < priv <= psutil.Process().memory_info().rss
+    if sys.platform == "linux":
+        anon = stream_mod._status_kib()["RssAnon"] << 10
+        assert abs(priv - anon) < 8 << 20  # sampled a moment apart

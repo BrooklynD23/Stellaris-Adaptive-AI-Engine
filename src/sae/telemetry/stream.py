@@ -21,15 +21,18 @@ from sae.telemetry.mapping import Mapper, Record
 
 log = logging.getLogger(__name__)
 
-__all__ = ["ListSink", "RerunSink", "Sink", "limit_process_memory", "rss_bytes", "run_stream"]
+__all__ = ["ListSink", "RerunSink", "Sink", "limit_process_memory", "private_bytes", "run_stream"]
 
 POLL_S = 2.0
 DISCONNECT_TIMEOUT_S = 3.0
-RSS_LIMIT = 150 * 1024 * 1024  # C8 section 2: telemetry process cap 150 MiB (resource proposal)
+# C8 section 2: telemetry process cap 150 MiB on PRIVATE memory (maintainer decision 2026-10-20, proposal 026).
+# Shared library pages (rerun_bindings, libarrow: 92-106 MiB file RSS on CI) are page cache, not the process's.
+MEM_LIMIT = 150 * 1024 * 1024
 
-# Read by numpy/OpenBLAS, tokio, mimalloc (rerun_bindings) and Arrow when they load, so they must be set before
+# Read by numpy/OpenBLAS, mimalloc (rerun_bindings) and Arrow when they load, so they must be set before
 # ``import rerun``. Without them each library sizes thread pools / arenas to the CPU count. setdefault: a user
-# value wins.
+# value wins. UNVERIFIED: that the mimalloc statically linked into rerun_bindings honours MIMALLOC_* env (the
+# measured gain, ~2-3 MiB, may come from the other keys).
 LOW_MEMORY_ENV = {
     "OPENBLAS_NUM_THREADS": "1",  # numpy is imported by rerun; telemetry does no BLAS
     "MIMALLOC_PURGE_DELAY": "0",  # return freed pages to the OS at once
@@ -162,19 +165,32 @@ def limit_process_memory() -> None:
         log.warning("telemetry memory limits not applied: %s", exc)
 
 
-def rss_bytes() -> int:
-    """This process's resident set size."""
-    return int(psutil.Process().memory_info().rss)
-
-
-def _rss_detail() -> str:
-    """Anon/file split of RSS on Linux (shared library pages count as file), for the cap message."""
+def _status_kib() -> dict[str, int]:
+    """RssAnon/RssFile/VmRSS from /proc/self/status in KiB (Linux; empty elsewhere). ~12 us per call."""
     try:
         status = Path("/proc/self/status").read_text(encoding="ascii").splitlines()
     except OSError:
+        return {}
+    keys = ("RssAnon", "RssFile", "VmRSS")
+    return {k: int(v.split()[0]) for k, _, v in (ln.partition(":") for ln in status) if k in keys}
+
+
+def private_bytes() -> int:
+    """Private memory checked against MEM_LIMIT: Linux RssAnon, Windows private bytes, else RSS (fallback)."""
+    if sys.platform == "linux":
+        anon = _status_kib().get("RssAnon")
+        if anon is not None:
+            return anon << 10
+    info = psutil.Process().memory_info()
+    return int(getattr(info, "private", info.rss))  # ``private`` exists on Windows only
+
+
+def _mem_detail() -> str:
+    """Total RSS and its anon/file split for the cap message (Linux; empty elsewhere)."""
+    kib = _status_kib()
+    if len(kib) != 3:
         return ""
-    kib = {k: v.split()[0] for k, _, v in (ln.partition(":") for ln in status) if k in ("RssAnon", "RssFile")}
-    return f" (anon {int(kib['RssAnon']) >> 10} MiB, file {int(kib['RssFile']) >> 10} MiB)" if len(kib) == 2 else ""
+    return f" (RSS {kib['VmRSS'] >> 10} MiB: anon {kib['RssAnon'] >> 10} MiB, file {kib['RssFile'] >> 10} MiB)"
 
 
 def run_stream(
@@ -184,10 +200,10 @@ def run_stream(
     *,
     is_live: Callable[[], bool],
     sleep: Callable[[float], None] = time.sleep,
-    rss: Callable[[], int] = rss_bytes,
+    mem: Callable[[], int] = private_bytes,
     poll_s: float = POLL_S,
 ) -> int:
-    """Stream ``bus.jsonl`` (+ god at T2) into ``sink``; 0 on completion, 1 if RSS exceeds RSS_LIMIT (150 MiB).
+    """Stream ``bus.jsonl`` (+ god at T2) into ``sink``; 0 done, 1 if private memory exceeds MEM_LIMIT (150 MiB).
 
     Follows while ``is_live()``; otherwise one pass to EOF (offline: no level cap).
     """
@@ -208,9 +224,9 @@ def run_stream(
                     sink.log_batch(recs)
                 moved = moved or tail.offset != before or tail.restarted
                 tail.restarted = False
-            used = rss()
-            if used > RSS_LIMIT:
-                log.error("telemetry RSS %d MiB%s exceeds limit; exiting", used >> 20, _rss_detail())
+            used = mem()
+            if used > MEM_LIMIT:
+                log.error("telemetry private memory %d MiB%s exceeds limit; exiting", used >> 20, _mem_detail())
                 return 1
             if moved:
                 continue  # drain: more may be waiting beyond one batch
