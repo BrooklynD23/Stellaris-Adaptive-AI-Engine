@@ -111,6 +111,17 @@ Game-free; synth data only. Evidence from `uv run pytest <path> -o addopts="" -q
 The profile is a read-only panel until eligible (>= 8 closed campaigns, positive fold score). Nothing here has run
 against the real game: game-process detection and save-folder behaviour stay UNVERIFIED (A-46).
 
+## 7c. Update 2026-10-20: wave X3 (game-deferred harness)
+
+Game-free to build; nothing here ran against the real game. Test numbers: see `docs/status/T7.md`.
+
+- `game` pytest marker (D2): tests are skipped with a reason unless their `SAE_GAME_*` inputs are supplied (`tests/conftest.py`).
+- `tests/game/` suites X3-G1..G11, sharing a `parsed_saves` fixture that parses the supplied saves once.
+- `tools/game/run_deferred.py`: runs the deferred suites with basetemp pinned to `private/tmp`; writes `summary.md`/`inputs.json` (shareable) and `private/` (`junit.xml`, `tmp/`).
+- `tools/game/make_recording.py`: builds a recording from real saves (the live daemon does not record yet).
+- A dry run proves the harness skips cleanly without inputs.
+- Runbook: `docs/handoff/GAME_PC_AGENT.md`; per-test specs in `docs/handoff/deferred/X3.md`.
+
 ## 8. Recommended next step
 
 Run the M0 weekend on the maintainer's PC with `sae m0` (`tools/m0/README.md`, `docs/m0_checklist.md`), then
