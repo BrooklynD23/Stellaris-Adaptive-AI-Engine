@@ -22,7 +22,7 @@ from sae.profile.index import CampaignState
 
 log = logging.getLogger(__name__)
 
-__all__ = ["BUILDER_VERSION", "build_summary"]
+__all__ = ["BUILDER_VERSION", "build_summary", "kept_observations"]
 
 BUILDER_VERSION = "0.1.0"
 EARLY_YEARS = 30  # C10 section 2: first 30 game years
@@ -88,6 +88,9 @@ def _kept_observations(state: CampaignState, runs_dir: Path) -> list[_Kept]:
                 if set(post) == set(Archetype) and abs(math.fsum(post.values()) - 1.0) <= _BELIEF_TOL:
                     current.belief = dict(post)
     return kept
+
+
+kept_observations = _kept_observations  # public alias for the ledger and the tuner (X4 plan 1.2)
 
 
 def _samples(kept: list[_Kept]) -> list[_Sample]:

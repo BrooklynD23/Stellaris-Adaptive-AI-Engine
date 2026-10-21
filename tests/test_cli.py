@@ -30,6 +30,30 @@ def test_t9_commands_dispatched() -> None:
     assert _COMMANDS["play"] == ("sae.profile.launcher", "T9")
 
 
+_X4_ROWS = [
+    ("tune", "sae.tune.cli", "T9"),
+    ("policy", "sae.profile.policy_cli", "T9"),
+    ("gate", "sae.bench.gate.cli", "T7"),
+]
+
+
+@pytest.mark.parametrize(("cmd", "module", "owner"), _X4_ROWS)
+def test_x4_commands_dispatched(cmd: str, module: str, owner: str) -> None:
+    assert _COMMANDS[cmd] == (module, owner)
+
+
+@pytest.mark.parametrize(("cmd", "module", "owner"), _X4_ROWS)
+def test_x4_module_missing(
+    cmd: str, module: str, owner: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def missing(name: str) -> None:
+        raise ModuleNotFoundError(f"No module named {name!r}", name=name)
+
+    monkeypatch.setattr("sae.cli.importlib.import_module", missing)
+    assert main([cmd, "x"]) == 2
+    assert f"sae {cmd}: not available yet (owner {owner})" in capsys.readouterr().err
+
+
 def _patch_module(monkeypatch: pytest.MonkeyPatch, obj: object) -> None:
     monkeypatch.setattr("sae.cli.importlib.import_module", lambda _name: obj)
 

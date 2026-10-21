@@ -179,7 +179,7 @@ kept. `--resume` exits 1 if the policy sha changed since the run began.
 `policies/registry.jsonl` is append-only. A policy needs `propose, prereg, stage1_pass, stage2_pass, approve`
 in order before `promote`. Human rows come only from the planned T9 policy command (`policy` subcommands prereg, approve, reject, promote, rollback) on an interactive terminal.
 
-**Roll back:** the planned T9 policy rollback command (target: the built-in sha or an earlier promoted sha), or at once set
+**Roll back (commands in 8d-8f):** the planned T9 policy rollback command (target: the built-in sha or an earlier promoted sha), or at once set
 `policy.pin = "builtin"` in the config. A broken registry also falls back to built-in by itself.
 
 ## 8c. The `play` launcher
@@ -190,6 +190,61 @@ If that fails, or the config is invalid, it prints a notice on stderr and still 
 reports any config error itself. It then runs `sae daemon` with the same flags and returns the daemon's exit code.
 It never launches Stellaris and never touches its install or mod folder: start the game yourself. Whether
 `update` sees the game as running depends on game-process detection, UNVERIFIED until M0 (A-46).
+
+## 8d. Tuning the detector (`sae tune`)
+
+`sae tune detector` fits the detector numbers (likelihood tables, drift rho, clip, lock threshold) to **your own**
+labelled campaigns and writes a candidate policy `policies/<sha>.json` plus one `propose` row (`by: tuner`).
+
+- Needs at least 5 closed, labelled campaigns in the `tune` split (label them with `sae profile label`). Fewer: exit 2
+  "need 5 labelled tune campaigns, have N". The sealed campaign is never opened.
+- Selection is leave-one-campaign-out over a fixed grid of 180 points. A point is feasible only if ECE <= 0.10 on every
+  fold and the counter-strategy is right on >= 4 of 5 folds. No feasible point: exit 1, no file written, a per-fold
+  table is printed.
+- Same inputs give the same sha. It refuses while Stellaris is detected unless `--force`, and runs at idle priority.
+- The V-3 block (strategy switch count, reward spread) is a signal check. CUSUM is a **diagnostic only**; it is never a
+  gate check.
+- Policies are **personal** (D4): no sharing, no signing. A policy never changes during a run; a new one is read at the
+  next daemon start.
+- `--include-synth` is test-only: it uses synthetic campaigns, writes a diagnostic candidate and is **not
+  verification**.
+- Everything about real data and the game here is UNVERIFIED until X4-G0..G1 (`docs/handoff/deferred/X4.md`); M0 or a
+  game-PC session proves it.
+
+## 8e. Gating a candidate (`sae gate`)
+
+Order: `sae policy propose` or `sae tune detector` -> `sae policy prereg <sha>` (human, interactive terminal) ->
+`sae gate stage1 <sha>` -> `sae gate stage2 <sha> --objective ...` -> `sae policy approve <sha>`.
+
+- **Stage 1** checks the schema, parent, mutable surface (only detector/tuning/notes may differ), pinned game version,
+  sealed split, seed range, sealed budget, prereg, deterministic replay, held-in log loss and feel limits. The log-loss
+  check is `heldin_log_loss_delta`: it is **held-in and biased toward the candidate**. The unbiased check is Stage 2.
+  `--repo <checkout>` also runs pytest, mypy and ruff there; without it the report says "repo suite not run".
+- **Stage 2** `--objective` is required (no default). `detector_replay` reads the sealed campaign(s) once per
+  candidate: a second query is refused. It is a **tripwire, not a significance test** (n_sealed is printed). Pass =
+  every `sealed_noninferior:<cid>` check passes; `detection_delay`, `false_lock`, `v3_signal` are informational.
+  Reported numbers use 2 significant digits.
+- `--objective beat_player` or `challenge_band` (maintainer decision D6, still open): writes a draft protocol to
+  `--out`, no registry row, exit **4** "no result". Real game-paired results need D6 and M4 (UNVERIFIED, not built).
+- `--include-synth` runs print a report and write evidence but **no registry row** and spend no sealed query. They are
+  diagnostic only.
+- Exit codes: 0 pass, 1 stage fail or I/O or lock error, 2 usage or refused, 3 invalid config, 4 no result by design.
+
+## 8f. Managing policies (`sae policy`)
+
+| Verb | What it does |
+|---|---|
+| `propose <file>` | validate and copy a hand-made policy to `policies/<sha>.json` (human row) |
+| `prereg <sha> --metric --min-effect --margin --budget --min-n` | write the preregistration, then its row |
+| `approve <sha>` / `reject <sha>` | human decision after stage2_pass |
+| `promote <sha>` | make it current; refused if its game-version pin does not match its campaigns |
+| `rollback [<sha>]` | no sha = one step back (previous policy, or built-in); with a sha = that earlier one |
+| `pin builtin` | rollback row to the built-in policy, plus a hint for the hard pin `policy.pin = "builtin"` |
+| `show` | current, approved, chain per sha, sealed-query ledger |
+
+Human verbs need an interactive terminal and ask you to type the first 8 hex of the sha. This is a speed bump, not
+security (C10 section 5). Rollback and promote take effect at the **next daemon start**; `sae policy` never edits your
+config or touches a running daemon. Whether `sae play` really starts with the rolled-back sha is UNVERIFIED until X4-G5.
 
 ## 9. Troubleshooting
 

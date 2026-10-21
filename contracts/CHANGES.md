@@ -3,6 +3,22 @@
 Newest first. Every accepted proposal adds an entry: date, contracts, version change, proposal file,
 summary.
 
+## 2026-10-20 — Proposal 029 ACCEPTED (C8 → v1.6; C10 → v1.2)
+
+X4 work order X4-A. Proposal: `contracts/proposals/029-T9-x4-tune-gate-policy-dispatch.md`. Plan review:
+`docs/status/X4_plan_review.md` (blockers 1, 2, 6 resolved in the proposal text).
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 029 §1 dispatch | C8 §5; `src/sae/cli.py` | `sae tune` → `sae.tune.cli` (T9), `sae policy` → `sae.profile.policy_cli` (T9), `sae gate` → `sae.bench.gate.cli` (T7) dispatched with contracted arguments; "not dispatched yet" table removed | additive, C8 v1.6 |
+| 029 §2.5 exit code | C8 §5 | exit code 4 = no result by design (`sae gate stage2` game-paired objectives only); 3 stays invalid config | additive, C8 v1.6 |
+| 029 §2 | C10 §5 | `sae policy` semantics: one-step `rollback`, `pin builtin` = human rollback row to built-in, `promote` pin check (exit 2), human `propose` copy rule, exit codes | clarification, C10 v1.2 |
+| 029 §3, §3b, §4 | C10 §6 | sealed-query ledger via `sealed_noninferior:<campaign_id>` checks; Stage 2 pass = all sealed checks; informational checks `passed: true` + `value` + `detail`; `beat_player`/`challenge_band` write a draft protocol, no registry row, exit 4 | clarification, no schema change, C10 v1.2 |
+| Examples | C10 §6 | Stage 1 check renamed `heldin_log_loss_delta`; Preregistration `primary_metric` stays `loco_log_loss` (`Literal`, schema unchanged); new valid Stage 2 GateReport example | doc example (tested) |
+
+Follow-ups: T9 implements `sae.tune.cli` and `sae.profile.policy_cli`, T7 `sae.bench.gate.cli` (X4-D/E). Game-paired
+GateReport kind: new proposal after M4 + maintainer D6.
+
 ## 2026-10-20 — Proposal 026 ACCEPTED (C8 → v1.5)
 
 Maintainer decision. Proposal: `contracts/proposals/026-T6-telemetry-private-memory.md`.
