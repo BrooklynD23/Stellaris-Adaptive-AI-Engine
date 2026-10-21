@@ -19,6 +19,9 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "m0": ("sae.m0.cli", "T8"),
     "profile": ("sae.profile.cli", "T9"),
     "play": ("sae.profile.launcher", "T9"),
+    "tune": ("sae.tune.cli", "T9"),
+    "policy": ("sae.profile.policy_cli", "T9"),
+    "gate": ("sae.bench.gate.cli", "T7"),
 }
 
 
