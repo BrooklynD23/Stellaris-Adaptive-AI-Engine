@@ -1,6 +1,6 @@
 # Packaging plan
 
-Status: plan only. Nothing is built or published yet; the mod descriptor and save layout are UNVERIFIED until M0.
+Status: plan only. CI builds the M0 field kit as a workflow artifact (no release); nothing else is built or published, and the mod descriptor and save layout are UNVERIFIED until M0.
 
 ## 1. Artefacts
 
@@ -10,6 +10,8 @@ Status: plan only. Nothing is built or published yet; the mod descriptor and sav
 | `sae-<ver>-py3-none-any.whl` | `src/sae/` (hatchling, `pyproject.toml`) | wheel; console script `sae` | `uv build` |
 | `sae-parse-<ver>-x86_64-pc-windows-msvc.zip` | `parser/` | `sae-parse.exe` + `LICENSE` | `cargo build --release -j 1` on Windows (MSVC) |
 | `sae-parse-<ver>-x86_64-unknown-linux-gnu.tar.gz` | `parser/` | `sae-parse` | `cargo build --release -j 1` on Linux (dev, Proton users) |
+
+| `sae-m0-field-kit-windows` (workflow artifact, 30 days) | wheel, `bin/sae-parse.exe`, `mod/sae_bridge`, `constraints.txt`, `setup.ps1`, `SHA256SUMS` | folder (unzipped artifact) | CI job `field-kit-windows` via `tools/m0/field_kit/build_kit.py` (push and manual runs only; crt-static parser; unsigned; no release) |
 
 One GitHub release per version carries all four plus `SHA256SUMS`.
 

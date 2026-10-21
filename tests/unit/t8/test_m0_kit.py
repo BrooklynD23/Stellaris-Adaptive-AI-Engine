@@ -296,6 +296,7 @@ def test_no_command_writes_to_the_game_folders(tmp_path: Path, user_dir: Path) -
         ["stage", "M0-6", "--sid", "3", "--m", "1"], ["check", "M0-1", "--starnet-dir", str(sn)], ["check", "M0-2"],
         ["check", "M0-3"], ["check", "M0-5"], ["check", "M0-6"], ["--parser-exe", str(exe), "check", "M0-11",
         "--save", save], ["record", "M0-8", "fail"], ["summary"],
+        ["doctor"], ["pack", "--out", str(tmp_path / "o.zip")],
     ):
         if args[0].startswith("--"):
             sae_main(["m0", "--user-dir", str(user_dir), "--results", str(res), *args])

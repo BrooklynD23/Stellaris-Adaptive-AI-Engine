@@ -230,14 +230,19 @@ def check_ack(game_log: Path, sid: int, seq: int) -> Verdict:
     return Verdict("pass" if applied else "fail", evidence, (f"ACK {last.status.value}/{last.code.value}",))
 
 
-def run_parser(parser_exe: Path, save: Path, timeout_s: float = 60.0) -> tuple[int, str, float]:
-    """Run ``sae-parse parse --save`` once (read-only on the save); return exit code, stdout and wall seconds."""
+def run_exe(exe: Path, args: list[str], timeout_s: float = 60.0) -> tuple[int, str, str, float]:
+    """Run ``exe args`` once (the kit's only process launch); return exit code, stdout, stderr and wall seconds."""
     start = time.perf_counter()
     proc = subprocess.run(  # fixed argv, no shell
-        [str(parser_exe), "parse", "--save", str(save)],
-        capture_output=True, text=True, timeout=timeout_s, check=False,
+        [str(exe), *args], capture_output=True, text=True, timeout=timeout_s, check=False,
     )
-    return proc.returncode, proc.stdout, time.perf_counter() - start
+    return proc.returncode, proc.stdout, proc.stderr, time.perf_counter() - start
+
+
+def run_parser(parser_exe: Path, save: Path, timeout_s: float = 60.0) -> tuple[int, str, float]:
+    """Run ``sae-parse parse --save`` once (read-only on the save); return exit code, stdout and wall seconds."""
+    code, out, _err, wall = run_exe(parser_exe, ["parse", "--save", str(save)], timeout_s)
+    return code, out, wall
 
 
 def check_parse(parser_exe: Path | None, save: Path, *, want_ironman: bool = False) -> Verdict:

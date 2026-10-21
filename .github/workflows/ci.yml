@@ -96,3 +96,54 @@ jobs:
       - run: uv run pytest -q
       - run: uv run mypy --strict src
       - run: uv run ruff check
+
+  field-kit-windows:
+    # Builds the M0 field kit as a workflow artifact only. No release, tag or publish step (plan D3/D10/D11).
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.1"
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: Verify pinned uv hash matches upstream
+        shell: pwsh
+        run: |
+          $m = Select-String -Path tools/m0/field_kit/setup.ps1 -Pattern '\$UvSha256\s*=\s*''([0-9A-Fa-f]+)'''
+          if (-not $m) { Write-Error 'UvSha256 line not found in tools/m0/field_kit/setup.ps1'; exit 1 }
+          $pinned = $m.Matches[0].Groups[1].Value
+          $url = 'https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-pc-windows-msvc.zip.sha256'
+          $raw = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+          if ($raw -is [byte[]]) { $raw = [System.Text.Encoding]::UTF8.GetString($raw) }
+          $upstream = ($raw.Trim() -split '\s+')[0]
+          if ($pinned.ToLowerInvariant() -ne $upstream.ToLowerInvariant()) {
+            Write-Error "uv hash mismatch: setup.ps1=$pinned upstream=$upstream"
+            exit 1
+          }
+          Write-Host "uv hash OK: $pinned"
+      - name: Build parser (static CRT)
+        working-directory: parser
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --release -j 1
+      - name: Build wheel
+        run: uv build --wheel --out-dir dist
+      - name: Export constraints
+        run: uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o dist/constraints.txt
+      - name: Assemble kit
+        shell: pwsh
+        run: |
+          $whl = Get-ChildItem dist/*.whl | Select-Object -First 1
+          uv run tools/m0/field_kit/build_kit.py --out kit/sae-m0-field-kit-windows --wheel $whl.FullName --parser-exe parser/target/release/sae-parse.exe --constraints dist/constraints.txt --git-sha ${{ github.sha }}
+      - name: Smoke test setup.ps1 (dry run)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File kit/sae-m0-field-kit-windows/setup.ps1 -DryRun
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sae-m0-field-kit-windows
+          path: kit/sae-m0-field-kit-windows
+          retention-days: 30
+          if-no-files-found: error

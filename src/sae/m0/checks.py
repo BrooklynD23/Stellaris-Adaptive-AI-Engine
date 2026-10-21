@@ -196,7 +196,8 @@ CHECKS: tuple[Check, ...] = (
         "M0-11", "autosave parse <= 3 s and fields match the UI", "core",
         ("A-18", "A-19", "A-24", "A-30", "A-34", "A-36", "A-46"),
         (
-            "Build the parser once: cd {repo}/parser && cargo build --release -j 1",
+            "sae-parse is bundled in the field kit (bin/sae-parse.exe, found by `sae m0 doctor`); in a dev checkout "
+            "build it: cd {repo}/parser && cargo build --release -j 1",
             "In the M0-6 game, set autosaves to monthly in the game settings (A-24, UNVERIFIED that the option "
             "exists), play 1 month, pause.",
             "Find the newest autosave under {save_dir}/<empire>/ (A-34: autosave_*.sav).",
