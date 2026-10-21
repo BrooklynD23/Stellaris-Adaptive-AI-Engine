@@ -8,7 +8,43 @@ with your paths filled in.
 folder.** You start the game, copy files and type console commands yourself; `sae m0` stages files under
 `m0_results/stage/` and reads the evidence you produce.
 
-## Before the weekend (30 min)
+## Field kit (no dev environment)
+
+For a PC with the game but no dev tools. Nothing here has run against the real game; every game behaviour below
+is UNVERIFIED until M0 proves it.
+
+1. GitHub → Actions → `ci` workflow → the latest green push or manual (`workflow_dispatch`) run on the branch →
+   download the artifact `sae-m0-field-kit-windows`. The artifact is not built for pull requests.
+2. Unzip it to a folder outside `Documents\Paradox Interactive` and outside the Stellaris install.
+3. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1`. It downloads, from these hosts only:
+   - uv (zip, SHA-256 pinned in the script) from `github.com/astral-sh/uv`
+   - CPython 3.12, only if no Python >= 3.11 is found, from `github.com/astral-sh/python-build-standalone`
+   - `pydantic` and `psutil` from `pypi.org`
+
+   It lists these and asks `Continue? [y/N]` before downloading anything. `-DryRun` prints the plan and changes
+   nothing. If Windows SmartScreen blocks the script, right-click the zip → Properties → Unblock before
+   unzipping, or run `Get-ChildItem -Recurse <kit> | Unblock-File`. `SHA256SUMS` in the kit detects a corrupt or
+   partial download; it is not a security or authenticity check.
+4. Read the doctor output (also saved in `<kit>\m0_results\doctor.txt`). Copy the mod folder **by hand** as it
+   prints (`<kit>\mod\sae_bridge` to `<Stellaris user folder>\mod\sae_bridge`; the kit never writes there). The
+   user-folder path form (A-01) and a OneDrive-redirected Documents folder (A-33) are UNVERIFIED; if doctor
+   warns, pass `--user-dir "<your Stellaris user folder>"`. Then `cd <kit>`.
+5. Run the weekend as below, using `sae m0 ...` (no `uv run`). Monthly autosaves (A-24) are UNVERIFIED.
+6. Run `sae m0 pack` and send the zip back (default `m0_results_<UTC timestamp>.zip` in the current folder;
+   `--out` changes it). **Read the notice it prints before sending.** The zip holds:
+   - check verdicts, timings, record types and dates (`M0-*.json`, `env.json`, `doctor.txt`, `m0_results.md`,
+     `M0-4.tail.jsonl`)
+   - the 5 numeric player-empire totals from M0-11/M0-14, empire names redacted
+   - parser error text cut to 200 chars
+   - text you typed in `--note`, `--value`, `--playset`, `--machine`
+
+   Home path and Windows user name are scrubbed. It excludes the raw `game.log`, saves, `sae_in.ini` and bus files.
+7. Uninstall: `uv tool uninstall sae`; delete `sae-parse.exe` from the folder printed by `uv tool dir --bin`; delete
+   the kit folder; delete `<user_dir>/mod/sae_bridge` and `<user_dir>/sae_in.ini` by hand.
+
+Steps below that start with `uv sync` or `uv run` are for a dev checkout.
+
+## Before the weekend (dev checkout, 30 min)
 
 1. `uv sync` and `cd parser && cargo build --release -j 1` (M0-11 needs `sae-parse`).
 2. `uv run sae m0 list` — every check shows `pending`.
@@ -52,8 +88,8 @@ and M0-6 need one.
 
 ## After
 
-Send `m0_results/` (JSON files, `M0-4.tail.jsonl`, `m0_results.md`) to the team; the kit stores record types and
-dates only. If you also ran `sae daemon` or `sae synth --record`: share `bus.jsonl` and `.rrd` files, not the record
+Run `sae m0 pack` and send the zip it writes (scrubbed; see step 6 of the field kit) to the team; the kit stores
+record types and dates only. If you also ran `sae daemon` or `sae synth --record`: share `bus.jsonl` and `.rrd` files, not the record
 dir: it holds the raw game log with player data. Remove `<user_dir>/sae_in.ini`
 and the mod by hand if you want a clean install.
 

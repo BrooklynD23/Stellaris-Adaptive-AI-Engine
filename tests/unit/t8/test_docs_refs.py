@@ -13,7 +13,7 @@ from sae.m0.checks import BY_ID
 ROOT = Path(__file__).resolve().parents[3]
 DOCS = [ROOT / "README.md", ROOT / "docs" / "user_guide.md", ROOT / "docs" / "developer_guide.md",
         ROOT / "docs" / "m0_checklist.md", ROOT / "tools" / "m0" / "README.md", ROOT / "packaging" / "PLAN.md"]
-M0_SUBCOMMANDS = {"list", "steps", "init", "stage", "check", "tail", "record", "summary"}
+M0_SUBCOMMANDS = {"list", "steps", "init", "stage", "check", "tail", "record", "summary", "doctor", "pack"}
 
 
 @pytest.mark.parametrize("doc", DOCS, ids=lambda p: p.name)

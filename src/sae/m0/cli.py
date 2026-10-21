@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sae.adapters.paths import ResolvedPaths, resolve_paths
 from sae.contracts.c2_ini import CountryCommand, IniFile, render_ini
 from sae.contracts.c8_config import PathsConfig
 from sae.contracts.common import EconPlan, Posture
-from sae.m0 import evidence, results
+from sae.m0 import doctor, evidence, pack, results
 from sae.m0.checks import BY_ID, CHECKS, Check
 from sae.m0.tail import run_tail
 
@@ -40,6 +41,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--user-dir", help="Stellaris user folder (default: C8 auto-detection)")
     p.add_argument("--game-log", help="game.log path (default <user_dir>/logs/game.log)")
     p.add_argument("--parser-exe", help="sae-parse binary (default: PATH, then parser/target/release)")
+    p.add_argument("--kit-dir", type=Path, help="field kit folder (default: repo if it has mod/sae_bridge, else cwd)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list", help="all checks with their recorded status")
     sub.add_parser("steps", help="print the manual steps of one check").add_argument("check")
@@ -63,6 +65,9 @@ def _parser() -> argparse.ArgumentParser:
     rec.add_argument("status", choices=["pass", "fail", "skip"])
     rec.add_argument("--note", default="")
     rec.add_argument("--value", action="append", default=[], metavar="KEY=VALUE")
+    sub.add_parser("doctor", help=f"preflight checks; writes <results>/{doctor.DOCTOR_FILE}")
+    pk = sub.add_parser("pack", help="zip the scrubbed result files to send back")
+    pk.add_argument("--out", type=Path, help="zip path (default ./m0_results_<UTC timestamp>.zip)")
     sub.add_parser("summary", help=f"write <results>/{results.SUMMARY_FILE}")
     return p
 
@@ -83,9 +88,15 @@ def _safe_results(results_dir: Path, paths: ResolvedPaths) -> Path:
     return target
 
 
-def _steps(check: Check, paths: ResolvedPaths, res: Path) -> str:
+def _kit_dir(args: argparse.Namespace) -> Path:
+    if args.kit_dir is not None:
+        return Path(args.kit_dir)
+    return REPO if (REPO / "mod" / "sae_bridge").exists() else Path.cwd()
+
+
+def _steps(check: Check, paths: ResolvedPaths, res: Path, kit: Path) -> str:
     fill = {"user_dir": paths.user_dir, "game_log": paths.game_log, "save_dir": paths.save_dir,
-            "repo": REPO, "results": res}
+            "repo": kit, "results": res}
     lines = [f"{check.id}  {check.title}  [{check.tier}]  assumptions: {', '.join(check.assumptions) or '-'}", ""]
     lines += [f"  {i}. {s.format(**fill)}" for i, s in enumerate(check.steps, 1)]
     lines += ["", f"  Evidence: {check.evidence.format(**fill)}", f"  Pass: {check.pass_rule}",
@@ -157,7 +168,7 @@ def _run(args: argparse.Namespace) -> str:
     if args.cmd == "steps":
         if args.check not in BY_ID:
             raise UsageError(f"unknown check {args.check}; see `sae m0 list`")
-        return _steps(BY_ID[args.check], paths, res)
+        return _steps(BY_ID[args.check], paths, res, _kit_dir(args))
     if args.cmd == "init":
         env = {k: getattr(args, k) for k in results.ENV_KEYS}
         return f"saved {results.save_env(res, env)}"
@@ -189,6 +200,25 @@ def _run(args: argparse.Namespace) -> str:
     return f"wrote {summary}"
 
 
+def _run_kit(args: argparse.Namespace) -> tuple[str, int]:
+    """``doctor`` and ``pack``: they return an exit code of their own."""
+    paths = _paths(args)
+    if args.cmd == "doctor":
+        try:
+            _safe_results(args.results, paths)
+            refusal = None
+        except UsageError as exc:
+            refusal = str(exc)
+        return doctor.run_doctor(paths, args.results, _kit_dir(args), refusal)
+    out = args.out or Path.cwd() / f"m0_results_{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}.zip"
+    res = _safe_results(args.results, paths)
+    _safe_results(out, paths)
+    try:
+        return pack.render_manifest(pack.build_zip(res, out), out), 0
+    except pack.PackError as exc:
+        raise UsageError(str(exc)) from exc
+
+
 def main(command: str, argv: list[str]) -> int:
     """Entry point called by ``sae.cli`` (C8 section 5). Exit codes: 0 ok, 1 runtime failure, 2 usage."""
     del command
@@ -197,7 +227,8 @@ def main(command: str, argv: list[str]) -> int:
     except SystemExit as exc:
         return int(exc.code or 0)
     try:
-        print(_run(args))
+        text, code = _run_kit(args) if args.cmd in {"doctor", "pack"} else (_run(args), 0)
+        print(text)
     except UsageError as exc:
         print(f"sae m0: {exc}", file=sys.stderr)
         return 2
@@ -207,4 +238,4 @@ def main(command: str, argv: list[str]) -> int:
     except KeyboardInterrupt:
         print("sae m0: interrupted", file=sys.stderr)
         return 1
-    return 0
+    return code

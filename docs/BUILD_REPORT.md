@@ -111,6 +111,10 @@ Game-free; synth data only. Evidence from `uv run pytest <path> -o addopts="" -q
 The profile is a read-only panel until eligible (>= 8 closed campaigns, positive fold score). Nothing here has run
 against the real game: game-process detection and save-folder behaviour stay UNVERIFIED (A-46).
 
+## 7c. Update 2026-10-20: expansion X2 (M0 field kit)
+
+Game-free. `sae m0 doctor|pack`, `--kit-dir`, `tools/m0/field_kit/{build_kit.py,setup.ps1}` and CI job `field-kit-windows` (workflow artifact `sae-m0-field-kit-windows`, no release). Tests: `tests/unit/t8` (see `docs/status/T8.md`). The kit has not run on Windows or against the game.
+
 ## 8. Recommended next step
 
 Run the M0 weekend on the maintainer's PC with `sae m0` (`tools/m0/README.md`, `docs/m0_checklist.md`), then

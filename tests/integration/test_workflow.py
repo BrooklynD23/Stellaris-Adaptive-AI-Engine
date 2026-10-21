@@ -12,9 +12,11 @@ TEXT = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
 
 def test_job_names() -> None:
-    """The four jobs exist (stdlib only: two-space keys under ``jobs:``; actionlint validated the YAML)."""
+    """The five jobs exist (stdlib only: two-space keys under ``jobs:``; actionlint validated the YAML)."""
     jobs = TEXT.split("\njobs:\n", 1)[1]
-    assert set(re.findall(r"^  ([\w-]+):$", jobs, re.M)) == {"python-linux", "mod", "rust-linux", "windows"}
+    assert set(re.findall(r"^  ([\w-]+):$", jobs, re.M)) == {
+        "python-linux", "mod", "rust-linux", "windows", "field-kit-windows",
+    }
 
 
 @pytest.mark.parametrize("cmd", [

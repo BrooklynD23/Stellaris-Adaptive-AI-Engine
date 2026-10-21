@@ -21,6 +21,7 @@ this machine". Every game assumption keeps its A-xx id (contracts/README.md §5)
 | T4 | DELIVERED | owes the 009 wiring and the 011 lockstep rule (C6 §1.7) |
 | T5 | DELIVERED (MVP) | C7 v1.1, factories in C8 §5.1 |
 | T6, T7, T8 | in progress | |
+| X2 | Batch 1 delivered, docs in Batch 2 | M0 field kit (`docs/plans/X2_field_kit_plan.md`); not run on Windows |
 
 Settled since Wave 0 (maintainer, 2026-10-19; `contracts/CHANGES.md`):
 

@@ -124,6 +124,15 @@ until M0 (`docs/m0_checklist.md`); release gates R-1..R-6 have not run. Contract
   architecture-alignment review after each wave.
 - `docs/plans/MVP_2day_plan.md` (2-day prototype push; no scope cuts) and `docs/BUILD_REPORT.md`.
 
+#### T8 X2 M0 field kit
+
+- `sae m0 doctor`: read-only preflight (versions, results folder, parser and its schema, user folder, mod copy, disk); prints PASS/WARN/FAIL and writes `<results>/doctor.txt`.
+- `sae m0 pack`: zips an allowlist of result files with the home path and Windows user name scrubbed, empire names redacted, parser error text cut to 200 chars; prints a manifest and a privacy notice. Raw `game.log`, saves, `sae_in.ini` and bus files are never packed.
+- `sae m0 --kit-dir`: kit folder override (default: the repo if it has `mod/sae_bridge`, else the current folder).
+- `tools/m0/field_kit/build_kit.py`: assembles the kit (wheel, parser, mod, constraints, `SHA256SUMS`); `setup.ps1`: per-user bootstrap that lists downloads, asks first, verifies the uv zip hash and never touches game folders. `SHA256SUMS` detects corruption only.
+- CI job `field-kit-windows` (T7; push and manual only): crt-static parser, uv hash checked against the release asset, `setup.ps1 -DryRun` smoke test, uploads workflow artifact `sae-m0-field-kit-windows`. No release is published.
+- `tools/m0/README.md` "Field kit (no dev environment)". Game-side assumptions (A-01, A-24, A-33) stay UNVERIFIED.
+
 #### T9 Player profile
 
 - `sae profile update|show|close|exclude|delete|label` (`sae.profile`): append-only campaign index with a writer lock, strict fog-legal per-campaign summaries, deterministic read-only `profile.json`. The profile is not used by the engine until eligible (>= 8 closed campaigns, positive fold score).
