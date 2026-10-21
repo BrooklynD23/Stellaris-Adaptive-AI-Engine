@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.1 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
-| Status | FROZEN v1.1 (2026-10-20; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
+| Version | 1.2 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
+| Status | FROZEN v1.2 (2026-10-20; v1.2 proposal 029: `sae policy` semantics §5, sealed-query ledger, GateReport pass rules and Stage 2 objectives §6, clarifications, no schema change; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
 | Owner | architect (contract); T9 implements the profile side (`src/sae/profile/**`, `src/sae/tune/**`), T7 the gate (`src/sae/bench/gate/**`), T4 the daemon's policy loader |
 | Producers | `sae profile …` (T9: §1, §2); `sae tune` (T9: proposed policies, `propose` rows); `sae gate stage1\|stage2` (T7: `stage*` rows, GateReports); `sae policy …` (T9, human-only rows, Preregistrations) |
 | Consumers | T4 daemon (§4, §5 read-only at start); T9; T7 (gate, privacy and fog tests); T6 (console views); T8 (docs) |
@@ -325,6 +325,18 @@ final line without LF is terminated with one LF first and seq counts after that 
 
 Rollback is one row and takes effect at the next daemon start. `policy.pin = "builtin"` is the emergency exit.
 
+`sae policy` semantics (v1.2, proposal 029 §2; T9 implements):
+1. `rollback` without a sha = one step: target = `previous_sha256` of the latest `promote`/`rollback` row (`null` →
+   built-in sha). With a sha: it must be the built-in sha or a sha promoted earlier (fold rule unchanged).
+2. `pin builtin` = a human `rollback` row targeting the built-in sha (`reason = "pin builtin"`), effective at the
+   next daemon start, plus a printed hint for the hard pin `policy.pin = "builtin"`. The CLI never edits config.
+3. `promote` refuses (exit 2) a candidate whose `game_version_pin` does not match every `game_versions` entry of
+   the campaigns in its `tuning.campaign_ids` (§4 step 5, offline half).
+4. `propose` (human) copies the file to `policies/<sha>.json` only after the model validates and the name check
+   passes; `by: human:<name>`, TTY required.
+5. Exit codes for `tune`/`policy`/`gate`: 0 ok/pass, 1 stage fail or I/O/lock error, 2 usage or refused, 3 invalid
+   config (C8 §5), 4 no result by design (`sae gate stage2` game-paired objectives only, §6).
+
 ```jsonl model=RegistryRow
 {"v":1,"seq":0,"at":"2027-03-01T10:00:00Z","action":"propose","sha256":"7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e","by":"tuner"}
 {"v":1,"seq":1,"at":"2027-03-01T10:05:00Z","action":"prereg","sha256":"7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e","by":"human:danny","evidence_sha256":"1111111111111111111111111111111111111111111111111111111111111111"}
@@ -351,6 +363,23 @@ all(checks.passed)` is model-enforced), both at `policies/evidence/<sha256 of th
 `passed` and a `value` rounded to 2 significant digits only. With 1–3 sealed campaigns Stage 2 is a tripwire, not
 a significance test; every Stage 2 report says so in a check `detail`.
 
+Rules (v1.2, proposal 029 §3, §3b, §4; the validator `passed == all(checks.passed)` is unchanged):
+1. **Sealed-query ledger** (clarifies §1 rule 5, §2 rule 3). A Stage 2 `detector_replay` GateReport names each
+   sealed campaign it read in one check `sealed_noninferior:<campaign_id>` (≤ 64 chars: 19 + 18). The sealed-query
+   count of a campaign = the number of `stage2_pass|stage2_fail` registry rows whose evidence GateReport contains
+   that check name. Unreadable evidence → the row counts against **every** sealed campaign (conservative). Synth
+   (`--include-synth`) Stage 2 runs write no registry row and never spend a query.
+2. **Pass rules.** Stage 2 `detector_replay` passes iff every `sealed_noninferior:<cid>` check passes.
+   Informational checks (`detection_delay`, `false_lock`, `v3_signal`) are written with `passed: true`, the number
+   in `value` and the meaning in `detail`; they never gate. Stage 1's log-loss check is `heldin_log_loss_delta`
+   (held-in, biased toward the candidate; its `detail` says so). `Preregistration.primary_metric` stays
+   `loco_log_loss` (the tuner's per-fold LOCO numbers); the `Literal` is unchanged in v1.2.
+3. **Stage 2 objectives.** `--objective detector_replay` runs the v1 sealed tripwire. `beat_player` and
+   `challenge_band` (maintainer D6 options) write a draft protocol (paired seeds, `min_n >= 30`, crash = loss, halt
+   on two crashes) to `--out`, append **no** registry row and exit 4 with "no result: game-paired Stage 2 needs D6
+   and real paired runs (M4)". No flag makes them report a result; the game-paired GateReport kind needs its own
+   proposal after M4.
+
 ```json model=Preregistration
 {"schema_version": 1, "candidate_sha256": "7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e",
  "incumbent_sha256": "0455844eb53cc7c608159f0192b83f7f506951c9c19aa6f2b4f4ac8925da8cfc", "kind": "detector_replay",
@@ -362,7 +391,19 @@ a significance test; every Stage 2 report says so in a check `detail`.
 {"schema_version": 1, "stage": 1, "candidate_sha256": "7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e",
  "incumbent_sha256": "0455844eb53cc7c608159f0192b83f7f506951c9c19aa6f2b4f4ac8925da8cfc", "gate_version": "0.1.0",
  "checks": [{"name": "mutable_surface", "passed": true}, {"name": "sealed_split", "passed": true},
-   {"name": "loco_log_loss_delta", "passed": true, "value": -0.071}], "passed": true, "created_at": "2027-03-01T10:40:00Z"}
+   {"name": "heldin_log_loss_delta", "passed": true, "value": -0.071, "detail": "held-in, biased toward candidate"}],
+ "passed": true, "created_at": "2027-03-01T10:40:00Z"}
+```
+
+Valid Stage 2 (`detector_replay`): one sealed check at 2 significant digits plus one informational check.
+
+```json model=GateReport
+{"schema_version": 1, "stage": 2, "candidate_sha256": "7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e",
+ "incumbent_sha256": "0455844eb53cc7c608159f0192b83f7f506951c9c19aa6f2b4f4ac8925da8cfc", "gate_version": "0.1.0",
+ "checks": [{"name": "sealed_noninferior:c-0123456789abcdef", "passed": true, "value": -0.012,
+   "detail": "tripwire with 1 sealed campaign, not a significance test"},
+   {"name": "detection_delay", "passed": true, "value": 7, "detail": "informational"}],
+ "passed": true, "created_at": "2027-03-01T11:30:00Z"}
 ```
 
 Invalid: `passed` while a check failed.
