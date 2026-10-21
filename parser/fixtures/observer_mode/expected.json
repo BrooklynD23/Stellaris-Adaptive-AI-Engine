@@ -1,0 +1,67 @@
+{
+ "countries": [
+  {
+   "country_id": 2,
+   "is_player": false,
+   "managed": true,
+   "name": "Observer One",
+   "sid": 1
+  },
+  {
+   "country_id": 3,
+   "is_player": false,
+   "managed": true,
+   "name": "Observer Two",
+   "sid": 2
+  }
+ ],
+ "god": null,
+ "legal": [],
+ "meta": {
+  "date": "2231.04.01",
+  "game_version": "Cepheus v4.4.4",
+  "ironman": false
+ },
+ "schema_version": 1,
+ "sections": [
+  "meta",
+  "countries",
+  "starbases",
+  "fleets",
+  "wars",
+  "tech"
+ ],
+ "self_state": {
+  "1": {
+   "alloys": 3.0,
+   "alloys_income": 2.0,
+   "applied_econ": 4,
+   "applied_mil": 2,
+   "applied_seq": 9,
+   "energy": 10.0,
+   "fleet_power": 4000.0,
+   "minerals": 20.0,
+   "naval_cap": 60.0,
+   "naval_cap_used": 20.0,
+   "pending_seq": 10,
+   "systems_owned": 2,
+   "wars": 1
+  },
+  "2": {
+   "alloys": 0.0,
+   "alloys_income": 0.0,
+   "applied_econ": 0,
+   "applied_mil": 0,
+   "applied_seq": 0,
+   "energy": 0.0,
+   "fleet_power": 500.0,
+   "minerals": 0.0,
+   "naval_cap": 0.0,
+   "naval_cap_used": 0.0,
+   "pending_seq": 0,
+   "systems_owned": 1,
+   "wars": 0
+  }
+ },
+ "status": "ok"
+}

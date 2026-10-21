@@ -1,0 +1,741 @@
+{
+  "$defs": {
+    "AdapterMode": {
+      "description": "Where observations come from and where intents go.",
+      "enum": [
+        "live",
+        "replay",
+        "synth",
+        "release"
+      ],
+      "title": "AdapterMode",
+      "type": "string"
+    },
+    "BridgeConfig": {
+      "additionalProperties": false,
+      "description": "Desired in-game knob values at session start (C7 section 6).",
+      "properties": {
+        "emit_period": {
+          "default": 1,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Emit Period",
+          "type": "integer"
+        },
+        "quiet": {
+          "default": 0,
+          "enum": [
+            0,
+            1
+          ],
+          "title": "Quiet",
+          "type": "integer"
+        }
+      },
+      "title": "BridgeConfig",
+      "type": "object"
+    },
+    "EngineConfig": {
+      "additionalProperties": false,
+      "description": "Engine core numbers (T4).\n\n``rho``/``likelihood_clip``/``belief_threshold``: ``None`` (default, C8 v1.3) = take the value from the loaded\nPolicyVersion's ``detector`` (C10 section 4); a number overrides the policy. The engine core only ever sees the\neffective config with all three filled (``sae.daemon.policy_resolve.effective_engine_config``).",
+      "properties": {
+        "belief_threshold": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 1.0,
+              "exclusiveMinimum": 0.25,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Below: baseline; null = policy.",
+          "title": "Belief Threshold"
+        },
+        "commitment_months": {
+          "default": 24,
+          "minimum": 1,
+          "title": "Commitment Months",
+          "type": "integer"
+        },
+        "likelihood_clip": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "L: |log-lik| cap per feature; null=policy.",
+          "title": "Likelihood Clip"
+        },
+        "max_managed": {
+          "default": 16,
+          "description": "Mod caps sae_managed at 16 (C6 section 2).",
+          "maximum": 16,
+          "minimum": 1,
+          "title": "Max Managed",
+          "type": "integer"
+        },
+        "rho": {
+          "anyOf": [
+            {
+              "maximum": 0.2,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fixed-share forgetting/month; null = policy.",
+          "title": "Rho"
+        },
+        "safety_floor_ship_min": {
+          "default": 10,
+          "description": "Unused while fleet bias is dropped (C3 v1.1); kept so C8 stays v1.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Safety Floor Ship Min",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "ttl_months": {
+          "default": 3,
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "title": "EngineConfig",
+      "type": "object"
+    },
+    "GovernorConfig": {
+      "additionalProperties": false,
+      "description": "Every Governor number. Defaults are the amended resource proposal; presets override some.",
+      "properties": {
+        "closed_minimized_s": {
+          "default": 600.0,
+          "exclusiveMinimum": 0,
+          "title": "Closed Minimized S",
+          "type": "number"
+        },
+        "daemon_rss_breach_bytes": {
+          "default": 157286400,
+          "exclusiveMinimum": 0,
+          "title": "Daemon Rss Breach Bytes",
+          "type": "integer"
+        },
+        "daemon_rss_exit_bytes": {
+          "default": 314572800,
+          "exclusiveMinimum": 0,
+          "title": "Daemon Rss Exit Bytes",
+          "type": "integer"
+        },
+        "deescalate_after_months": {
+          "default": 6,
+          "minimum": 1,
+          "title": "Deescalate After Months",
+          "type": "integer"
+        },
+        "deescalate_ram_margin_bytes": {
+          "default": 536870912,
+          "minimum": 0,
+          "title": "Deescalate Ram Margin Bytes",
+          "type": "integer"
+        },
+        "fault_baseline_s": {
+          "default": 600.0,
+          "description": "First 10 min of the session.",
+          "exclusiveMinimum": 0,
+          "title": "Fault Baseline S",
+          "type": "number"
+        },
+        "fault_consecutive_polls": {
+          "default": 3,
+          "minimum": 1,
+          "title": "Fault Consecutive Polls",
+          "type": "integer"
+        },
+        "fault_mad_floor": {
+          "default": 1.0,
+          "description": "Pages/s; the fault trigger uses max(MAD, floor) (C7 section 4.2).",
+          "minimum": 0,
+          "title": "Fault Mad Floor",
+          "type": "number"
+        },
+        "fault_mad_k": {
+          "default": 3.0,
+          "exclusiveMinimum": 0,
+          "title": "Fault Mad K",
+          "type": "number"
+        },
+        "forced_level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HealthLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Test hook (CI-1); None in play."
+        },
+        "h1_ram_bytes": {
+          "default": 2147483648,
+          "exclusiveMinimum": 0,
+          "title": "H1 Ram Bytes",
+          "type": "integer"
+        },
+        "h2_parse_window_months": {
+          "default": 3,
+          "minimum": 0,
+          "title": "H2 Parse Window Months",
+          "type": "integer"
+        },
+        "h2_ram_bytes": {
+          "default": 1610612736,
+          "exclusiveMinimum": 0,
+          "title": "H2 Ram Bytes",
+          "type": "integer"
+        },
+        "h2_sustain_months_to_h3": {
+          "default": 6,
+          "minimum": 1,
+          "title": "H2 Sustain Months To H3",
+          "type": "integer"
+        },
+        "h3_emit_period": {
+          "default": 12,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "H3 Emit Period",
+          "type": "integer"
+        },
+        "h3_ram_bytes": {
+          "default": 1073741824,
+          "exclusiveMinimum": 0,
+          "title": "H3 Ram Bytes",
+          "type": "integer"
+        },
+        "parse_min_age_s": {
+          "default": 8.0,
+          "minimum": 0,
+          "title": "Parse Min Age S",
+          "type": "number"
+        },
+        "parse_stable_s": {
+          "default": 2.0,
+          "minimum": 0,
+          "title": "Parse Stable S",
+          "type": "number"
+        },
+        "parse_timeout_s": {
+          "default": 60.0,
+          "exclusiveMinimum": 0,
+          "title": "Parse Timeout S",
+          "type": "number"
+        },
+        "pause_detection": {
+          "default": false,
+          "description": "Off until M1-P passes.",
+          "title": "Pause Detection",
+          "type": "boolean"
+        },
+        "paused_cpu_max_pct": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Game CPU % of one core at or below which it counts as paused (from M1-P).",
+          "title": "Paused Cpu Max Pct"
+        },
+        "paused_debounce_s": {
+          "default": 5.0,
+          "maximum": 6.0,
+          "minimum": 4.0,
+          "title": "Paused Debounce S",
+          "type": "number"
+        },
+        "poll_s": {
+          "default": 2.0,
+          "description": "Nothing polls faster than 2 s.",
+          "minimum": 2.0,
+          "title": "Poll S",
+          "type": "number"
+        },
+        "reach_within_s": {
+          "default": 10.0,
+          "description": "CI-3 / R-4 end-to-end bound.",
+          "exclusiveMinimum": 0,
+          "title": "Reach Within S",
+          "type": "number"
+        },
+        "spm_clear_ratio": {
+          "default": 1.05,
+          "exclusiveMinimum": 1.0,
+          "title": "Spm Clear Ratio",
+          "type": "number"
+        },
+        "spm_h1_ratio": {
+          "default": 1.1,
+          "exclusiveMinimum": 1.0,
+          "title": "Spm H1 Ratio",
+          "type": "number"
+        },
+        "spm_long_months": {
+          "default": 24,
+          "minimum": 2,
+          "title": "Spm Long Months",
+          "type": "integer"
+        },
+        "spm_min_months_between_escalations": {
+          "default": 6,
+          "minimum": 1,
+          "title": "Spm Min Months Between Escalations",
+          "type": "integer"
+        },
+        "spm_short_months": {
+          "default": 6,
+          "minimum": 1,
+          "title": "Spm Short Months",
+          "type": "integer"
+        },
+        "spm_step_reset": {
+          "default": 0.4,
+          "description": "Month-to-month jump treated as a speed change.",
+          "exclusiveMinimum": 0,
+          "title": "Spm Step Reset",
+          "type": "number"
+        },
+        "worker_mem_cap_bytes": {
+          "default": 1073741824,
+          "exclusiveMinimum": 0,
+          "title": "Worker Mem Cap Bytes",
+          "type": "integer"
+        },
+        "worker_mem_cap_closed_bytes": {
+          "default": 2147483648,
+          "exclusiveMinimum": 0,
+          "title": "Worker Mem Cap Closed Bytes",
+          "type": "integer"
+        }
+      },
+      "title": "GovernorConfig",
+      "type": "object"
+    },
+    "HealthLevel": {
+      "description": "Pressure axis. S is entered only by the operator ``pause`` command (C9).",
+      "enum": [
+        "H0",
+        "H1",
+        "H2",
+        "H3",
+        "S"
+      ],
+      "title": "HealthLevel",
+      "type": "string"
+    },
+    "PathsConfig": {
+      "additionalProperties": false,
+      "description": "Filesystem locations. ``None`` = auto-detect (C8 section 3).",
+      "properties": {
+        "game_log": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default <user_dir>/logs/game.log (UNVERIFIED A-03).",
+          "title": "Game Log"
+        },
+        "ini_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default <user_dir>/sae_in.ini (UNVERIFIED A-08).",
+          "title": "Ini Path"
+        },
+        "parser_exe": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default: PATH, else repo parser/target/{release,debug}.",
+          "title": "Parser Exe"
+        },
+        "runs_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None = %LOCALAPPDATA%/sae/runs or ~/.local/state/sae/runs.",
+          "title": "Runs Dir"
+        },
+        "sae_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Per-user SAE state (profile, policies, salt); None = %LOCALAPPDATA%/sae or ~/.local/state/sae.",
+          "title": "Sae Dir"
+        },
+        "save_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default <user_dir>/save games.",
+          "title": "Save Dir"
+        },
+        "user_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Documents/Paradox Interactive/Stellaris.",
+          "title": "User Dir"
+        }
+      },
+      "title": "PathsConfig",
+      "type": "object"
+    },
+    "PolicyConfig": {
+      "additionalProperties": false,
+      "description": "Which PolicyVersion the daemon loads (C10 sections 4-5, proposal 021).",
+      "properties": {
+        "pin": {
+          "anyOf": [
+            {
+              "const": "builtin",
+              "type": "string"
+            },
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None = registry current, else built-in; 'builtin'; or a policy sha256.",
+          "title": "Pin"
+        }
+      },
+      "title": "PolicyConfig",
+      "type": "object"
+    },
+    "ProfileConfig": {
+      "additionalProperties": false,
+      "description": "Player profile (C10 sections 1-2, proposal 020). The daemon reads no profile file in v1.",
+      "properties": {
+        "mode": {
+          "default": "off",
+          "enum": [
+            "off",
+            "strict"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "player_key": {
+          "default": "default",
+          "pattern": "^[a-z0-9_]{1,32}$",
+          "title": "Player Key",
+          "type": "string"
+        }
+      },
+      "title": "ProfileConfig",
+      "type": "object"
+    },
+    "RecordConfig": {
+      "additionalProperties": false,
+      "description": "Session recording hygiene for ``--record`` (proposal 022).",
+      "properties": {
+        "max_bytes": {
+          "default": 4294967296,
+          "description": "Per recording dir; then saves stop, log goes on.",
+          "minimum": 0,
+          "title": "Max Bytes",
+          "type": "integer"
+        },
+        "redact_plyr": {
+          "default": true,
+          "description": "False only with preset = dev (GOD_VIEW_INSIDE marker).",
+          "title": "Redact Plyr",
+          "type": "boolean"
+        },
+        "save_every": {
+          "default": 12,
+          "description": "With saves = every_n: copy every N-th save.",
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Save Every",
+          "type": "integer"
+        },
+        "saves": {
+          "default": "all",
+          "enum": [
+            "all",
+            "none",
+            "every_n"
+          ],
+          "title": "Saves",
+          "type": "string"
+        }
+      },
+      "title": "RecordConfig",
+      "type": "object"
+    },
+    "TelemetryConfig": {
+      "additionalProperties": false,
+      "description": "sae-telemetry (T6). Off for players by default.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "rerun_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. rerun+http://HOST:9876/proxy",
+          "title": "Rerun Url"
+        },
+        "rrd_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rrd Path"
+        },
+        "tier": {
+          "$ref": "#/$defs/TelemetryTier",
+          "default": "T1"
+        },
+        "viewer_memory_limit": {
+          "default": "512MB",
+          "title": "Viewer Memory Limit",
+          "type": "string"
+        }
+      },
+      "title": "TelemetryConfig",
+      "type": "object"
+    },
+    "TelemetryTier": {
+      "description": "Resource proposal section 7 tiers.",
+      "enum": [
+        "T0",
+        "T1",
+        "T2"
+      ],
+      "title": "TelemetryTier",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The fully resolved configuration; written to ``runs/<id>/config.resolved.json``.",
+  "properties": {
+    "adapter": {
+      "$ref": "#/$defs/AdapterMode",
+      "default": "live"
+    },
+    "bridge": {
+      "$ref": "#/$defs/BridgeConfig",
+      "default": {
+        "emit_period": 1,
+        "quiet": 0
+      }
+    },
+    "engine": {
+      "$ref": "#/$defs/EngineConfig",
+      "default": {
+        "belief_threshold": null,
+        "commitment_months": 24,
+        "likelihood_clip": null,
+        "max_managed": 16,
+        "rho": null,
+        "safety_floor_ship_min": 10,
+        "seed": 0,
+        "ttl_months": 3
+      }
+    },
+    "governor": {
+      "$ref": "#/$defs/GovernorConfig",
+      "default": {
+        "closed_minimized_s": 600.0,
+        "daemon_rss_breach_bytes": 157286400,
+        "daemon_rss_exit_bytes": 314572800,
+        "deescalate_after_months": 6,
+        "deescalate_ram_margin_bytes": 536870912,
+        "fault_baseline_s": 600.0,
+        "fault_consecutive_polls": 3,
+        "fault_mad_floor": 1.0,
+        "fault_mad_k": 3.0,
+        "forced_level": null,
+        "h1_ram_bytes": 2147483648,
+        "h2_parse_window_months": 3,
+        "h2_ram_bytes": 1610612736,
+        "h2_sustain_months_to_h3": 6,
+        "h3_emit_period": 12,
+        "h3_ram_bytes": 1073741824,
+        "parse_min_age_s": 8.0,
+        "parse_stable_s": 2.0,
+        "parse_timeout_s": 60.0,
+        "pause_detection": false,
+        "paused_cpu_max_pct": null,
+        "paused_debounce_s": 5.0,
+        "poll_s": 2.0,
+        "reach_within_s": 10.0,
+        "spm_clear_ratio": 1.05,
+        "spm_h1_ratio": 1.1,
+        "spm_long_months": 24,
+        "spm_min_months_between_escalations": 6,
+        "spm_short_months": 6,
+        "spm_step_reset": 0.4,
+        "worker_mem_cap_bytes": 1073741824,
+        "worker_mem_cap_closed_bytes": 2147483648
+      }
+    },
+    "min_level": {
+      "default": "H0",
+      "description": "Preset floor; never S (C7).",
+      "enum": [
+        "H0",
+        "H1",
+        "H2",
+        "H3"
+      ],
+      "title": "Min Level",
+      "type": "string"
+    },
+    "paths": {
+      "$ref": "#/$defs/PathsConfig",
+      "default": {
+        "game_log": null,
+        "ini_path": null,
+        "parser_exe": null,
+        "runs_dir": null,
+        "sae_dir": null,
+        "save_dir": null,
+        "user_dir": null
+      }
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyConfig",
+      "default": {
+        "pin": null
+      }
+    },
+    "preset": {
+      "default": "balanced",
+      "enum": [
+        "low_impact",
+        "balanced",
+        "dev"
+      ],
+      "title": "Preset",
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/ProfileConfig",
+      "default": {
+        "mode": "off",
+        "player_key": "default"
+      }
+    },
+    "record": {
+      "$ref": "#/$defs/RecordConfig",
+      "default": {
+        "max_bytes": 4294967296,
+        "redact_plyr": true,
+        "save_every": 12,
+        "saves": "all"
+      }
+    },
+    "telemetry": {
+      "$ref": "#/$defs/TelemetryConfig",
+      "default": {
+        "enabled": false,
+        "rerun_url": null,
+        "rrd_path": null,
+        "tier": "T1",
+        "viewer_memory_limit": "512MB"
+      }
+    },
+    "v": {
+      "const": 1,
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    }
+  },
+  "title": "SaeConfig",
+  "type": "object"
+}

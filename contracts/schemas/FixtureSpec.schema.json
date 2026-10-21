@@ -1,0 +1,315 @@
+{
+  "$defs": {
+    "FixtureCountry": {
+      "additionalProperties": false,
+      "description": "One country in a synthetic save.",
+      "properties": {
+        "alloys": {
+          "default": 0,
+          "title": "Alloys",
+          "type": "number"
+        },
+        "alloys_income": {
+          "default": 0,
+          "title": "Alloys Income",
+          "type": "number"
+        },
+        "applied_econ": {
+          "default": 0,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Applied Econ",
+          "type": "integer"
+        },
+        "applied_mil": {
+          "default": 0,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Applied Mil",
+          "type": "integer"
+        },
+        "applied_seq": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Applied Seq",
+          "type": "integer"
+        },
+        "country_id": {
+          "minimum": 0,
+          "title": "Country Id",
+          "type": "integer"
+        },
+        "energy": {
+          "default": 0,
+          "title": "Energy",
+          "type": "number"
+        },
+        "fleet_power": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Fleet Power",
+          "type": "number"
+        },
+        "is_player": {
+          "default": false,
+          "title": "Is Player",
+          "type": "boolean"
+        },
+        "managed": {
+          "default": false,
+          "title": "Managed",
+          "type": "boolean"
+        },
+        "minerals": {
+          "default": 0,
+          "title": "Minerals",
+          "type": "number"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "naval_cap": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Naval Cap",
+          "type": "number"
+        },
+        "naval_cap_used": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Naval Cap Used",
+          "type": "number"
+        },
+        "pending_seq": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Pending Seq",
+          "type": "integer"
+        },
+        "sid": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sid"
+        },
+        "systems": {
+          "default": [],
+          "description": "Ids of owned systems.",
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Systems",
+          "type": "array"
+        },
+        "tech_researched": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tech Researched",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "country_id",
+        "name"
+      ],
+      "title": "FixtureCountry",
+      "type": "object"
+    },
+    "FixtureStarbase": {
+      "additionalProperties": false,
+      "description": "A starbase; ``defense_modules`` + ``platforms`` > 0 makes it 'fortified'.",
+      "properties": {
+        "defense_modules": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Defense Modules",
+          "type": "integer"
+        },
+        "owner": {
+          "minimum": 0,
+          "title": "Owner",
+          "type": "integer"
+        },
+        "platforms": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Platforms",
+          "type": "integer"
+        },
+        "system": {
+          "minimum": 0,
+          "title": "System",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "system",
+        "owner"
+      ],
+      "title": "FixtureStarbase",
+      "type": "object"
+    },
+    "FixtureWar": {
+      "additionalProperties": false,
+      "description": "A war between two sides of country ids.",
+      "properties": {
+        "attackers": {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minItems": 1,
+          "title": "Attackers",
+          "type": "array"
+        },
+        "defenders": {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minItems": 1,
+          "title": "Defenders",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attackers",
+        "defenders"
+      ],
+      "title": "FixtureWar",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Input to ``sae-parse fixture``: a small, fully specified game state.\n\n``hyperlanes`` and ``contacts`` give the topology and contact graph the legal view needs.",
+  "properties": {
+    "contacts": {
+      "default": [],
+      "description": "Pairs of country ids in contact.",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "minimum": 0,
+            "type": "integer"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Contacts",
+      "type": "array"
+    },
+    "countries": {
+      "items": {
+        "$ref": "#/$defs/FixtureCountry"
+      },
+      "minItems": 1,
+      "title": "Countries",
+      "type": "array"
+    },
+    "date": {
+      "title": "Date",
+      "type": "string"
+    },
+    "format": {
+      "default": "zip_text",
+      "enum": [
+        "zip_text",
+        "plain_text"
+      ],
+      "title": "Format",
+      "type": "string"
+    },
+    "game_version": {
+      "default": "Cepheus v4.4.4",
+      "title": "Game Version",
+      "type": "string"
+    },
+    "hyperlanes": {
+      "default": [],
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "minimum": 0,
+            "type": "integer"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Hyperlanes",
+      "type": "array"
+    },
+    "ironman": {
+      "default": false,
+      "title": "Ironman",
+      "type": "boolean"
+    },
+    "name": {
+      "pattern": "^[a-z0-9_]+$",
+      "title": "Name",
+      "type": "string"
+    },
+    "pad_bytes": {
+      "default": 0,
+      "description": "Inert filler for size/pathological tests.",
+      "maximum": 2147483648,
+      "minimum": 0,
+      "title": "Pad Bytes",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": 1,
+      "maximum": 1,
+      "minimum": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "starbases": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FixtureStarbase"
+      },
+      "title": "Starbases",
+      "type": "array"
+    },
+    "wars": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FixtureWar"
+      },
+      "title": "Wars",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "date",
+    "countries"
+  ],
+  "title": "FixtureSpec",
+  "type": "object"
+}

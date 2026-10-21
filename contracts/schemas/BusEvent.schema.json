@@ -1,0 +1,2963 @@
+{
+  "$defs": {
+    "AckCode": {
+      "description": "Machine-readable reason in an ACK line (``code=``).",
+      "enum": [
+        "OK",
+        "RANGE",
+        "NOT_MANAGED",
+        "BAD_TARGET",
+        "MULTIPLAYER",
+        "SEQ_OLD",
+        "EXPIRED",
+        "SCHEMA",
+        "TIMEOUT",
+        "NEWER_BATCH"
+      ],
+      "title": "AckCode",
+      "type": "string"
+    },
+    "AckStatus": {
+      "description": "Outcome of one (country, seq) batch. The first five come from the mod (C1 ACK);\n``LOST`` and ``SUPERSEDED`` are assigned by the engine (C3 section 5).",
+      "enum": [
+        "APPLIED",
+        "REJECTED",
+        "STALE",
+        "DUPLICATE",
+        "SCHEMA_MISMATCH",
+        "LOST",
+        "SUPERSEDED"
+      ],
+      "title": "AckStatus",
+      "type": "string"
+    },
+    "AdapterMode": {
+      "description": "Where observations come from and where intents go.",
+      "enum": [
+        "live",
+        "replay",
+        "synth",
+        "release"
+      ],
+      "title": "AdapterMode",
+      "type": "string"
+    },
+    "Archetype": {
+      "description": "Player archetypes the v0/v1 belief filter tracks (settled decision).",
+      "enum": [
+        "turtle",
+        "tech_rush",
+        "early_aggression",
+        "balanced"
+      ],
+      "title": "Archetype",
+      "type": "string"
+    },
+    "BeliefUpdateEvent": {
+      "additionalProperties": false,
+      "description": "``belief_update``.",
+      "properties": {
+        "decision_id": {
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "fow": {
+          "const": "legal",
+          "default": "legal",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/BeliefUpdatePayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "belief_update",
+          "default": "belief_update",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "decision_id",
+        "payload"
+      ],
+      "title": "BeliefUpdateEvent",
+      "type": "object"
+    },
+    "BeliefUpdatePayload": {
+      "additionalProperties": false,
+      "description": "Forgetful Bayes step (report section 'engine core').",
+      "properties": {
+        "change_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Diagnostic change statistic; never acted on.",
+          "title": "Change Score"
+        },
+        "entropy": {
+          "minimum": 0,
+          "title": "Entropy",
+          "type": "number"
+        },
+        "features": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Feature values used; None = unobserved.",
+          "title": "Features",
+          "type": "object"
+        },
+        "loglik": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Sum of clipped per-feature log-likelihoods.",
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Loglik",
+          "type": "object"
+        },
+        "posterior": {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Posterior",
+          "type": "object"
+        },
+        "prior": {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "title": "Prior",
+          "type": "object"
+        },
+        "top_evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 5,
+          "title": "Top Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "prior",
+        "loglik",
+        "posterior",
+        "entropy",
+        "features",
+        "top_evidence"
+      ],
+      "title": "BeliefUpdatePayload",
+      "type": "object"
+    },
+    "ControlCommand": {
+      "additionalProperties": false,
+      "description": "One file in ``runs/<run_id>/control/inbox/``.",
+      "properties": {
+        "command": {
+          "discriminator": {
+            "mapping": {
+              "force_strategy": "#/$defs/ForceStrategy",
+              "pause": "#/$defs/Pause",
+              "resume": "#/$defs/Resume",
+              "status": "#/$defs/Status"
+            },
+            "propertyName": "cmd"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Pause"
+            },
+            {
+              "$ref": "#/$defs/Resume"
+            },
+            {
+              "$ref": "#/$defs/ForceStrategy"
+            },
+            {
+              "$ref": "#/$defs/Status"
+            }
+          ],
+          "title": "Command"
+        },
+        "command_id": {
+          "pattern": "^c-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$",
+          "title": "Command Id",
+          "type": "string"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "operator": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Operator",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Reason",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command_id",
+        "issued_at",
+        "operator",
+        "command"
+      ],
+      "title": "ControlCommand",
+      "type": "object"
+    },
+    "ControlEvent": {
+      "additionalProperties": false,
+      "description": "``control``.",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/ControlPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "control",
+          "default": "control",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "ControlEvent",
+      "type": "object"
+    },
+    "ControlPayload": {
+      "additionalProperties": false,
+      "description": "An operator command and its result (C9).\n\n``command`` is ``None`` when the inbox file was unreadable, too large or invalid (C9 section 3);\n``result`` still carries the error. Proposal 005-T4.",
+      "properties": {
+        "command": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ControlCommand"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "$ref": "#/$defs/ControlResult"
+        }
+      },
+      "required": [
+        "command",
+        "result"
+      ],
+      "title": "ControlPayload",
+      "type": "object"
+    },
+    "ControlResult": {
+      "additionalProperties": false,
+      "description": "Written to ``control/done/<command_id>.result.json``.",
+      "properties": {
+        "accepted": {
+          "title": "Accepted",
+          "type": "boolean"
+        },
+        "applied_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Game date of the tick boundary where it took effect.",
+          "title": "Applied At"
+        },
+        "command_id": {
+          "description": "Echo; may be 'unknown' when the command file was unreadable.",
+          "title": "Command Id",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "invalid",
+                "too_large",
+                "unknown_cmd",
+                "not_running",
+                "expired"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command_id",
+        "accepted",
+        "applied_at",
+        "status"
+      ],
+      "title": "ControlResult",
+      "type": "object"
+    },
+    "DiploStance": {
+      "additionalProperties": false,
+      "description": "Set the diplomatic stance flag and opinion modifier toward one target.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "DIPLO_STANCE",
+          "default": "DIPLO_STANCE",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "stance": {
+          "$ref": "#/$defs/Stance"
+        },
+        "target": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Target",
+          "type": "integer"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country",
+        "stance",
+        "target"
+      ],
+      "title": "DiploStance",
+      "type": "object"
+    },
+    "EconPlan": {
+      "description": "``SET_ECON_PLAN`` values; ``code`` is written to ``sae_p_econ``.",
+      "enum": [
+        "balanced",
+        "military",
+        "research",
+        "expansion"
+      ],
+      "title": "EconPlan",
+      "type": "string"
+    },
+    "EmitReceipt": {
+      "additionalProperties": false,
+      "description": "Result of :meth:`GameAdapter.emit`. ``ok`` means the file is in place, NOT that it was applied.",
+      "properties": {
+        "bytes_written": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Bytes Written",
+          "type": "integer"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "write_failed",
+                "release_mode",
+                "closed",
+                "multiplayer",
+                "ironman"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "multiplayer = refused, the mod reported mp=1 (C6 section 1.6); ironman = refused, Ironman detected (C6 section 1.10); nothing written in either case.",
+          "title": "Error"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "seq": {
+          "description": "The batch seq.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        }
+      },
+      "required": [
+        "seq",
+        "ok"
+      ],
+      "title": "EmitReceipt",
+      "type": "object"
+    },
+    "EngineStatus": {
+      "additionalProperties": false,
+      "description": "Answer to ``status`` (also attached to every result).",
+      "properties": {
+        "commit_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commit Until"
+        },
+        "forced_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Forced Until"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "in_flight_batches": {
+          "minimum": 0,
+          "title": "In Flight Batches",
+          "type": "integer"
+        },
+        "level": {
+          "$ref": "#/$defs/HealthLevel"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/GameState"
+        },
+        "strategy": {
+          "$ref": "#/$defs/Strategy"
+        },
+        "suspended": {
+          "title": "Suspended",
+          "type": "boolean"
+        },
+        "top_archetype": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Archetype"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "run_id",
+        "game_date",
+        "suspended",
+        "state",
+        "level",
+        "strategy",
+        "forced_until",
+        "commit_until",
+        "top_archetype",
+        "in_flight_batches"
+      ],
+      "title": "EngineStatus",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "One feature's contribution to the update.",
+      "properties": {
+        "archetype": {
+          "$ref": "#/$defs/Archetype"
+        },
+        "feature": {
+          "title": "Feature",
+          "type": "string"
+        },
+        "llr": {
+          "description": "Clipped log-likelihood ratio vs the mean of the other archetypes.",
+          "title": "Llr",
+          "type": "number"
+        }
+      },
+      "required": [
+        "feature",
+        "archetype",
+        "llr"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "ForceStrategy": {
+      "additionalProperties": false,
+      "description": "Override the counter table. ``strategy=None`` clears an active override.",
+      "properties": {
+        "cmd": {
+          "const": "force_strategy",
+          "default": "force_strategy",
+          "title": "Cmd",
+          "type": "string"
+        },
+        "months": {
+          "default": 24,
+          "description": "Override length in game months.",
+          "maximum": 120,
+          "minimum": 1,
+          "title": "Months",
+          "type": "integer"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Strategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "title": "ForceStrategy",
+      "type": "object"
+    },
+    "GameEvent": {
+      "description": "Discrete things the adapter noticed this observation.",
+      "enum": [
+        "hello",
+        "date_regressed",
+        "save_parsed"
+      ],
+      "title": "GameEvent",
+      "type": "string"
+    },
+    "GameState": {
+      "description": "Opportunity axis. PAUSED is only produced when ``pause_detection`` is on (M1-P passed).",
+      "enum": [
+        "PLAYING",
+        "PAUSED",
+        "CLOSED"
+      ],
+      "title": "GameState",
+      "type": "string"
+    },
+    "HealthEvent": {
+      "additionalProperties": false,
+      "description": "``health``.",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/HealthPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "health",
+          "default": "health",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "HealthEvent",
+      "type": "object"
+    },
+    "HealthKind": {
+      "description": "Health event kinds.",
+      "enum": [
+        "level_change",
+        "state_change",
+        "monthly",
+        "budget_breach",
+        "parse_failed",
+        "save_skipped",
+        "worker_killed",
+        "log_parse_error",
+        "version_skew",
+        "reconnect",
+        "ini_write_failed",
+        "ack_alarm",
+        "daemon_exit",
+        "invalid_event",
+        "ini_neutralised",
+        "ironman_observe_only",
+        "record_capped",
+        "policy_pin_mismatch"
+      ],
+      "title": "HealthKind",
+      "type": "string"
+    },
+    "HealthLevel": {
+      "description": "Pressure axis. S is entered only by the operator ``pause`` command (C9).",
+      "enum": [
+        "H0",
+        "H1",
+        "H2",
+        "H3",
+        "S"
+      ],
+      "title": "HealthLevel",
+      "type": "string"
+    },
+    "HealthPayload": {
+      "additionalProperties": false,
+      "description": "Governor and component health (resource proposal T0 tier).",
+      "properties": {
+        "component": {
+          "enum": [
+            "daemon",
+            "governor",
+            "adapter",
+            "parser",
+            "bus",
+            "telemetry",
+            "engine"
+          ],
+          "title": "Component",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "kind": {
+          "$ref": "#/$defs/HealthKind"
+        },
+        "level": {
+          "$ref": "#/$defs/HealthLevel"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
+        },
+        "state": {
+          "$ref": "#/$defs/GameState"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Trigger"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "component",
+        "state",
+        "level"
+      ],
+      "title": "HealthPayload",
+      "type": "object"
+    },
+    "IntentAckEvent": {
+      "additionalProperties": false,
+      "description": "``intent_ack``.",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/IntentAckPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "intent_ack",
+          "default": "intent_ack",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "IntentAckEvent",
+      "type": "object"
+    },
+    "IntentAckPayload": {
+      "additionalProperties": false,
+      "description": "Lifecycle end for one (country, seq): from the mod, or LOST/SUPERSEDED from the engine.",
+      "properties": {
+        "ack_lag_months": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ack Lag Months"
+        },
+        "attempt": {
+          "maximum": 2,
+          "minimum": 1,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "code": {
+          "$ref": "#/$defs/AckCode"
+        },
+        "country": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "intent_ids": {
+          "items": {
+            "pattern": "^i-\\d{6}$",
+            "type": "string"
+          },
+          "title": "Intent Ids",
+          "type": "array"
+        },
+        "seq": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/AckStatus"
+        }
+      },
+      "required": [
+        "seq",
+        "country",
+        "status",
+        "code",
+        "intent_ids",
+        "attempt",
+        "ack_lag_months"
+      ],
+      "title": "IntentAckPayload",
+      "type": "object"
+    },
+    "IntentBatch": {
+      "additionalProperties": false,
+      "description": "Everything emitted in one ``sae_in.ini`` write. One batch = one ``seq``.",
+      "properties": {
+        "attempt": {
+          "default": 1,
+          "description": "2 = the single re-emission after LOST.",
+          "maximum": 2,
+          "minimum": 1,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "intents": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "DIPLO_STANCE": "#/$defs/DiploStance",
+                "NOOP_HEARTBEAT": "#/$defs/NoopHeartbeat",
+                "SET_ECON_PLAN": "#/$defs/SetEconPlan",
+                "SET_MILITARY_POSTURE": "#/$defs/SetMilitaryPosture"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/SetEconPlan"
+              },
+              {
+                "$ref": "#/$defs/SetMilitaryPosture"
+              },
+              {
+                "$ref": "#/$defs/DiploStance"
+              },
+              {
+                "$ref": "#/$defs/NoopHeartbeat"
+              }
+            ]
+          },
+          "title": "Intents",
+          "type": "array"
+        },
+        "issued_date": {
+          "title": "Issued Date",
+          "type": "string"
+        },
+        "issued_m": {
+          "description": "Latest HB month counter seen when the batch was compiled.",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Issued M",
+          "type": "integer"
+        },
+        "knobs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KnobCommand"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "seq": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "seq",
+        "issued_date",
+        "issued_m"
+      ],
+      "title": "IntentBatch",
+      "type": "object"
+    },
+    "IntentEmittedEvent": {
+      "additionalProperties": false,
+      "description": "``intent_emitted``.",
+      "properties": {
+        "decision_id": {
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/IntentEmittedPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "intent_emitted",
+          "default": "intent_emitted",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "decision_id",
+        "payload"
+      ],
+      "title": "IntentEmittedEvent",
+      "type": "object"
+    },
+    "IntentEmittedPayload": {
+      "additionalProperties": false,
+      "description": "A batch handed to the adapter, and the write result.",
+      "properties": {
+        "batch": {
+          "$ref": "#/$defs/IntentBatch"
+        },
+        "receipt": {
+          "$ref": "#/$defs/EmitReceipt"
+        }
+      },
+      "required": [
+        "batch",
+        "receipt"
+      ],
+      "title": "IntentEmittedPayload",
+      "type": "object"
+    },
+    "IntentRejectedEvent": {
+      "additionalProperties": false,
+      "description": "``intent_rejected``.",
+      "properties": {
+        "decision_id": {
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/IntentRejectedPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "intent_rejected",
+          "default": "intent_rejected",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "decision_id",
+        "payload"
+      ],
+      "title": "IntentRejectedEvent",
+      "type": "object"
+    },
+    "IntentRejectedPayload": {
+      "additionalProperties": false,
+      "description": "An intent the validator refused; it was never written (measures the plan/action gap).",
+      "properties": {
+        "detail": {
+          "maxLength": 500,
+          "title": "Detail",
+          "type": "string"
+        },
+        "intent": {
+          "discriminator": {
+            "mapping": {
+              "DIPLO_STANCE": "#/$defs/DiploStance",
+              "NOOP_HEARTBEAT": "#/$defs/NoopHeartbeat",
+              "SET_ECON_PLAN": "#/$defs/SetEconPlan",
+              "SET_MILITARY_POSTURE": "#/$defs/SetMilitaryPosture"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SetEconPlan"
+            },
+            {
+              "$ref": "#/$defs/SetMilitaryPosture"
+            },
+            {
+              "$ref": "#/$defs/DiploStance"
+            },
+            {
+              "$ref": "#/$defs/NoopHeartbeat"
+            }
+          ],
+          "title": "Intent"
+        },
+        "rule": {
+          "$ref": "#/$defs/RejectRule"
+        }
+      },
+      "required": [
+        "intent",
+        "rule",
+        "detail"
+      ],
+      "title": "IntentRejectedPayload",
+      "type": "object"
+    },
+    "KnobCommand": {
+      "additionalProperties": false,
+      "description": "In-game cost knobs (C7 section 6), set on the console scope country.",
+      "properties": {
+        "emit_period": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Emit Period"
+        },
+        "quiet": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quiet"
+        }
+      },
+      "title": "KnobCommand",
+      "type": "object"
+    },
+    "LegalView": {
+      "additionalProperties": false,
+      "description": "What one managed AI may know about the player: the \"diplomacy-screen legal\" approximation.\n\nEvery field is optional; ``None`` means the observer cannot see it (never imputed).",
+      "properties": {
+        "at_war_with_observer": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At War With Observer"
+        },
+        "economy_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Economy Cat"
+        },
+        "fleet_power_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fleet Power Cat"
+        },
+        "fortified_border_starbases": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fortified Border Starbases"
+        },
+        "frontier_systems": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Player systems bordering observer.",
+          "title": "Frontier Systems"
+        },
+        "in_contact": {
+          "title": "In Contact",
+          "type": "boolean"
+        },
+        "observer_sid": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Observer Sid",
+          "type": "integer"
+        },
+        "player_war_count": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wars the player is in (public).",
+          "title": "Player War Count"
+        },
+        "systems_owned": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "All systems owned by the player (v0 approximation, not intel-masked; A-19 UNVERIFIED).",
+          "title": "Systems Owned"
+        },
+        "tech_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tech Cat"
+        }
+      },
+      "required": [
+        "observer_sid",
+        "in_contact"
+      ],
+      "title": "LegalView",
+      "type": "object"
+    },
+    "ManagedState": {
+      "additionalProperties": false,
+      "description": "A managed AI's own state, merged from its latest SNAP line and latest save.",
+      "properties": {
+        "alloys": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alloys"
+        },
+        "alloys_income": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alloys Income"
+        },
+        "applied_econ": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applied Econ"
+        },
+        "applied_mil": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applied Mil"
+        },
+        "applied_seq": {
+          "description": "sae_seq_applied from SNAP or save (0 = none yet).",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Applied Seq",
+          "type": "integer"
+        },
+        "energy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Energy"
+        },
+        "fleet_power": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fleet Power"
+        },
+        "minerals": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minerals"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "naval_cap": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Naval Cap"
+        },
+        "naval_cap_used": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Naval Cap Used"
+        },
+        "pending_seq": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sae_seq_pending; save only (SNAP lacks it).",
+          "title": "Pending Seq"
+        },
+        "sid": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Sid",
+          "type": "integer"
+        },
+        "snap_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Date of the SNAP these values came from.",
+          "title": "Snap Date"
+        },
+        "systems_owned": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Systems Owned"
+        },
+        "wars": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wars"
+        }
+      },
+      "required": [
+        "sid",
+        "name",
+        "applied_seq"
+      ],
+      "title": "ManagedState",
+      "type": "object"
+    },
+    "NoopHeartbeat": {
+      "additionalProperties": false,
+      "description": "Changes no knob; advances ``seq`` so the round trip can be tested end to end.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "NOOP_HEARTBEAT",
+          "default": "NOOP_HEARTBEAT",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country"
+      ],
+      "title": "NoopHeartbeat",
+      "type": "object"
+    },
+    "Observation": {
+      "additionalProperties": false,
+      "description": "One fog-legal observation, yielded at most once per game month plus once per parsed save.",
+      "properties": {
+        "events": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GameEvent"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "game_date": {
+          "title": "Game Date",
+          "type": "string"
+        },
+        "game_version": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest parsed save's meta.game_version (C4); carried forward.",
+          "title": "Game Version"
+        },
+        "legal_as_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Save date player_legal was computed from.",
+          "title": "Legal As Of"
+        },
+        "m": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mod month counter from HB; None before the first HB.",
+          "title": "M"
+        },
+        "managed": {
+          "items": {
+            "$ref": "#/$defs/ManagedState"
+          },
+          "title": "Managed",
+          "type": "array"
+        },
+        "player_legal": {
+          "description": "Per managed observer; from the latest save.",
+          "items": {
+            "$ref": "#/$defs/LegalView"
+          },
+          "title": "Player Legal",
+          "type": "array"
+        },
+        "player_sid": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Player Sid"
+        },
+        "save_folder_key": {
+          "anyOf": [
+            {
+              "pattern": "^f-([0-9a-f]{16}|synth-[0-9a-f]{8})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Salted key of the latest parsed save's folder (C6 v1.3 section 2); carried forward.",
+          "title": "Save Folder Key"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "session_epoch": {
+          "description": "+1 on HELLO or a date regression (save reload).",
+          "minimum": 0,
+          "title": "Session Epoch",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "log",
+            "save"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "game_date",
+        "m",
+        "session_epoch",
+        "source",
+        "player_sid",
+        "managed",
+        "player_legal",
+        "legal_as_of"
+      ],
+      "title": "Observation",
+      "type": "object"
+    },
+    "ObservationEvent": {
+      "additionalProperties": false,
+      "description": "``observation``: exactly what the engine saw (C6 Observation).",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "legal",
+          "default": "legal",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/Observation"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "observation",
+          "default": "observation",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "ObservationEvent",
+      "type": "object"
+    },
+    "OutcomeEvent": {
+      "additionalProperties": false,
+      "description": "``outcome``.",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "legal",
+          "default": "legal",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/OutcomePayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "outcome",
+          "default": "outcome",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "OutcomeEvent",
+      "type": "object"
+    },
+    "OutcomePayload": {
+      "additionalProperties": false,
+      "description": "Reward for one commitment window (reward window = commitment window).",
+      "properties": {
+        "forced": {
+          "title": "Forced",
+          "type": "boolean"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
+        },
+        "reward": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Reward",
+          "type": "number"
+        },
+        "strategy": {
+          "$ref": "#/$defs/Strategy"
+        },
+        "window_from": {
+          "title": "Window From",
+          "type": "string"
+        },
+        "window_to": {
+          "title": "Window To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy",
+        "window_from",
+        "window_to",
+        "forced",
+        "metrics",
+        "reward"
+      ],
+      "title": "OutcomePayload",
+      "type": "object"
+    },
+    "Pause": {
+      "additionalProperties": false,
+      "description": "Stop deciding and emitting; observation and logging continue (level S).",
+      "properties": {
+        "cmd": {
+          "const": "pause",
+          "default": "pause",
+          "title": "Cmd",
+          "type": "string"
+        }
+      },
+      "title": "Pause",
+      "type": "object"
+    },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "description": "Which PolicyVersion (C10 section 4) the daemon loaded at start (proposal 019 Part A, C5 v1.3).\n\n``source``: ``builtin`` (no pin and no registry pointer, ``policy.pin = \"builtin\"``, or any fallback),\n``registry`` (the registry's current pointer, C10 section 5), ``pinned`` (``policy.pin = <sha256>``).\n``fallback_reason`` is set only when the daemon wanted another policy and fell back to the built-in one.",
+      "properties": {
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "builtin",
+            "registry",
+            "pinned"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "sha256",
+        "source"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    },
+    "Posture": {
+      "description": "``SET_MILITARY_POSTURE`` values; ``code`` is written to ``sae_p_mil``.",
+      "enum": [
+        "defensive",
+        "deterrent",
+        "offensive"
+      ],
+      "title": "Posture",
+      "type": "string"
+    },
+    "ReasonKey": {
+      "description": "Pre-authored localisation keys for the in-game flavour event.\n\n``code`` is written to ``sae_p_reason``; 0 means \"no reason / do not fire\". The localisation key\nis ``sae_reason_<value>``; T1 authors the strings.",
+      "enum": [
+        "turtle_siege",
+        "tech_rush_punish",
+        "aggression_hold",
+        "baseline",
+        "operator_forced",
+        "safety_floor"
+      ],
+      "title": "ReasonKey",
+      "type": "string"
+    },
+    "RejectRule": {
+      "description": "Validator rule ids (C3 section 4).",
+      "enum": [
+        "schema",
+        "reserved_kind",
+        "not_managed",
+        "bad_target",
+        "not_in_contact",
+        "rate_limit",
+        "safety_floor",
+        "mode",
+        "deferred"
+      ],
+      "title": "RejectRule",
+      "type": "string"
+    },
+    "Resume": {
+      "additionalProperties": false,
+      "description": "Leave level S.",
+      "properties": {
+        "cmd": {
+          "const": "resume",
+          "default": "resume",
+          "title": "Cmd",
+          "type": "string"
+        }
+      },
+      "title": "Resume",
+      "type": "object"
+    },
+    "RunStartedEvent": {
+      "additionalProperties": false,
+      "description": "``run_started``: identifies the run; config itself is in config.resolved.json (C8).",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/RunStartedPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "run_started",
+          "default": "run_started",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "RunStartedEvent",
+      "type": "object"
+    },
+    "RunStartedPayload": {
+      "additionalProperties": false,
+      "description": "First event of every bus file.",
+      "properties": {
+        "adapter_mode": {
+          "$ref": "#/$defs/AdapterMode"
+        },
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Sha256",
+          "type": "string"
+        },
+        "contracts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Contract id -> version, e.g. {'C1': 1}.",
+          "title": "Contracts",
+          "type": "object"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None only on pre-v1.3 buses (built-in 0.1.0)."
+        },
+        "preset": {
+          "enum": [
+            "low_impact",
+            "balanced",
+            "dev"
+          ],
+          "title": "Preset",
+          "type": "string"
+        },
+        "python": {
+          "title": "Python",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine_version",
+        "contracts",
+        "adapter_mode",
+        "preset",
+        "config_sha256",
+        "platform",
+        "python"
+      ],
+      "title": "RunStartedPayload",
+      "type": "object"
+    },
+    "SelectReason": {
+      "description": "Why this strategy is in force this tick.",
+      "enum": [
+        "table",
+        "commitment_hold",
+        "below_threshold",
+        "forced",
+        "safety_floor"
+      ],
+      "title": "SelectReason",
+      "type": "string"
+    },
+    "SetEconPlan": {
+      "additionalProperties": false,
+      "description": "Select the economic plan flag that gates SAE's additive budget/subplan entries.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "SET_ECON_PLAN",
+          "default": "SET_ECON_PLAN",
+          "title": "Kind",
+          "type": "string"
+        },
+        "plan": {
+          "$ref": "#/$defs/EconPlan"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country",
+        "plan"
+      ],
+      "title": "SetEconPlan",
+      "type": "object"
+    },
+    "SetMilitaryPosture": {
+      "additionalProperties": false,
+      "description": "Select the military posture budget weights, aimed at one target country.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "SET_MILITARY_POSTURE",
+          "default": "SET_MILITARY_POSTURE",
+          "title": "Kind",
+          "type": "string"
+        },
+        "posture": {
+          "$ref": "#/$defs/Posture"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "description": "Required: the opinion modifier needs a target (advisor).",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Target",
+          "type": "integer"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country",
+        "posture",
+        "target"
+      ],
+      "title": "SetMilitaryPosture",
+      "type": "object"
+    },
+    "Stance": {
+      "description": "``DIPLO_STANCE`` values; ``code`` is written to ``sae_p_dip``.",
+      "enum": [
+        "friendly",
+        "neutral",
+        "rival",
+        "hostile"
+      ],
+      "title": "Stance",
+      "type": "string"
+    },
+    "Status": {
+      "additionalProperties": false,
+      "description": "Read-only snapshot; never logged as a state change.",
+      "properties": {
+        "cmd": {
+          "const": "status",
+          "default": "status",
+          "title": "Cmd",
+          "type": "string"
+        }
+      },
+      "title": "Status",
+      "type": "object"
+    },
+    "Strategy": {
+      "description": "Counter-strategy templates. ``baseline`` is the safety-floor default.",
+      "enum": [
+        "outscale_siege",
+        "early_punish",
+        "hold_counterpunch",
+        "baseline"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    },
+    "StrategySelectedEvent": {
+      "additionalProperties": false,
+      "description": "``strategy_selected``.",
+      "properties": {
+        "decision_id": {
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "fow": {
+          "const": "legal",
+          "default": "legal",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/StrategySelectedPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "strategy_selected",
+          "default": "strategy_selected",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "decision_id",
+        "payload"
+      ],
+      "title": "StrategySelectedEvent",
+      "type": "object"
+    },
+    "StrategySelectedPayload": {
+      "additionalProperties": false,
+      "description": "Table lookup + commitment result.",
+      "properties": {
+        "commit_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commit From"
+        },
+        "commit_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commit Until"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence"
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Strategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/SelectReason"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strategy": {
+          "$ref": "#/$defs/Strategy"
+        },
+        "switched": {
+          "title": "Switched",
+          "type": "boolean"
+        },
+        "top_archetype": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Archetype"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "strategy",
+        "previous",
+        "switched",
+        "reason",
+        "top_archetype",
+        "confidence",
+        "commit_from",
+        "commit_until",
+        "reason_key"
+      ],
+      "title": "StrategySelectedPayload",
+      "type": "object"
+    },
+    "Trigger": {
+      "description": "Why the level changed.",
+      "enum": [
+        "ram",
+        "faults",
+        "spm",
+        "sustained_h2",
+        "preset",
+        "operator",
+        "deescalate",
+        "budget_breach"
+      ],
+      "title": "Trigger",
+      "type": "string"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "belief_update": "#/$defs/BeliefUpdateEvent",
+      "control": "#/$defs/ControlEvent",
+      "health": "#/$defs/HealthEvent",
+      "intent_ack": "#/$defs/IntentAckEvent",
+      "intent_emitted": "#/$defs/IntentEmittedEvent",
+      "intent_rejected": "#/$defs/IntentRejectedEvent",
+      "observation": "#/$defs/ObservationEvent",
+      "outcome": "#/$defs/OutcomeEvent",
+      "run_started": "#/$defs/RunStartedEvent",
+      "strategy_selected": "#/$defs/StrategySelectedEvent"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RunStartedEvent"
+    },
+    {
+      "$ref": "#/$defs/ObservationEvent"
+    },
+    {
+      "$ref": "#/$defs/BeliefUpdateEvent"
+    },
+    {
+      "$ref": "#/$defs/StrategySelectedEvent"
+    },
+    {
+      "$ref": "#/$defs/IntentEmittedEvent"
+    },
+    {
+      "$ref": "#/$defs/IntentRejectedEvent"
+    },
+    {
+      "$ref": "#/$defs/IntentAckEvent"
+    },
+    {
+      "$ref": "#/$defs/OutcomeEvent"
+    },
+    {
+      "$ref": "#/$defs/ControlEvent"
+    },
+    {
+      "$ref": "#/$defs/HealthEvent"
+    }
+  ]
+}

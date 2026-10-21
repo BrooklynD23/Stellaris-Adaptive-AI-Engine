@@ -1,0 +1,9 @@
+# sae_bridge hooks (SEMANTICS 2).
+# UNVERIFIED(A-14, M0-3): on_game_start / on_monthly_pulse event lists from this file merge with vanilla and other mods | fallback: zz_sae_ override file
+on_game_start = { # UNVERIFIED(A-40, M0-3): on_game_start fires once at game start | fallback: sae.0 prints HELLO on its first run
+  events = { sae.3 }
+}
+
+on_monthly_pulse = { # UNVERIFIED(A-40, M0-3): on_monthly_pulse fires a global event once per month | fallback: use on_monthly_pulse_country on one anchor country
+  events = { sae.0 }
+}

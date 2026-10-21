@@ -1,0 +1,131 @@
+{
+ "countries": [
+  {
+   "country_id": 0,
+   "is_player": true,
+   "managed": false,
+   "name": "Balanced Federation",
+   "sid": 1
+  },
+  {
+   "country_id": 2,
+   "is_player": false,
+   "managed": true,
+   "name": "Peer One",
+   "sid": 2
+  },
+  {
+   "country_id": 3,
+   "is_player": false,
+   "managed": true,
+   "name": "Peer Two",
+   "sid": 3
+  },
+  {
+   "country_id": 4,
+   "is_player": false,
+   "managed": true,
+   "name": "Stranger",
+   "sid": 4
+  }
+ ],
+ "god": {
+  "alloys_income": 25.0,
+  "fleet_power": 5000.0,
+  "fortified_starbases": 2,
+  "systems_owned": 3,
+  "tech_researched": 60
+ },
+ "legal": [
+  {
+   "at_war_with_observer": false,
+   "economy_cat": 0,
+   "fleet_power_cat": 0,
+   "fortified_border_starbases": 1,
+   "frontier_systems": 1,
+   "in_contact": true,
+   "observer_sid": 2,
+   "player_war_count": 0,
+   "systems_owned": 3,
+   "tech_cat": 0
+  },
+  {
+   "at_war_with_observer": false,
+   "economy_cat": 0,
+   "fleet_power_cat": 0,
+   "fortified_border_starbases": 1,
+   "frontier_systems": 1,
+   "in_contact": true,
+   "observer_sid": 3,
+   "player_war_count": 0,
+   "systems_owned": 3,
+   "tech_cat": 0
+  },
+  {
+   "in_contact": false,
+   "observer_sid": 4
+  }
+ ],
+ "meta": {
+  "date": "2250.01.01",
+  "game_version": "Cepheus v4.4.4",
+  "ironman": false
+ },
+ "schema_version": 1,
+ "sections": [
+  "meta",
+  "countries",
+  "starbases",
+  "fleets",
+  "wars",
+  "tech"
+ ],
+ "self_state": {
+  "2": {
+   "alloys": 30.0,
+   "alloys_income": 25.0,
+   "applied_econ": 0,
+   "applied_mil": 0,
+   "applied_seq": 0,
+   "energy": 150.0,
+   "fleet_power": 5000.0,
+   "minerals": 150.0,
+   "naval_cap": 100.0,
+   "naval_cap_used": 50.0,
+   "pending_seq": 0,
+   "systems_owned": 2,
+   "wars": 0
+  },
+  "3": {
+   "alloys": 0.0,
+   "alloys_income": 24.0,
+   "applied_econ": 0,
+   "applied_mil": 0,
+   "applied_seq": 0,
+   "energy": 0.0,
+   "fleet_power": 4200.0,
+   "minerals": 0.0,
+   "naval_cap": 0.0,
+   "naval_cap_used": 0.0,
+   "pending_seq": 0,
+   "systems_owned": 1,
+   "wars": 0
+  },
+  "4": {
+   "alloys": 0.0,
+   "alloys_income": 1.0,
+   "applied_econ": 0,
+   "applied_mil": 0,
+   "applied_seq": 0,
+   "energy": 0.0,
+   "fleet_power": 100.0,
+   "minerals": 0.0,
+   "naval_cap": 0.0,
+   "naval_cap_used": 0.0,
+   "pending_seq": 0,
+   "systems_owned": 1,
+   "wars": 0
+  }
+ },
+ "status": "ok"
+}

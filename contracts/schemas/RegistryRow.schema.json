@@ -1,0 +1,100 @@
+{
+  "additionalProperties": false,
+  "description": "One line of ``<sae_dir>/policies/registry.jsonl`` (append-only).",
+  "properties": {
+    "action": {
+      "enum": [
+        "propose",
+        "prereg",
+        "stage1_pass",
+        "stage1_fail",
+        "stage2_pass",
+        "stage2_fail",
+        "approve",
+        "reject",
+        "promote",
+        "rollback"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "by": {
+      "pattern": "^(gate|tuner|human:[A-Za-z0-9_.-]{1,64})$",
+      "title": "By",
+      "type": "string"
+    },
+    "evidence_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "GateReport or Preregistration file.",
+      "title": "Evidence Sha256"
+    },
+    "previous_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "promote/rollback: pointer before this row.",
+      "title": "Previous Sha256"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "seq": {
+      "description": "Gapless per file, from 0.",
+      "minimum": 0,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "sha256": {
+      "description": "The policy this row is about (rollback: the target).",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "v": {
+      "const": 1,
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "seq",
+    "at",
+    "action",
+    "sha256",
+    "by"
+  ],
+  "title": "RegistryRow",
+  "type": "object"
+}

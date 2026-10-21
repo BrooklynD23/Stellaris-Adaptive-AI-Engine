@@ -1,0 +1,478 @@
+{
+  "$defs": {
+    "GameEvent": {
+      "description": "Discrete things the adapter noticed this observation.",
+      "enum": [
+        "hello",
+        "date_regressed",
+        "save_parsed"
+      ],
+      "title": "GameEvent",
+      "type": "string"
+    },
+    "LegalView": {
+      "additionalProperties": false,
+      "description": "What one managed AI may know about the player: the \"diplomacy-screen legal\" approximation.\n\nEvery field is optional; ``None`` means the observer cannot see it (never imputed).",
+      "properties": {
+        "at_war_with_observer": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At War With Observer"
+        },
+        "economy_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Economy Cat"
+        },
+        "fleet_power_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fleet Power Cat"
+        },
+        "fortified_border_starbases": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fortified Border Starbases"
+        },
+        "frontier_systems": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Player systems bordering observer.",
+          "title": "Frontier Systems"
+        },
+        "in_contact": {
+          "title": "In Contact",
+          "type": "boolean"
+        },
+        "observer_sid": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Observer Sid",
+          "type": "integer"
+        },
+        "player_war_count": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wars the player is in (public).",
+          "title": "Player War Count"
+        },
+        "systems_owned": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "All systems owned by the player (v0 approximation, not intel-masked; A-19 UNVERIFIED).",
+          "title": "Systems Owned"
+        },
+        "tech_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tech Cat"
+        }
+      },
+      "required": [
+        "observer_sid",
+        "in_contact"
+      ],
+      "title": "LegalView",
+      "type": "object"
+    },
+    "ManagedState": {
+      "additionalProperties": false,
+      "description": "A managed AI's own state, merged from its latest SNAP line and latest save.",
+      "properties": {
+        "alloys": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alloys"
+        },
+        "alloys_income": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alloys Income"
+        },
+        "applied_econ": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applied Econ"
+        },
+        "applied_mil": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applied Mil"
+        },
+        "applied_seq": {
+          "description": "sae_seq_applied from SNAP or save (0 = none yet).",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Applied Seq",
+          "type": "integer"
+        },
+        "energy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Energy"
+        },
+        "fleet_power": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fleet Power"
+        },
+        "minerals": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minerals"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "naval_cap": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Naval Cap"
+        },
+        "naval_cap_used": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Naval Cap Used"
+        },
+        "pending_seq": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sae_seq_pending; save only (SNAP lacks it).",
+          "title": "Pending Seq"
+        },
+        "sid": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Sid",
+          "type": "integer"
+        },
+        "snap_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Date of the SNAP these values came from.",
+          "title": "Snap Date"
+        },
+        "systems_owned": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Systems Owned"
+        },
+        "wars": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wars"
+        }
+      },
+      "required": [
+        "sid",
+        "name",
+        "applied_seq"
+      ],
+      "title": "ManagedState",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One fog-legal observation, yielded at most once per game month plus once per parsed save.",
+  "properties": {
+    "events": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/GameEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "game_date": {
+      "title": "Game Date",
+      "type": "string"
+    },
+    "game_version": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Latest parsed save's meta.game_version (C4); carried forward.",
+      "title": "Game Version"
+    },
+    "legal_as_of": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Save date player_legal was computed from.",
+      "title": "Legal As Of"
+    },
+    "m": {
+      "anyOf": [
+        {
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Mod month counter from HB; None before the first HB.",
+      "title": "M"
+    },
+    "managed": {
+      "items": {
+        "$ref": "#/$defs/ManagedState"
+      },
+      "title": "Managed",
+      "type": "array"
+    },
+    "player_legal": {
+      "description": "Per managed observer; from the latest save.",
+      "items": {
+        "$ref": "#/$defs/LegalView"
+      },
+      "title": "Player Legal",
+      "type": "array"
+    },
+    "player_sid": {
+      "anyOf": [
+        {
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Player Sid"
+    },
+    "save_folder_key": {
+      "anyOf": [
+        {
+          "pattern": "^f-([0-9a-f]{16}|synth-[0-9a-f]{8})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Salted key of the latest parsed save's folder (C6 v1.3 section 2); carried forward.",
+      "title": "Save Folder Key"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "session_epoch": {
+      "description": "+1 on HELLO or a date regression (save reload).",
+      "minimum": 0,
+      "title": "Session Epoch",
+      "type": "integer"
+    },
+    "source": {
+      "enum": [
+        "log",
+        "save"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "game_date",
+    "m",
+    "session_epoch",
+    "source",
+    "player_sid",
+    "managed",
+    "player_legal",
+    "legal_as_of"
+  ],
+  "title": "Observation",
+  "type": "object"
+}

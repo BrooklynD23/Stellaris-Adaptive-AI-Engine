@@ -1,0 +1,73 @@
+{
+  "additionalProperties": false,
+  "description": "Written by a human (``sae policy prereg``) before Stage 1; file ``policies/evidence/<sha256>.json``.",
+  "properties": {
+    "budget": {
+      "maximum": 1000,
+      "minimum": 1,
+      "title": "Budget",
+      "type": "integer"
+    },
+    "candidate_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Candidate Sha256",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "incumbent_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Incumbent Sha256",
+      "type": "string"
+    },
+    "kind": {
+      "const": "detector_replay",
+      "title": "Kind",
+      "type": "string"
+    },
+    "min_effect": {
+      "title": "Min Effect",
+      "type": "number"
+    },
+    "min_n": {
+      "minimum": 1,
+      "title": "Min N",
+      "type": "integer"
+    },
+    "non_inferiority_margin": {
+      "minimum": 0,
+      "title": "Non Inferiority Margin",
+      "type": "number"
+    },
+    "primary_metric": {
+      "enum": [
+        "loco_log_loss",
+        "detection_delay_months"
+      ],
+      "title": "Primary Metric",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "candidate_sha256",
+    "incumbent_sha256",
+    "kind",
+    "primary_metric",
+    "min_effect",
+    "non_inferiority_margin",
+    "budget",
+    "min_n",
+    "created_at"
+  ],
+  "title": "Preregistration",
+  "type": "object"
+}

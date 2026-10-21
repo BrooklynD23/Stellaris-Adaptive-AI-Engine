@@ -1,0 +1,148 @@
+{
+ "schema_version": 1,
+ "name": "war_two_fronts",
+ "date": "2260.09.01",
+ "countries": [
+  {
+   "country_id": 0,
+   "name": "Besieged Empire",
+   "sid": 1,
+   "is_player": true,
+   "fleet_power": 8000,
+   "tech_researched": 80,
+   "alloys_income": 18,
+   "systems": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "country_id": 5,
+   "name": "East Foe",
+   "sid": 2,
+   "managed": true,
+   "fleet_power": 9000,
+   "naval_cap_used": 90,
+   "naval_cap": 100,
+   "energy": 5,
+   "minerals": 6,
+   "alloys": 7,
+   "alloys_income": 15,
+   "tech_researched": 70,
+   "systems": [
+    10
+   ]
+  },
+  {
+   "country_id": 6,
+   "name": "West Foe",
+   "sid": 3,
+   "managed": true,
+   "fleet_power": 3000,
+   "tech_researched": 90,
+   "alloys_income": 30,
+   "systems": [
+    20
+   ]
+  },
+  {
+   "country_id": 8,
+   "name": "Ally",
+   "systems": [
+    30
+   ]
+  },
+  {
+   "country_id": 9,
+   "name": "Third Party",
+   "systems": [
+    40
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   3
+  ],
+  [
+   3,
+   10
+  ],
+  [
+   1,
+   20
+  ],
+  [
+   10,
+   30
+  ],
+  [
+   20,
+   40
+  ]
+ ],
+ "contacts": [
+  [
+   0,
+   5
+  ],
+  [
+   0,
+   6
+  ]
+ ],
+ "starbases": [
+  {
+   "system": 3,
+   "owner": 0,
+   "defense_modules": 5,
+   "platforms": 2
+  },
+  {
+   "system": 1,
+   "owner": 0,
+   "defense_modules": 2,
+   "platforms": 0
+  },
+  {
+   "system": 2,
+   "owner": 0,
+   "defense_modules": 0,
+   "platforms": 0
+  }
+ ],
+ "wars": [
+  {
+   "attackers": [
+    5,
+    9
+   ],
+   "defenders": [
+    0,
+    8
+   ]
+  },
+  {
+   "attackers": [
+    0
+   ],
+   "defenders": [
+    6
+   ]
+  },
+  {
+   "attackers": [
+    9
+   ],
+   "defenders": [
+    8
+   ]
+  }
+ ]
+}

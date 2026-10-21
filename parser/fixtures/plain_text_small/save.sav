@@ -1,0 +1,18 @@
+version="Cepheus v4.4.4"
+date="2231.04.01"
+player={ { name="Plain Player" country=0 } }
+country={
+  0={ name={ key="Plain Player" } military_power=100.000 used_naval_capacity=0.000 naval_capacity=0.000 modules={ standard_economy_module={ resources={ energy=0.000 minerals=0.000 alloys=0.000 } } } budget={ last_month={ income={ country_base={ alloys=3.000 } } } } tech_status={ technology="tech_sae_0" level=1 technology="tech_sae_1" level=1 } variables={ sae_sid=1.000 sae_seq_applied=0.000 sae_seq_pending=0.000 sae_applied_econ=0.000 sae_applied_mil=0.000 } relations_manager={ relation={ owner=0 country=2 contact=yes } } }
+  2={ name={ key="Plain Observer" } military_power=100.000 used_naval_capacity=0.000 naval_capacity=0.000 modules={ standard_economy_module={ resources={ energy=0.000 minerals=0.000 alloys=0.000 } } } budget={ last_month={ income={ country_base={ alloys=3.000 } } } } tech_status={ technology="tech_sae_0" level=1 technology="tech_sae_1" level=1 } flags={ sae_managed=1 } variables={ sae_sid=2.000 sae_seq_applied=0.000 sae_seq_pending=0.000 sae_applied_econ=0.000 sae_applied_mil=0.000 } relations_manager={ relation={ owner=2 country=0 contact=yes } } }
+  3=none
+}
+galactic_object={
+  1={ hyperlane={ { to=2 } } starbases={ 1 } }
+  2={ hyperlane={ { to=1 } } starbases={ 2 } }
+}
+starbase_mgr={
+  starbases={
+    1={ owner=0 level="starbase_level_outpost" modules={ 0=gun_battery } orbitals={ } }
+    2={ owner=2 level="starbase_level_outpost" modules={ } orbitals={ } }
+  }
+}

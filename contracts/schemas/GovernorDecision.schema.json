@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "GameState": {
+      "description": "Opportunity axis. PAUSED is only produced when ``pause_detection`` is on (M1-P passed).",
+      "enum": [
+        "PLAYING",
+        "PAUSED",
+        "CLOSED"
+      ],
+      "title": "GameState",
+      "type": "string"
+    },
+    "HealthLevel": {
+      "description": "Pressure axis. S is entered only by the operator ``pause`` command (C9).",
+      "enum": [
+        "H0",
+        "H1",
+        "H2",
+        "H3",
+        "S"
+      ],
+      "title": "HealthLevel",
+      "type": "string"
+    },
+    "KnobCommand": {
+      "additionalProperties": false,
+      "description": "In-game cost knobs (C7 section 6), set on the console scope country.",
+      "properties": {
+        "emit_period": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Emit Period"
+        },
+        "quiet": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quiet"
+        }
+      },
+      "title": "KnobCommand",
+      "type": "object"
+    },
+    "TelemetryTier": {
+      "description": "Resource proposal section 7 tiers.",
+      "enum": [
+        "T0",
+        "T1",
+        "T2"
+      ],
+      "title": "TelemetryTier",
+      "type": "string"
+    },
+    "Trigger": {
+      "description": "Why the level changed.",
+      "enum": [
+        "ram",
+        "faults",
+        "spm",
+        "sustained_h2",
+        "preset",
+        "operator",
+        "deescalate",
+        "budget_breach"
+      ],
+      "title": "Trigger",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What the daemon may do until the next poll.",
+  "properties": {
+    "daemon_should_exit": {
+      "description": "Daemon RSS above daemon_rss_exit_bytes.",
+      "title": "Daemon Should Exit",
+      "type": "boolean"
+    },
+    "kill_worker": {
+      "title": "Kill Worker",
+      "type": "boolean"
+    },
+    "knob_request": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/KnobCommand"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Queue into the next sae_in.ini (H3 / preset)."
+    },
+    "level": {
+      "$ref": "#/$defs/HealthLevel"
+    },
+    "parse_every_n": {
+      "description": "Parse every n-th eligible autosave; 0 = none.",
+      "minimum": 0,
+      "title": "Parse Every N",
+      "type": "integer"
+    },
+    "parse_window_only": {
+      "description": "H2: parse only within h2_parse_window_months of a boundary.",
+      "title": "Parse Window Only",
+      "type": "boolean"
+    },
+    "state": {
+      "$ref": "#/$defs/GameState"
+    },
+    "telemetry_tier": {
+      "$ref": "#/$defs/TelemetryTier"
+    },
+    "trigger": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Trigger"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Set on the poll where the level changed."
+    },
+    "worker_mem_cap_bytes": {
+      "minimum": 0,
+      "title": "Worker Mem Cap Bytes",
+      "type": "integer"
+    },
+    "worker_threads": {
+      "minimum": 0,
+      "title": "Worker Threads",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "state",
+    "level",
+    "parse_every_n",
+    "parse_window_only",
+    "worker_threads",
+    "worker_mem_cap_bytes",
+    "kill_worker",
+    "telemetry_tier",
+    "knob_request",
+    "trigger",
+    "daemon_should_exit"
+  ],
+  "title": "GovernorDecision",
+  "type": "object"
+}

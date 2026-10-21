@@ -1,0 +1,397 @@
+{
+  "$defs": {
+    "AdapterMode": {
+      "description": "Where observations come from and where intents go.",
+      "enum": [
+        "live",
+        "replay",
+        "synth",
+        "release"
+      ],
+      "title": "AdapterMode",
+      "type": "string"
+    },
+    "GodObservation": {
+      "additionalProperties": false,
+      "description": "God-view data: the parser's GodView and raw PLYR fields. Written to bus.god.jsonl only.",
+      "properties": {
+        "game_date": {
+          "title": "Game Date",
+          "type": "string"
+        },
+        "player": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GodView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "plyr": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Numeric PLYR fields, C1 keys.",
+          "title": "Plyr",
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "log",
+            "save"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "game_date",
+        "source"
+      ],
+      "title": "GodObservation",
+      "type": "object"
+    },
+    "GodView": {
+      "additionalProperties": false,
+      "description": "The player's true state. Written only to bus.god.jsonl; never an engine input.",
+      "properties": {
+        "alloys_income": {
+          "title": "Alloys Income",
+          "type": "number"
+        },
+        "fleet_power": {
+          "minimum": 0,
+          "title": "Fleet Power",
+          "type": "number"
+        },
+        "fortified_starbases": {
+          "minimum": 0,
+          "title": "Fortified Starbases",
+          "type": "integer"
+        },
+        "systems_owned": {
+          "minimum": 0,
+          "title": "Systems Owned",
+          "type": "integer"
+        },
+        "tech_researched": {
+          "minimum": 0,
+          "title": "Tech Researched",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fleet_power",
+        "systems_owned",
+        "tech_researched",
+        "alloys_income",
+        "fortified_starbases"
+      ],
+      "title": "GodView",
+      "type": "object"
+    },
+    "ObservationGodEvent": {
+      "additionalProperties": false,
+      "description": "``observation_god``: GOD-VIEW, only in bus.god.jsonl, never read by the engine.",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "god",
+          "default": "god",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/GodObservation"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "observation_god",
+          "default": "observation_god",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "ObservationGodEvent",
+      "type": "object"
+    },
+    "PolicyRef": {
+      "additionalProperties": false,
+      "description": "Which PolicyVersion (C10 section 4) the daemon loaded at start (proposal 019 Part A, C5 v1.3).\n\n``source``: ``builtin`` (no pin and no registry pointer, ``policy.pin = \"builtin\"``, or any fallback),\n``registry`` (the registry's current pointer, C10 section 5), ``pinned`` (``policy.pin = <sha256>``).\n``fallback_reason`` is set only when the daemon wanted another policy and fell back to the built-in one.",
+      "properties": {
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "builtin",
+            "registry",
+            "pinned"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "sha256",
+        "source"
+      ],
+      "title": "PolicyRef",
+      "type": "object"
+    },
+    "RunStartedEvent": {
+      "additionalProperties": false,
+      "description": "``run_started``: identifies the run; config itself is in config.resolved.json (C8).",
+      "properties": {
+        "decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
+        },
+        "fow": {
+          "const": "none",
+          "default": "none",
+          "title": "Fow",
+          "type": "string"
+        },
+        "game_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Game Date"
+        },
+        "payload": {
+          "$ref": "#/$defs/RunStartedPayload"
+        },
+        "run_id": {
+          "pattern": "^\\d{8}-\\d{6}-(live|replay|synth|release)-[0-9a-f]{4}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Strictly increasing per file, starting at 0.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_mono_ns": {
+          "description": "time.monotonic_ns() of the writer; ordering within a run only.",
+          "minimum": 0,
+          "title": "T Mono Ns",
+          "type": "integer"
+        },
+        "t_wall": {
+          "description": "UTC, ISO 8601 with Z.",
+          "format": "date-time",
+          "title": "T Wall",
+          "type": "string"
+        },
+        "type": {
+          "const": "run_started",
+          "default": "run_started",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "t_wall",
+        "t_mono_ns",
+        "game_date",
+        "payload"
+      ],
+      "title": "RunStartedEvent",
+      "type": "object"
+    },
+    "RunStartedPayload": {
+      "additionalProperties": false,
+      "description": "First event of every bus file.",
+      "properties": {
+        "adapter_mode": {
+          "$ref": "#/$defs/AdapterMode"
+        },
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Sha256",
+          "type": "string"
+        },
+        "contracts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Contract id -> version, e.g. {'C1': 1}.",
+          "title": "Contracts",
+          "type": "object"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None only on pre-v1.3 buses (built-in 0.1.0)."
+        },
+        "preset": {
+          "enum": [
+            "low_impact",
+            "balanced",
+            "dev"
+          ],
+          "title": "Preset",
+          "type": "string"
+        },
+        "python": {
+          "title": "Python",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine_version",
+        "contracts",
+        "adapter_mode",
+        "preset",
+        "config_sha256",
+        "platform",
+        "python"
+      ],
+      "title": "RunStartedPayload",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "observation_god": "#/$defs/ObservationGodEvent",
+      "run_started": "#/$defs/RunStartedEvent"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RunStartedEvent"
+    },
+    {
+      "$ref": "#/$defs/ObservationGodEvent"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+namespace = sae
+
+# sae.0: global monthly driver (SEMANTICS 4). Does all work through scripted effects, no event queueing.
+event = {
+  id = sae.0
+  hide_window = yes
+  is_triggered_only = yes
+  immediate = {
+    sae_monthly = yes
+  }
+}
+
+# sae.1: console test hook, emit this country only, ignoring stagger and quiet (SEMANTICS 7).
+# UNVERIFIED(A-39, M0-6): country_event can be fired from this scope | fallback: fire from on_action or use hidden global event with event_target
+country_event = {
+  id = sae.1
+  hide_window = yes
+  is_triggered_only = yes
+  immediate = {
+    sae_emit_this = yes
+  }
+}
+
+# sae.2: console test hook, apply this country only (SEMANTICS 6). Not used by sae.0.
+# UNVERIFIED(A-39, M0-6): country_event can be fired from this scope | fallback: fire from on_action or use hidden global event with event_target
+country_event = {
+  id = sae.2
+  hide_window = yes
+  is_triggered_only = yes
+  immediate = {
+    if = {
+      limit = {
+        # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+        is_variable_set = sae_sid
+        # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+        is_variable_set = sae_seq_pending
+      }
+      sae_apply = yes
+    }
+  }
+}
+
+# sae.3: global HELLO (SEMANTICS 3).
+event = {
+  id = sae.3
+  hide_window = yes
+  is_triggered_only = yes
+  immediate = {
+    sae_hello = yes
+  }
+}
+
+# sae.10: visible flavour popup on a human country, text chosen by the reason of the adapting AI.
+# UNVERIFIED(A-39, M0-6): country_event can be fired from this scope | fallback: fire from on_action or use hidden global event with event_target
+country_event = {
+  id = sae.10
+  title = sae.10.name
+  desc = {
+    # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+    trigger = { from = { check_variable = { which = sae_reason value = 1 } } }
+    text = sae_reason_turtle_siege
+  }
+  desc = {
+    # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+    trigger = { from = { check_variable = { which = sae_reason value = 2 } } }
+    text = sae_reason_tech_rush_punish
+  }
+  desc = {
+    # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+    trigger = { from = { check_variable = { which = sae_reason value = 3 } } }
+    text = sae_reason_aggression_hold
+  }
+  desc = {
+    # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+    trigger = { from = { check_variable = { which = sae_reason value = 4 } } }
+    text = sae_reason_baseline
+  }
+  desc = {
+    # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+    trigger = { from = { check_variable = { which = sae_reason value = 5 } } }
+    text = sae_reason_operator_forced
+  }
+  desc = {
+    # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+    trigger = { from = { check_variable = { which = sae_reason value = 6 } } }
+    text = sae_reason_safety_floor
+  }
+  desc = {
+    text = sae.10.desc
+  }
+  is_triggered_only = yes
+  option = {
+    name = sae.10.a
+  }
+}

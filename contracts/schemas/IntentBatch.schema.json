@@ -1,0 +1,489 @@
+{
+  "$defs": {
+    "DiploStance": {
+      "additionalProperties": false,
+      "description": "Set the diplomatic stance flag and opinion modifier toward one target.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "DIPLO_STANCE",
+          "default": "DIPLO_STANCE",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "stance": {
+          "$ref": "#/$defs/Stance"
+        },
+        "target": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Target",
+          "type": "integer"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country",
+        "stance",
+        "target"
+      ],
+      "title": "DiploStance",
+      "type": "object"
+    },
+    "EconPlan": {
+      "description": "``SET_ECON_PLAN`` values; ``code`` is written to ``sae_p_econ``.",
+      "enum": [
+        "balanced",
+        "military",
+        "research",
+        "expansion"
+      ],
+      "title": "EconPlan",
+      "type": "string"
+    },
+    "KnobCommand": {
+      "additionalProperties": false,
+      "description": "In-game cost knobs (C7 section 6), set on the console scope country.",
+      "properties": {
+        "emit_period": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Emit Period"
+        },
+        "quiet": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quiet"
+        }
+      },
+      "title": "KnobCommand",
+      "type": "object"
+    },
+    "NoopHeartbeat": {
+      "additionalProperties": false,
+      "description": "Changes no knob; advances ``seq`` so the round trip can be tested end to end.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "NOOP_HEARTBEAT",
+          "default": "NOOP_HEARTBEAT",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country"
+      ],
+      "title": "NoopHeartbeat",
+      "type": "object"
+    },
+    "Posture": {
+      "description": "``SET_MILITARY_POSTURE`` values; ``code`` is written to ``sae_p_mil``.",
+      "enum": [
+        "defensive",
+        "deterrent",
+        "offensive"
+      ],
+      "title": "Posture",
+      "type": "string"
+    },
+    "ReasonKey": {
+      "description": "Pre-authored localisation keys for the in-game flavour event.\n\n``code`` is written to ``sae_p_reason``; 0 means \"no reason / do not fire\". The localisation key\nis ``sae_reason_<value>``; T1 authors the strings.",
+      "enum": [
+        "turtle_siege",
+        "tech_rush_punish",
+        "aggression_hold",
+        "baseline",
+        "operator_forced",
+        "safety_floor"
+      ],
+      "title": "ReasonKey",
+      "type": "string"
+    },
+    "SetEconPlan": {
+      "additionalProperties": false,
+      "description": "Select the economic plan flag that gates SAE's additive budget/subplan entries.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "SET_ECON_PLAN",
+          "default": "SET_ECON_PLAN",
+          "title": "Kind",
+          "type": "string"
+        },
+        "plan": {
+          "$ref": "#/$defs/EconPlan"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country",
+        "plan"
+      ],
+      "title": "SetEconPlan",
+      "type": "object"
+    },
+    "SetMilitaryPosture": {
+      "additionalProperties": false,
+      "description": "Select the military posture budget weights, aimed at one target country.",
+      "properties": {
+        "country": {
+          "description": "The managed AI country the intent steers.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Country",
+          "type": "integer"
+        },
+        "decision_id": {
+          "description": "The decision chain this intent belongs to (C5).",
+          "pattern": "^d-\\d{4}\\.\\d{2}-\\d{2}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "description": "Engine-assigned, unique within a run.",
+          "pattern": "^i-\\d{6}$",
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "SET_MILITARY_POSTURE",
+          "default": "SET_MILITARY_POSTURE",
+          "title": "Kind",
+          "type": "string"
+        },
+        "posture": {
+          "$ref": "#/$defs/Posture"
+        },
+        "reason_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flavour event key; None = no flavour event."
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "default": "engine",
+          "enum": [
+            "engine",
+            "operator"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "description": "Required: the opinion modifier needs a target (advisor).",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Target",
+          "type": "integer"
+        },
+        "ttl_months": {
+          "default": 3,
+          "description": "Mod rejects the batch after this many months.",
+          "maximum": 36,
+          "minimum": 1,
+          "title": "Ttl Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intent_id",
+        "decision_id",
+        "country",
+        "posture",
+        "target"
+      ],
+      "title": "SetMilitaryPosture",
+      "type": "object"
+    },
+    "Stance": {
+      "description": "``DIPLO_STANCE`` values; ``code`` is written to ``sae_p_dip``.",
+      "enum": [
+        "friendly",
+        "neutral",
+        "rival",
+        "hostile"
+      ],
+      "title": "Stance",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Everything emitted in one ``sae_in.ini`` write. One batch = one ``seq``.",
+  "properties": {
+    "attempt": {
+      "default": 1,
+      "description": "2 = the single re-emission after LOST.",
+      "maximum": 2,
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "intents": {
+      "default": [],
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "DIPLO_STANCE": "#/$defs/DiploStance",
+            "NOOP_HEARTBEAT": "#/$defs/NoopHeartbeat",
+            "SET_ECON_PLAN": "#/$defs/SetEconPlan",
+            "SET_MILITARY_POSTURE": "#/$defs/SetMilitaryPosture"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/SetEconPlan"
+          },
+          {
+            "$ref": "#/$defs/SetMilitaryPosture"
+          },
+          {
+            "$ref": "#/$defs/DiploStance"
+          },
+          {
+            "$ref": "#/$defs/NoopHeartbeat"
+          }
+        ]
+      },
+      "title": "Intents",
+      "type": "array"
+    },
+    "issued_date": {
+      "title": "Issued Date",
+      "type": "string"
+    },
+    "issued_m": {
+      "description": "Latest HB month counter seen when the batch was compiled.",
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Issued M",
+      "type": "integer"
+    },
+    "knobs": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/KnobCommand"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "seq": {
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Seq",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "seq",
+    "issued_date",
+    "issued_m"
+  ],
+  "title": "IntentBatch",
+  "type": "object"
+}

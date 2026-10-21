@@ -1,0 +1,81 @@
+{
+  "additionalProperties": false,
+  "description": "One 2 s poll of cheap probes. ``None`` = probe unavailable on this platform.",
+  "properties": {
+    "available_ram_bytes": {
+      "minimum": 0,
+      "title": "Available Ram Bytes",
+      "type": "integer"
+    },
+    "daemon_cpu_pct": {
+      "description": "Percent of one core over the last poll.",
+      "minimum": 0,
+      "title": "Daemon Cpu Pct",
+      "type": "number"
+    },
+    "daemon_rss_bytes": {
+      "minimum": 0,
+      "title": "Daemon Rss Bytes",
+      "type": "integer"
+    },
+    "game_cpu_s": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Cumulative CPU time of the game process.",
+      "title": "Game Cpu S"
+    },
+    "game_minimized_s": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Game Minimized S"
+    },
+    "game_running": {
+      "title": "Game Running",
+      "type": "boolean"
+    },
+    "hard_fault_rate": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Pages input/s (UNVERIFIED source).",
+      "title": "Hard Fault Rate"
+    },
+    "t_mono_s": {
+      "minimum": 0,
+      "title": "T Mono S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "t_mono_s",
+    "available_ram_bytes",
+    "game_running",
+    "daemon_rss_bytes",
+    "daemon_cpu_pct"
+  ],
+  "title": "SensorSample",
+  "type": "object"
+}

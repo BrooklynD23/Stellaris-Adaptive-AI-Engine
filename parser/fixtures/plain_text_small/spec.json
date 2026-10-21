@@ -1,0 +1,54 @@
+{
+ "schema_version": 1,
+ "name": "plain_text_small",
+ "date": "2231.04.01",
+ "format": "plain_text",
+ "ironman": false,
+ "countries": [
+  {
+   "country_id": 0,
+   "name": "Plain Player",
+   "sid": 1,
+   "is_player": true,
+   "fleet_power": 100,
+   "tech_researched": 2,
+   "alloys_income": 3,
+   "systems": [
+    1
+   ]
+  },
+  {
+   "country_id": 2,
+   "name": "Plain Observer",
+   "sid": 2,
+   "managed": true,
+   "fleet_power": 100,
+   "tech_researched": 2,
+   "alloys_income": 3,
+   "systems": [
+    2
+   ]
+  }
+ ],
+ "hyperlanes": [
+  [
+   1,
+   2
+  ]
+ ],
+ "contacts": [
+  [
+   0,
+   2
+  ]
+ ],
+ "starbases": [
+  {
+   "system": 1,
+   "owner": 0,
+   "defense_modules": 1,
+   "platforms": 0
+  }
+ ],
+ "wars": []
+}

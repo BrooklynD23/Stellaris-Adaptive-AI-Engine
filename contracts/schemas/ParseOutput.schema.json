@@ -1,0 +1,571 @@
+{
+  "$defs": {
+    "Cost": {
+      "additionalProperties": false,
+      "description": "Worker self-measured cost (resource proposal section 3).",
+      "properties": {
+        "cpu_s": {
+          "minimum": 0,
+          "title": "Cpu S",
+          "type": "number"
+        },
+        "rss_peak_bytes": {
+          "minimum": 0,
+          "title": "Rss Peak Bytes",
+          "type": "integer"
+        },
+        "wall_s": {
+          "minimum": 0,
+          "title": "Wall S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rss_peak_bytes",
+        "cpu_s",
+        "wall_s"
+      ],
+      "title": "Cost",
+      "type": "object"
+    },
+    "CountryInfo": {
+      "additionalProperties": false,
+      "description": "One country SAE cares about: the player and every country carrying ``sae_sid``.",
+      "properties": {
+        "country_id": {
+          "description": "Save-internal country id.",
+          "minimum": 0,
+          "title": "Country Id",
+          "type": "integer"
+        },
+        "is_player": {
+          "title": "Is Player",
+          "type": "boolean"
+        },
+        "managed": {
+          "description": "Has the sae_managed country flag.",
+          "title": "Managed",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sid": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value of the sae_sid variable, if set.",
+          "title": "Sid"
+        }
+      },
+      "required": [
+        "country_id",
+        "name",
+        "is_player",
+        "managed"
+      ],
+      "title": "CountryInfo",
+      "type": "object"
+    },
+    "GodView": {
+      "additionalProperties": false,
+      "description": "The player's true state. Written only to bus.god.jsonl; never an engine input.",
+      "properties": {
+        "alloys_income": {
+          "title": "Alloys Income",
+          "type": "number"
+        },
+        "fleet_power": {
+          "minimum": 0,
+          "title": "Fleet Power",
+          "type": "number"
+        },
+        "fortified_starbases": {
+          "minimum": 0,
+          "title": "Fortified Starbases",
+          "type": "integer"
+        },
+        "systems_owned": {
+          "minimum": 0,
+          "title": "Systems Owned",
+          "type": "integer"
+        },
+        "tech_researched": {
+          "minimum": 0,
+          "title": "Tech Researched",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fleet_power",
+        "systems_owned",
+        "tech_researched",
+        "alloys_income",
+        "fortified_starbases"
+      ],
+      "title": "GodView",
+      "type": "object"
+    },
+    "LegalView": {
+      "additionalProperties": false,
+      "description": "What one managed AI may know about the player: the \"diplomacy-screen legal\" approximation.\n\nEvery field is optional; ``None`` means the observer cannot see it (never imputed).",
+      "properties": {
+        "at_war_with_observer": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At War With Observer"
+        },
+        "economy_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Economy Cat"
+        },
+        "fleet_power_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fleet Power Cat"
+        },
+        "fortified_border_starbases": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fortified Border Starbases"
+        },
+        "frontier_systems": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Player systems bordering observer.",
+          "title": "Frontier Systems"
+        },
+        "in_contact": {
+          "title": "In Contact",
+          "type": "boolean"
+        },
+        "observer_sid": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Observer Sid",
+          "type": "integer"
+        },
+        "player_war_count": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wars the player is in (public).",
+          "title": "Player War Count"
+        },
+        "systems_owned": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "All systems owned by the player (v0 approximation, not intel-masked; A-19 UNVERIFIED).",
+          "title": "Systems Owned"
+        },
+        "tech_cat": {
+          "anyOf": [
+            {
+              "maximum": 2,
+              "minimum": -2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tech Cat"
+        }
+      },
+      "required": [
+        "observer_sid",
+        "in_contact"
+      ],
+      "title": "LegalView",
+      "type": "object"
+    },
+    "ParseError": {
+      "additionalProperties": false,
+      "description": "Clean-failure output (exit 2..6).",
+      "properties": {
+        "cost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "detail": {
+          "maxLength": 2000,
+          "title": "Detail",
+          "type": "string"
+        },
+        "error": {
+          "enum": [
+            "usage",
+            "input",
+            "format",
+            "parse",
+            "unstable"
+          ],
+          "title": "Error",
+          "type": "string"
+        },
+        "exit_code": {
+          "maximum": 6,
+          "minimum": 2,
+          "title": "Exit Code",
+          "type": "integer"
+        },
+        "parser_version": {
+          "title": "Parser Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "const": "error",
+          "default": "error",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parser_version",
+        "exit_code",
+        "error",
+        "detail"
+      ],
+      "title": "ParseError",
+      "type": "object"
+    },
+    "ParseResult": {
+      "additionalProperties": false,
+      "description": "Successful ``sae-parse parse`` output (exit 0).",
+      "properties": {
+        "cost": {
+          "$ref": "#/$defs/Cost"
+        },
+        "countries": {
+          "items": {
+            "$ref": "#/$defs/CountryInfo"
+          },
+          "title": "Countries",
+          "type": "array"
+        },
+        "god": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GodView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None when no player country exists (observer mode)."
+        },
+        "legal": {
+          "description": "One entry per managed AI, about the player.",
+          "items": {
+            "$ref": "#/$defs/LegalView"
+          },
+          "title": "Legal",
+          "type": "array"
+        },
+        "meta": {
+          "$ref": "#/$defs/SaveMeta"
+        },
+        "parser_version": {
+          "title": "Parser Version",
+          "type": "string"
+        },
+        "save": {
+          "$ref": "#/$defs/SaveInfo"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "sections": {
+          "description": "Sections actually extracted.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "self_state": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SelfState"
+          },
+          "description": "Keyed by str(sid) of each managed AI.",
+          "title": "Self State",
+          "type": "object"
+        },
+        "status": {
+          "const": "ok",
+          "default": "ok",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parser_version",
+        "save",
+        "meta",
+        "countries",
+        "self_state",
+        "legal",
+        "god",
+        "sections",
+        "cost"
+      ],
+      "title": "ParseResult",
+      "type": "object"
+    },
+    "SaveInfo": {
+      "additionalProperties": false,
+      "description": "Identity of the file that was parsed.",
+      "properties": {
+        "mtime_ns": {
+          "minimum": 0,
+          "title": "Mtime Ns",
+          "type": "integer"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "size_bytes",
+        "mtime_ns"
+      ],
+      "title": "SaveInfo",
+      "type": "object"
+    },
+    "SaveMeta": {
+      "additionalProperties": false,
+      "description": "Save header fields.",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "game_version": {
+          "description": "As printed in the save, e.g. 'Cepheus v4.4.4'. UNVERIFIED A-19.",
+          "title": "Game Version",
+          "type": "string"
+        },
+        "ironman": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None if the parser cannot tell (A-20).",
+          "title": "Ironman"
+        }
+      },
+      "required": [
+        "game_version",
+        "date"
+      ],
+      "title": "SaveMeta",
+      "type": "object"
+    },
+    "SelfState": {
+      "additionalProperties": false,
+      "description": "A managed AI's own state: fully known to that AI, so fog-legal for its own decisions.",
+      "properties": {
+        "alloys": {
+          "title": "Alloys",
+          "type": "number"
+        },
+        "alloys_income": {
+          "title": "Alloys Income",
+          "type": "number"
+        },
+        "applied_econ": {
+          "description": "Applied EconPlan code (0 = never set).",
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Applied Econ",
+          "type": "integer"
+        },
+        "applied_mil": {
+          "description": "Applied Posture code (0 = never set).",
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Applied Mil",
+          "type": "integer"
+        },
+        "applied_seq": {
+          "description": "sae_seq_applied (0 = none).",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Applied Seq",
+          "type": "integer"
+        },
+        "energy": {
+          "title": "Energy",
+          "type": "number"
+        },
+        "fleet_power": {
+          "minimum": 0,
+          "title": "Fleet Power",
+          "type": "number"
+        },
+        "minerals": {
+          "title": "Minerals",
+          "type": "number"
+        },
+        "naval_cap": {
+          "minimum": 0,
+          "title": "Naval Cap",
+          "type": "number"
+        },
+        "naval_cap_used": {
+          "minimum": 0,
+          "title": "Naval Cap Used",
+          "type": "number"
+        },
+        "pending_seq": {
+          "description": "sae_seq_pending (0 = none).",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Pending Seq",
+          "type": "integer"
+        },
+        "systems_owned": {
+          "minimum": 0,
+          "title": "Systems Owned",
+          "type": "integer"
+        },
+        "wars": {
+          "minimum": 0,
+          "title": "Wars",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fleet_power",
+        "naval_cap_used",
+        "naval_cap",
+        "energy",
+        "minerals",
+        "alloys",
+        "alloys_income",
+        "systems_owned",
+        "wars",
+        "applied_seq",
+        "pending_seq",
+        "applied_econ",
+        "applied_mil"
+      ],
+      "title": "SelfState",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "error": "#/$defs/ParseError",
+      "ok": "#/$defs/ParseResult"
+    },
+    "propertyName": "status"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ParseResult"
+    },
+    {
+      "$ref": "#/$defs/ParseError"
+    }
+  ]
+}

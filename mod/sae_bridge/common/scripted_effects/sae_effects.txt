@@ -1,0 +1,697 @@
+# sae_bridge scripted effects. Normative behaviour: SEMANTICS.md (section numbers in comments).
+# Scope notes: "anchor" = event_target:global_event_country, "country" = any country.
+
+# --- SEMANTICS 1: anchor init (anchor scope)
+sae_anchor_init = {
+  set_variable = { which = sae_g_m value = 0 }
+  set_variable = { which = sae_g_sid_next value = 0 }
+  set_variable = { which = sae_g_period value = 1 }
+  set_variable = { which = sae_g_quiet value = 0 }
+  set_variable = { which = sae_g_mp value = 0 }
+  set_variable = { which = sae_g_managed value = 0 }
+}
+
+# --- SEMANTICS 3.2 / 4.2: sae_g_mp from is_multiplayer (anchor scope)
+sae_set_mp = {
+  if = {
+    limit = { is_multiplayer = yes } # UNVERIFIED(A-13, M0-6): is_multiplayer trigger exists | fallback: treat as single player, sae_g_mp stays 0
+    set_variable = { which = sae_g_mp value = 1 }
+  }
+  else = {
+    set_variable = { which = sae_g_mp value = 0 }
+  }
+}
+
+# --- SEMANTICS 3.1-3.3 and 4.0: init if needed, mp, HELLO (anchor scope)
+sae_hello_anchor = {
+  if = {
+    # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+    limit = { NOT = { is_variable_set = sae_g_m } }
+    sae_anchor_init = yes
+  }
+  sae_set_mp = yes
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|HELLO|[GetDate]|mod=0.1.0|schema=1|period=[This.sae_g_period]|quiet=[This.sae_g_quiet]|mp=[This.sae_g_mp]" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+
+# --- SEMANTICS 3 (sae.3, global scope): nothing if the anchor does not exist yet
+sae_hello = {
+  if = {
+    limit = { exists = event_target:global_event_country } # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+      sae_hello_anchor = yes
+    }
+  }
+}
+
+# --- SEMANTICS 4.0 (global scope)
+sae_step0_init = {
+  if = {
+    # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+    limit = { event_target:global_event_country = { NOT = { is_variable_set = sae_g_m } } } # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+      sae_hello_anchor = yes
+    }
+  }
+}
+
+# --- SEMANTICS 4.1
+sae_step1_month = {
+  event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    change_variable = { which = sae_g_m value = 1 }
+  }
+}
+
+# --- SEMANTICS 4.2 knob read, run on a human country (human scope)
+sae_read_knobs = {
+  if = {
+    limit = {
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_emit_period
+      OR = {
+        check_variable = { which = sae_emit_period value = 1 }
+        check_variable = { which = sae_emit_period value = 2 }
+        check_variable = { which = sae_emit_period value = 3 }
+        check_variable = { which = sae_emit_period value = 4 }
+        check_variable = { which = sae_emit_period value = 5 }
+        check_variable = { which = sae_emit_period value = 6 }
+        check_variable = { which = sae_emit_period value = 7 }
+        check_variable = { which = sae_emit_period value = 8 }
+        check_variable = { which = sae_emit_period value = 9 }
+        check_variable = { which = sae_emit_period value = 10 }
+        check_variable = { which = sae_emit_period value = 11 }
+        check_variable = { which = sae_emit_period value = 12 }
+      }
+    }
+    event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+      set_variable = { which = sae_g_period value = prev.sae_emit_period } # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+    }
+  }
+  if = {
+    limit = {
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_quiet
+      OR = {
+        check_variable = { which = sae_quiet value = 0 }
+        check_variable = { which = sae_quiet value = 1 }
+      }
+    }
+    event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+      set_variable = { which = sae_g_quiet value = prev.sae_quiet } # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+    }
+  }
+}
+
+# --- SEMANTICS 4.2 (global scope)
+sae_step2_knobs = {
+  event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    sae_set_mp = yes
+  }
+  if = {
+    limit = { event_target:global_event_country = { check_variable = { which = sae_g_mp value = 0 } } } # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    # random_country is deterministic here: single player has exactly one human; with several humans mp=1 skips the read
+    random_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+      limit = { sae_is_human = yes }
+      sae_read_knobs = yes
+    }
+  }
+}
+
+# --- SEMANTICS 4.3 sid assignment (country scope)
+sae_assign_sid = {
+  event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    change_variable = { which = sae_g_sid_next value = 1 }
+  }
+  # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+  set_variable = { which = sae_sid value = event_target:global_event_country.sae_g_sid_next }
+  set_variable = { which = sae_seq_applied value = 0 }
+  set_variable = { which = sae_econ value = 0 }
+  set_variable = { which = sae_mil value = 0 }
+  set_variable = { which = sae_dip value = 0 }
+  set_variable = { which = sae_mil_target value = 0 }
+  set_variable = { which = sae_dip_target value = 0 }
+  set_variable = { which = sae_ship_corvette value = 50 }
+  set_variable = { which = sae_ship_frigate value = 50 }
+  set_variable = { which = sae_ship_destroyer value = 50 }
+  set_variable = { which = sae_ship_cruiser value = 50 }
+  set_variable = { which = sae_ship_battleship value = 50 }
+  set_variable = { which = sae_reason value = 0 }
+}
+
+sae_step3_sids = {
+  every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+    limit = {
+      sae_is_eligible = yes
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      NOT = { is_variable_set = sae_sid }
+    }
+    sae_assign_sid = yes
+  }
+}
+
+# --- SEMANTICS 4.4 managed flag (sticky)
+sae_step4_managed = {
+  every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+    limit = {
+      sae_is_ai = yes
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_sid
+      NOT = { has_country_flag = sae_managed }
+      sae_has_human_contact = yes
+    }
+    # Cap checked per country inside the body (not in limit) so the count is current (C6 2 @sae_max_managed).
+    if = {
+      limit = {
+        # UNVERIFIED(A-36, M0-5): anchor event target holds sae_g_managed | fallback: store the count on the first human
+        event_target:global_event_country = {
+          # UNVERIFIED(A-37, M0-5): check_variable with < and a @scripted variable value | fallback: inline 16
+          check_variable = { which = sae_g_managed value < @sae_max_managed }
+        }
+      }
+      set_country_flag = sae_managed
+      # UNVERIFIED(A-36, M0-5): anchor event target holds sae_g_managed | fallback: store the count on the first human
+      event_target:global_event_country = { change_variable = { which = sae_g_managed value = 1 } }
+    }
+  }
+}
+
+# --- SEMANTICS 4.5 HB (anchor scope inside)
+sae_step5_hb = {
+  event_target:global_event_country = { # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+    # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+    log = "SAE|v1|HB|[GetDate]|m=[This.sae_g_m]|period=[This.sae_g_period]|quiet=[This.sae_g_quiet]" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+  }
+  # SEMANTICS 4.5: clear the per-human popup flag for this pulse
+  every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+    limit = { sae_is_human = yes }
+    remove_country_flag = sae_t_popup
+  }
+}
+
+# --- SEMANTICS 4.6 apply for every country with a pending seq
+sae_step6_apply = {
+  every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+    limit = {
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_sid
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_seq_pending
+    }
+    sae_apply = yes
+  }
+}
+
+# --- SEMANTICS 7 stats export (country scope)
+sae_export_stats = {
+  # UNVERIFIED(A-38, M0-5): export_trigger_value_to_variable with this trigger name exports the stat | fallback: omit the stat key from SNAP/PLYR; engine uses autosave values
+  export_trigger_value_to_variable = { trigger = fleet_power variable = sae_s_fleet }
+  # UNVERIFIED(A-38, M0-5): export_trigger_value_to_variable with this trigger name exports the stat | fallback: omit the stat key from SNAP/PLYR; engine uses autosave values
+  export_trigger_value_to_variable = { trigger = used_naval_capacity variable = sae_s_navcap_used }
+  # UNVERIFIED(A-38, M0-5): export_trigger_value_to_variable with this trigger name exports the stat | fallback: omit the stat key from SNAP/PLYR; engine uses autosave values
+  export_trigger_value_to_variable = { trigger = max_naval_capacity variable = sae_s_navcap }
+  # UNVERIFIED(A-38, M0-5): export_trigger_value_to_variable with this trigger name exports the stat | fallback: omit the stat key from SNAP/PLYR; engine uses autosave values
+  export_trigger_value_to_variable = { trigger = num_wars variable = sae_s_wars }
+}
+
+# --- SEMANTICS 7 SNAP (managed AI)
+sae_emit_snap = {
+  sae_export_stats = yes
+  set_variable = { which = sae_s_contact value = 0 }
+  if = {
+    limit = { sae_has_human_contact = yes }
+    set_variable = { which = sae_s_contact value = 1 }
+  }
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|SNAP|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_applied]|fleet=[This.sae_s_fleet]|navcap_used=[This.sae_s_navcap_used]|navcap=[This.sae_s_navcap]|wars=[This.sae_s_wars]|econ=[This.sae_econ]|mil=[This.sae_mil]|contact=[This.sae_s_contact]|name=[This.GetName]" # UNVERIFIED(A-42, M0-3): [This.GetName] and the date token resolve inside log text | fallback: constant name=? (C1 v1, proposal 006); sid still maps via save
+}
+
+# --- SEMANTICS 7 PLYR (human)
+sae_emit_plyr = {
+  sae_export_stats = yes
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|PLYR|[GetDate]|sid=[This.sae_sid]|fleet=[This.sae_s_fleet]|navcap_used=[This.sae_s_navcap_used]|navcap=[This.sae_s_navcap]|wars=[This.sae_s_wars]|name=[This.GetName]" # UNVERIFIED(A-42, M0-3): [This.GetName] and the date token resolve inside log text | fallback: constant name=? (C1 v1, proposal 006); sid still maps via save
+}
+
+# --- SEMANTICS 7 / sae.1: emit this country, ignoring stagger and quiet
+sae_emit_this = {
+  if = {
+    limit = {
+      sae_is_human = yes
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_sid
+    }
+    sae_emit_plyr = yes
+  }
+  else_if = {
+    limit = {
+      sae_is_ai = yes
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      is_variable_set = sae_sid
+      has_country_flag = sae_managed
+    }
+    sae_emit_snap = yes
+  }
+}
+
+# --- SEMANTICS 4.7 + 5: stagger slot (m + sid) mod period == 0 (country scope)
+sae_emit_if_due = {
+  # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+  set_variable = { which = sae_t_slot value = event_target:global_event_country.sae_g_m }
+  change_variable = { which = sae_t_slot value = sae_sid } # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+  modulo_variable = { which = sae_t_slot value = event_target:global_event_country.sae_g_period } # UNVERIFIED(A-37, M0-5): modulo_variable accepts a variable operand | fallback: per-country countdown variable decremented monthly (SEMANTICS v2)
+  if = {
+    limit = { check_variable = { which = sae_t_slot value = 0 } }
+    sae_emit_this = yes
+  }
+}
+
+sae_step7_emit = {
+  if = {
+    limit = { event_target:global_event_country = { check_variable = { which = sae_g_quiet value = 0 } } } # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+      # UNVERIFIED(A-41, M0-5): is_variable_set / unset variable reads as 0 | fallback: initialise every variable explicitly at sid assignment
+      limit = { is_variable_set = sae_sid }
+      sae_emit_if_due = yes
+    }
+  }
+}
+
+# --- SEMANTICS 4: the whole monthly procedure (global scope, sae.0)
+sae_monthly = {
+  if = {
+    limit = { exists = event_target:global_event_country } # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    sae_step0_init = yes
+    sae_step1_month = yes
+    sae_step2_knobs = yes
+    sae_step3_sids = yes
+    sae_step4_managed = yes
+    sae_step5_hb = yes
+    sae_step6_apply = yes
+    sae_step7_emit = yes
+  }
+}
+
+# --- SEMANTICS 6: ACK effects (country scope), one per (status, code) pair
+sae_ack_applied_ok = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=APPLIED|code=OK|reason=[This.sae_p_reason]" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_rejected_range = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=REJECTED|code=RANGE" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_rejected_not_managed = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=REJECTED|code=NOT_MANAGED" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_rejected_bad_target = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=REJECTED|code=BAD_TARGET" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_rejected_multiplayer = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=REJECTED|code=MULTIPLAYER" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_stale_expired = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=STALE|code=EXPIRED" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_duplicate_seq_old = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=DUPLICATE|code=SEQ_OLD|applied=[This.sae_seq_applied]" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+sae_ack_schema_mismatch = {
+  # UNVERIFIED(A-02, M0-3): log effect writes the line to game.log | fallback: emit via a country_event text popup is NOT usable; fall back to autosave-only ground truth (C1 preview lost)
+  # UNVERIFIED(A-06, M0-5): [This.<var>] prints plain decimals (ints may print as 17.000) | fallback: bucketed flags + constant strings
+  log = "SAE|v1|ACK|[GetDate]|sid=[This.sae_sid]|seq=[This.sae_seq_pending]|status=SCHEMA_MISMATCH|code=SCHEMA" # UNVERIFIED(A-05, M0-3): [GetDate] prints Y.M.D | fallback: swap the single token string in all templates (e.g. [Root.GetDate] or year/month variables)
+}
+
+# "Close": sae_seq_applied := sae_seq_pending, always after the ACK (SEMANTICS 6)
+sae_close = {
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_seq_applied value = sae_seq_pending }
+  set_variable = { which = sae_t_done value = 1 }
+}
+
+# --- SEMANTICS 6.10 econ
+sae_apply_econ = {
+  if = {
+    limit = { NOT = { check_variable = { which = sae_p_econ value = -1 } } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    remove_country_flag = sae_econ_balanced
+    remove_country_flag = sae_econ_military
+    remove_country_flag = sae_econ_research
+    remove_country_flag = sae_econ_expansion
+    if = { limit = { check_variable = { which = sae_p_econ value = 1 } } set_country_flag = sae_econ_balanced }
+    if = { limit = { check_variable = { which = sae_p_econ value = 2 } } set_country_flag = sae_econ_military }
+    if = { limit = { check_variable = { which = sae_p_econ value = 3 } } set_country_flag = sae_econ_research }
+    if = { limit = { check_variable = { which = sae_p_econ value = 4 } } set_country_flag = sae_econ_expansion }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_econ value = sae_p_econ }
+  }
+}
+
+# --- SEMANTICS 6.10 posture: remove old modifiers toward the previous target only, then add new
+sae_apply_mil = {
+  if = {
+    limit = { NOT = { check_variable = { which = sae_p_mil value = -1 } } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    if = {
+      limit = { NOT = { check_variable = { which = sae_mil_target value = 0 } } }
+      every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+        # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+        limit = { check_variable = { which = sae_sid value = prev.sae_mil_target } }
+        # UNVERIFIED(A-39, M0-6): save_event_target_as inside the iterated scope stays visible after prev = { } | fallback: stage the target sid in a global var and iterate again inside prev
+        save_event_target_as = sae_tgt
+        # UNVERIFIED(A-39, M0-6): prev = { } inside every_country returns to the iterating country | fallback: use event_target:sae_self saved before the loop
+        prev = {
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_posture_defensive }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_posture_deterrent }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_posture_offensive }
+        }
+      }
+    }
+    remove_country_flag = sae_mil_defensive
+    remove_country_flag = sae_mil_deterrent
+    remove_country_flag = sae_mil_offensive
+    if = { limit = { check_variable = { which = sae_p_mil value = 1 } } set_country_flag = sae_mil_defensive }
+    if = { limit = { check_variable = { which = sae_p_mil value = 2 } } set_country_flag = sae_mil_deterrent }
+    if = { limit = { check_variable = { which = sae_p_mil value = 3 } } set_country_flag = sae_mil_offensive }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_mil value = sae_p_mil }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_mil_target value = sae_p_mil_target }
+    every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+      # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+      limit = { check_variable = { which = sae_sid value = prev.sae_p_mil_target } }
+      # UNVERIFIED(A-39, M0-6): save_event_target_as inside the iterated scope stays visible after prev = { } | fallback: stage the target sid in a global var and iterate again inside prev
+      save_event_target_as = sae_tgt
+      # UNVERIFIED(A-39, M0-6): prev = { } inside every_country returns to the iterating country | fallback: use event_target:sae_self saved before the loop
+      prev = {
+        if = {
+          limit = { check_variable = { which = sae_p_mil value = 1 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_posture_defensive }
+        }
+        if = {
+          limit = { check_variable = { which = sae_p_mil value = 2 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_posture_deterrent }
+        }
+        if = {
+          limit = { check_variable = { which = sae_p_mil value = 3 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_posture_offensive }
+        }
+      }
+    }
+  }
+}
+
+# --- SEMANTICS 6.10 stance (same pattern as posture)
+sae_apply_dip = {
+  if = {
+    limit = { NOT = { check_variable = { which = sae_p_dip value = -1 } } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+    if = {
+      limit = { NOT = { check_variable = { which = sae_dip_target value = 0 } } }
+      every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+        # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+        limit = { check_variable = { which = sae_sid value = prev.sae_dip_target } }
+        # UNVERIFIED(A-39, M0-6): save_event_target_as inside the iterated scope stays visible after prev = { } | fallback: stage the target sid in a global var and iterate again inside prev
+        save_event_target_as = sae_tgt
+        # UNVERIFIED(A-39, M0-6): prev = { } inside every_country returns to the iterating country | fallback: use event_target:sae_self saved before the loop
+        prev = {
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_friendly }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_neutral }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_rival }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt works as who= in remove_opinion_modifier from prev | fallback: let the modifier decay (decay in the modifier block)
+          remove_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_hostile }
+        }
+      }
+    }
+    remove_country_flag = sae_dip_friendly
+    remove_country_flag = sae_dip_neutral
+    remove_country_flag = sae_dip_rival
+    remove_country_flag = sae_dip_hostile
+    if = { limit = { check_variable = { which = sae_p_dip value = 1 } } set_country_flag = sae_dip_friendly }
+    if = { limit = { check_variable = { which = sae_p_dip value = 2 } } set_country_flag = sae_dip_neutral }
+    if = { limit = { check_variable = { which = sae_p_dip value = 3 } } set_country_flag = sae_dip_rival }
+    if = { limit = { check_variable = { which = sae_p_dip value = 4 } } set_country_flag = sae_dip_hostile }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_dip value = sae_p_dip }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_dip_target value = sae_p_dip_target }
+    every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+      # UNVERIFIED(A-37, M0-5): prev.<var> cross-scope variable read | fallback: stage the value in a global variable on the anchor first
+      limit = { check_variable = { which = sae_sid value = prev.sae_p_dip_target } }
+      # UNVERIFIED(A-39, M0-6): save_event_target_as inside the iterated scope stays visible after prev = { } | fallback: stage the target sid in a global var and iterate again inside prev
+      save_event_target_as = sae_tgt
+      # UNVERIFIED(A-39, M0-6): prev = { } inside every_country returns to the iterating country | fallback: use event_target:sae_self saved before the loop
+      prev = {
+        if = {
+          limit = { check_variable = { which = sae_p_dip value = 1 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_friendly }
+        }
+        if = {
+          limit = { check_variable = { which = sae_p_dip value = 2 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_neutral }
+        }
+        if = {
+          limit = { check_variable = { which = sae_p_dip value = 3 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_rival }
+        }
+        if = {
+          limit = { check_variable = { which = sae_p_dip value = 4 } }
+          # UNVERIFIED(A-39, M0-6): event_target:sae_tgt (saved in the iterated target scope) works as who= in add_opinion_modifier from prev | fallback: set a flag only and let ai_budget/diplo weights read it
+          add_opinion_modifier = { who = event_target:sae_tgt modifier = sae_stance_hostile }
+        }
+      }
+    }
+  }
+}
+
+# --- SEMANTICS 6.10 ship bias
+sae_apply_ships = {
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  if = { limit = { NOT = { check_variable = { which = sae_p_ship_corvette value = -1 } } } set_variable = { which = sae_ship_corvette value = sae_p_ship_corvette } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  if = { limit = { NOT = { check_variable = { which = sae_p_ship_frigate value = -1 } } } set_variable = { which = sae_ship_frigate value = sae_p_ship_frigate } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  if = { limit = { NOT = { check_variable = { which = sae_p_ship_destroyer value = -1 } } } set_variable = { which = sae_ship_destroyer value = sae_p_ship_destroyer } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  if = { limit = { NOT = { check_variable = { which = sae_p_ship_cruiser value = -1 } } } set_variable = { which = sae_ship_cruiser value = sae_p_ship_cruiser } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  if = { limit = { NOT = { check_variable = { which = sae_p_ship_battleship value = -1 } } } set_variable = { which = sae_ship_battleship value = sae_p_ship_battleship } } # UNVERIFIED(A-41, M0-5): check_variable accepts negative literals (value = -1) and unset reads as 0 | fallback: shift values by +1 and use equality ladders
+}
+
+# --- SEMANTICS 6.10 reason: store; fire the flavour event at most once per human per pulse (sae_t_popup; the adapting AI is From)
+sae_apply_reason = {
+  if = {
+    limit = {
+      check_variable = { which = sae_p_reason value > 0 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+      NOT = { check_variable = { which = sae_reason value = sae_p_reason } } # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_reason value = sae_p_reason }
+    every_country = { # UNVERIFIED(A-39, M0-3): every_country/random_country iterate all living countries incl. the player | fallback: use any_country + limit or every_playable_country
+      limit = {
+        sae_is_human = yes
+        has_communications = prev # UNVERIFIED(A-32, M0-6): has_communications = prev detects contact with a human | fallback: has_met/is_country_known, else manage every AI
+        NOT = { has_country_flag = sae_t_popup }
+      }
+      # UNVERIFIED(A-39, M0-6): scopes = { from = prev } passes the adapting AI as From into the event | fallback: shared event target sae_reason_src; last AI wins if several fire in one pulse
+      country_event = { id = sae.10 scopes = { from = prev } }
+      set_country_flag = sae_t_popup
+    }
+  }
+}
+
+# --- SEMANTICS 6 (country scope): steps 1-11, first matching rule wins via sae_t_done
+# --- SEMANTICS 6.1 / 6.8 integrality: sae_t_pnonint (pending seq) and sae_t_nonint (any staged knob) (country scope)
+sae_compute_nonint = {
+  set_variable = { which = sae_t_pnonint value = 0 }
+  set_variable = { which = sae_t_nonint value = 0 }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_seq_pending }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_pnonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_expires }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_reason }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_econ }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_mil }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_mil_target }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_dip }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_dip_target }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_ship_corvette }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_ship_frigate }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_ship_destroyer }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_ship_cruiser }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_frac value = sae_p_ship_battleship }
+  # UNVERIFIED(A-37, M0-5): modulo_variable by 1 leaves the fractional part of a fixed-point variable (0 for integers, sign may follow the operand) | fallback: values are truncated by the engine; document rounding in SEMANTICS 6.8
+  modulo_variable = { which = sae_t_frac value = 1 }
+  if = { limit = { NOT = { check_variable = { which = sae_t_frac value = 0 } } } set_variable = { which = sae_t_nonint value = 1 } }
+}
+
+sae_apply = {
+  set_variable = { which = sae_t_done value = 0 }
+  sae_compute_nonint = yes
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_pa value = sae_seq_pending }
+  subtract_variable = { which = sae_t_pa value = sae_seq_applied } # UNVERIFIED(A-37, M0-5): subtract_variable accepts a variable operand | fallback: change_variable with a negated copy, or per-value if-ladders
+  # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+  set_variable = { which = sae_t_me value = event_target:global_event_country.sae_g_m }
+  subtract_variable = { which = sae_t_me value = sae_p_expires } # UNVERIFIED(A-37, M0-5): subtract_variable accepts a variable operand | fallback: change_variable with a negated copy, or per-value if-ladders
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_mt value = sae_p_mil_target }
+  subtract_variable = { which = sae_t_mt value = sae_sid } # UNVERIFIED(A-37, M0-5): subtract_variable accepts a variable operand | fallback: change_variable with a negated copy, or per-value if-ladders
+  # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+  set_variable = { which = sae_t_dt value = sae_p_dip_target }
+  subtract_variable = { which = sae_t_dt value = sae_sid } # UNVERIFIED(A-37, M0-5): subtract_variable accepts a variable operand | fallback: change_variable with a negated copy, or per-value if-ladders
+  # 6.1 P outside 1..1000000: silent reset, no ACK
+  if = {
+    limit = {
+      sae_t_open = yes
+      OR = {
+        check_variable = { which = sae_seq_pending value < 1 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+        check_variable = { which = sae_seq_pending value > 1000000 } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+        check_variable = { which = sae_t_pnonint value = 1 }
+      }
+    }
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_seq_pending value = sae_seq_applied }
+    set_variable = { which = sae_t_done value = 1 }
+  }
+  # 6.2 P = A: nothing
+  if = {
+    limit = { sae_t_open = yes check_variable = { which = sae_t_pa value = 0 } }
+    set_variable = { which = sae_t_done value = 1 }
+  }
+  # 6.3 P < A: DUPLICATE, reset pending, not closed
+  if = {
+    limit = { sae_t_open = yes check_variable = { which = sae_t_pa value < 0 } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+    sae_ack_duplicate_seq_old = yes
+    # UNVERIFIED(A-37, M0-5): change_variable/check_variable accept a variable name as value | fallback: explicit per-value if-ladders
+    set_variable = { which = sae_seq_pending value = sae_seq_applied }
+    set_variable = { which = sae_t_done value = 1 }
+  }
+  # 6.4 not managed, or not an AI (a human took over)
+  if = {
+    limit = {
+      sae_t_open = yes
+      OR = {
+        NOT = { has_country_flag = sae_managed }
+        NOT = { sae_is_ai = yes }
+      }
+    }
+    sae_ack_rejected_not_managed = yes
+    sae_close = yes
+  }
+  # 6.5 multiplayer
+  if = {
+    limit = { sae_t_open = yes event_target:global_event_country = { check_variable = { which = sae_g_mp value = 1 } } } # UNVERIFIED(A-36, M0-5): event_target:global_event_country exists and keeps variables across save/load | fallback: create a dummy hidden country at start or store counters on the first human country
+    sae_ack_rejected_multiplayer = yes
+    sae_close = yes
+  }
+  # 6.6 schema
+  if = {
+    limit = { sae_t_open = yes NOT = { check_variable = { which = sae_p_schema value = 1 } } }
+    sae_ack_schema_mismatch = yes
+    sae_close = yes
+  }
+  # 6.7 expired (m = expires still applies)
+  if = {
+    limit = { sae_t_open = yes check_variable = { which = sae_t_me value > 0 } } # UNVERIFIED(A-37, M0-5): check_variable accepts < > >= <= comparisons | fallback: equality ladders over explicit values
+    sae_ack_stale_expired = yes
+    sae_close = yes
+  }
+  # 6.8 range
+  if = {
+    limit = { sae_t_open = yes NOT = { sae_p_in_range = yes } }
+    sae_ack_rejected_range = yes
+    sae_close = yes
+  }
+  # 6.9 bad target
+  if = {
+    limit = { sae_t_open = yes NOT = { sae_target_ok = yes } }
+    sae_ack_rejected_bad_target = yes
+    sae_close = yes
+  }
+  # 6.10 + 6.11 apply, ACK, close
+  if = {
+    limit = { sae_t_open = yes }
+    sae_apply_econ = yes
+    sae_apply_mil = yes
+    sae_apply_dip = yes
+    sae_apply_ships = yes
+    sae_apply_reason = yes
+    sae_ack_applied_ok = yes
+    sae_close = yes
+  }
+}

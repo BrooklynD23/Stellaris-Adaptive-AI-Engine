@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "Archetype": {
+      "description": "Player archetypes the v0/v1 belief filter tracks (settled decision).",
+      "enum": [
+        "turtle",
+        "tech_rush",
+        "early_aggression",
+        "balanced"
+      ],
+      "title": "Archetype",
+      "type": "string"
+    },
+    "LabelSegment": {
+      "additionalProperties": false,
+      "description": "The player's archetype from ``from_date`` until the next segment.",
+      "properties": {
+        "archetype": {
+          "$ref": "#/$defs/Archetype"
+        },
+        "from_date": {
+          "title": "From Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_date",
+        "archetype"
+      ],
+      "title": "LabelSegment",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Label manifest: ``profile/<key>/labels/<campaign_id>.json`` or ``<recording_dir>/label.json``.",
+  "properties": {
+    "blind": {
+      "description": "True: the labeller was not shown SAE's beliefs.",
+      "title": "Blind",
+      "type": "boolean"
+    },
+    "campaign_id": {
+      "anyOf": [
+        {
+          "pattern": "^c-[0-9a-f]{16}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "None for a recording outside the index (synth).",
+      "title": "Campaign Id"
+    },
+    "labelled_at": {
+      "format": "date-time",
+      "title": "Labelled At",
+      "type": "string"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/LabelSegment"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "title": "Segments",
+      "type": "array"
+    },
+    "source": {
+      "enum": [
+        "human",
+        "synth_schedule"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "campaign_id",
+    "source",
+    "segments",
+    "labelled_at",
+    "blind"
+  ],
+  "title": "CampaignLabel",
+  "type": "object"
+}

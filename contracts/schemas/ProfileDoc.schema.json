@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "Archetype": {
+      "description": "Player archetypes the v0/v1 belief filter tracks (settled decision).",
+      "enum": [
+        "turtle",
+        "tech_rush",
+        "early_aggression",
+        "balanced"
+      ],
+      "title": "Archetype",
+      "type": "string"
+    },
+    "FeaturePosterior": {
+      "additionalProperties": false,
+      "description": "Normal-Normal partial pooling of one feature (hyperprior and this player's posterior).",
+      "properties": {
+        "hyper_mu": {
+          "title": "Hyper Mu",
+          "type": "number"
+        },
+        "hyper_sd": {
+          "exclusiveMinimum": 0,
+          "title": "Hyper Sd",
+          "type": "number"
+        },
+        "n_eff": {
+          "description": "Decayed campaign count, half-life 5 campaigns.",
+          "minimum": 0,
+          "title": "N Eff",
+          "type": "number"
+        },
+        "player_mu": {
+          "title": "Player Mu",
+          "type": "number"
+        },
+        "player_sd": {
+          "exclusiveMinimum": 0,
+          "title": "Player Sd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "hyper_mu",
+        "hyper_sd",
+        "player_mu",
+        "player_sd",
+        "n_eff"
+      ],
+      "title": "FeaturePosterior",
+      "type": "object"
+    },
+    "FoldScore": {
+      "additionalProperties": false,
+      "description": "Rolling origin: fit campaigns 1..k, score campaign k+1.",
+      "properties": {
+        "k": {
+          "minimum": 1,
+          "title": "K",
+          "type": "integer"
+        },
+        "log_score_delta": {
+          "description": "Profile minus hyperprior; > 0 = profile better.",
+          "title": "Log Score Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "k",
+        "log_score_delta"
+      ],
+      "title": "FoldScore",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``profile/<key>/profile.json``, rebuilt from scratch by every ``sae profile update``.",
+  "properties": {
+    "archetype_alpha": {
+      "additionalProperties": {
+        "exclusiveMinimum": 0,
+        "type": "number"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/Archetype"
+      },
+      "title": "Archetype Alpha",
+      "type": "object"
+    },
+    "builder_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Builder Version",
+      "type": "string"
+    },
+    "built_at": {
+      "format": "date-time",
+      "title": "Built At",
+      "type": "string"
+    },
+    "drift_alarm": {
+      "title": "Drift Alarm",
+      "type": "boolean"
+    },
+    "drift_outside": {
+      "maximum": 8,
+      "minimum": 0,
+      "title": "Drift Outside",
+      "type": "integer"
+    },
+    "eligible": {
+      "title": "Eligible",
+      "type": "boolean"
+    },
+    "features": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FeaturePosterior"
+      },
+      "propertyNames": {
+        "enum": [
+          "expansion_rate_early",
+          "expansion_rate_late",
+          "border_fort_ratio",
+          "first_war_year",
+          "war_share",
+          "fleet_power_cat_mean",
+          "tech_cat_mean",
+          "economy_cat_mean"
+        ]
+      },
+      "title": "Features",
+      "type": "object"
+    },
+    "folds": {
+      "items": {
+        "$ref": "#/$defs/FoldScore"
+      },
+      "maxItems": 10000,
+      "title": "Folds",
+      "type": "array"
+    },
+    "mode": {
+      "const": "strict",
+      "title": "Mode",
+      "type": "string"
+    },
+    "player_key": {
+      "pattern": "^[a-z0-9_]{1,32}$",
+      "title": "Player Key",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_campaigns": {
+      "items": {
+        "pattern": "^c-[0-9a-f]{16}$",
+        "type": "string"
+      },
+      "maxItems": 10000,
+      "title": "Source Campaigns",
+      "type": "array"
+    }
+  },
+  "required": [
+    "player_key",
+    "mode",
+    "builder_version",
+    "built_at",
+    "source_campaigns",
+    "archetype_alpha",
+    "features",
+    "folds",
+    "eligible",
+    "drift_alarm",
+    "drift_outside"
+  ],
+  "title": "ProfileDoc",
+  "type": "object"
+}

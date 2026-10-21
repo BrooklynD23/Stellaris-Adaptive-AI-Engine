@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "GateCheck": {
+      "additionalProperties": false,
+      "description": "One named gate check.",
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "name": {
+          "maxLength": 64,
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "name",
+        "passed"
+      ],
+      "title": "GateCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Output of ``sae gate stage1|stage2``; file ``policies/evidence/<sha256>.json``.",
+  "properties": {
+    "candidate_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Candidate Sha256",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/GateCheck"
+      },
+      "maxItems": 256,
+      "minItems": 1,
+      "title": "Checks",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "gate_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Gate Version",
+      "type": "string"
+    },
+    "incumbent_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Incumbent Sha256",
+      "type": "string"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stage": {
+      "enum": [
+        1,
+        2
+      ],
+      "title": "Stage",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "stage",
+    "candidate_sha256",
+    "incumbent_sha256",
+    "gate_version",
+    "checks",
+    "passed",
+    "created_at"
+  ],
+  "title": "GateReport",
+  "type": "object"
+}

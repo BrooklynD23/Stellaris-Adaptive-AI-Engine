@@ -1,0 +1,63 @@
+{
+ "countries": [
+  {
+   "country_id": 0,
+   "is_player": true,
+   "managed": false,
+   "name": "Hidden Player",
+   "sid": 1
+  },
+  {
+   "country_id": 7,
+   "is_player": false,
+   "managed": true,
+   "name": "Blind Observer",
+   "sid": 3
+  }
+ ],
+ "god": {
+  "alloys_income": 10.0,
+  "fleet_power": 7000.0,
+  "fortified_starbases": 1,
+  "systems_owned": 2,
+  "tech_researched": 40
+ },
+ "legal": [
+  {
+   "in_contact": false,
+   "observer_sid": 3
+  }
+ ],
+ "meta": {
+  "date": "2231.04.01",
+  "game_version": "Cepheus v4.4.4",
+  "ironman": true
+ },
+ "schema_version": 1,
+ "sections": [
+  "meta",
+  "countries",
+  "starbases",
+  "fleets",
+  "wars",
+  "tech"
+ ],
+ "self_state": {
+  "3": {
+   "alloys": 3.0,
+   "alloys_income": 10.0,
+   "applied_econ": 0,
+   "applied_mil": 0,
+   "applied_seq": 0,
+   "energy": 1.0,
+   "fleet_power": 7000.0,
+   "minerals": 2.0,
+   "naval_cap": 10.0,
+   "naval_cap_used": 5.0,
+   "pending_seq": 0,
+   "systems_owned": 2,
+   "wars": 0
+  }
+ },
+ "status": "ok"
+}

@@ -1,0 +1,235 @@
+{
+  "$defs": {
+    "HealthLevel": {
+      "description": "Pressure axis. S is entered only by the operator ``pause`` command (C9).",
+      "enum": [
+        "H0",
+        "H1",
+        "H2",
+        "H3",
+        "S"
+      ],
+      "title": "HealthLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Every Governor number. Defaults are the amended resource proposal; presets override some.",
+  "properties": {
+    "closed_minimized_s": {
+      "default": 600.0,
+      "exclusiveMinimum": 0,
+      "title": "Closed Minimized S",
+      "type": "number"
+    },
+    "daemon_rss_breach_bytes": {
+      "default": 157286400,
+      "exclusiveMinimum": 0,
+      "title": "Daemon Rss Breach Bytes",
+      "type": "integer"
+    },
+    "daemon_rss_exit_bytes": {
+      "default": 314572800,
+      "exclusiveMinimum": 0,
+      "title": "Daemon Rss Exit Bytes",
+      "type": "integer"
+    },
+    "deescalate_after_months": {
+      "default": 6,
+      "minimum": 1,
+      "title": "Deescalate After Months",
+      "type": "integer"
+    },
+    "deescalate_ram_margin_bytes": {
+      "default": 536870912,
+      "minimum": 0,
+      "title": "Deescalate Ram Margin Bytes",
+      "type": "integer"
+    },
+    "fault_baseline_s": {
+      "default": 600.0,
+      "description": "First 10 min of the session.",
+      "exclusiveMinimum": 0,
+      "title": "Fault Baseline S",
+      "type": "number"
+    },
+    "fault_consecutive_polls": {
+      "default": 3,
+      "minimum": 1,
+      "title": "Fault Consecutive Polls",
+      "type": "integer"
+    },
+    "fault_mad_floor": {
+      "default": 1.0,
+      "description": "Pages/s; the fault trigger uses max(MAD, floor) (C7 section 4.2).",
+      "minimum": 0,
+      "title": "Fault Mad Floor",
+      "type": "number"
+    },
+    "fault_mad_k": {
+      "default": 3.0,
+      "exclusiveMinimum": 0,
+      "title": "Fault Mad K",
+      "type": "number"
+    },
+    "forced_level": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HealthLevel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Test hook (CI-1); None in play."
+    },
+    "h1_ram_bytes": {
+      "default": 2147483648,
+      "exclusiveMinimum": 0,
+      "title": "H1 Ram Bytes",
+      "type": "integer"
+    },
+    "h2_parse_window_months": {
+      "default": 3,
+      "minimum": 0,
+      "title": "H2 Parse Window Months",
+      "type": "integer"
+    },
+    "h2_ram_bytes": {
+      "default": 1610612736,
+      "exclusiveMinimum": 0,
+      "title": "H2 Ram Bytes",
+      "type": "integer"
+    },
+    "h2_sustain_months_to_h3": {
+      "default": 6,
+      "minimum": 1,
+      "title": "H2 Sustain Months To H3",
+      "type": "integer"
+    },
+    "h3_emit_period": {
+      "default": 12,
+      "maximum": 12,
+      "minimum": 1,
+      "title": "H3 Emit Period",
+      "type": "integer"
+    },
+    "h3_ram_bytes": {
+      "default": 1073741824,
+      "exclusiveMinimum": 0,
+      "title": "H3 Ram Bytes",
+      "type": "integer"
+    },
+    "parse_min_age_s": {
+      "default": 8.0,
+      "minimum": 0,
+      "title": "Parse Min Age S",
+      "type": "number"
+    },
+    "parse_stable_s": {
+      "default": 2.0,
+      "minimum": 0,
+      "title": "Parse Stable S",
+      "type": "number"
+    },
+    "parse_timeout_s": {
+      "default": 60.0,
+      "exclusiveMinimum": 0,
+      "title": "Parse Timeout S",
+      "type": "number"
+    },
+    "pause_detection": {
+      "default": false,
+      "description": "Off until M1-P passes.",
+      "title": "Pause Detection",
+      "type": "boolean"
+    },
+    "paused_cpu_max_pct": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Game CPU % of one core at or below which it counts as paused (from M1-P).",
+      "title": "Paused Cpu Max Pct"
+    },
+    "paused_debounce_s": {
+      "default": 5.0,
+      "maximum": 6.0,
+      "minimum": 4.0,
+      "title": "Paused Debounce S",
+      "type": "number"
+    },
+    "poll_s": {
+      "default": 2.0,
+      "description": "Nothing polls faster than 2 s.",
+      "minimum": 2.0,
+      "title": "Poll S",
+      "type": "number"
+    },
+    "reach_within_s": {
+      "default": 10.0,
+      "description": "CI-3 / R-4 end-to-end bound.",
+      "exclusiveMinimum": 0,
+      "title": "Reach Within S",
+      "type": "number"
+    },
+    "spm_clear_ratio": {
+      "default": 1.05,
+      "exclusiveMinimum": 1.0,
+      "title": "Spm Clear Ratio",
+      "type": "number"
+    },
+    "spm_h1_ratio": {
+      "default": 1.1,
+      "exclusiveMinimum": 1.0,
+      "title": "Spm H1 Ratio",
+      "type": "number"
+    },
+    "spm_long_months": {
+      "default": 24,
+      "minimum": 2,
+      "title": "Spm Long Months",
+      "type": "integer"
+    },
+    "spm_min_months_between_escalations": {
+      "default": 6,
+      "minimum": 1,
+      "title": "Spm Min Months Between Escalations",
+      "type": "integer"
+    },
+    "spm_short_months": {
+      "default": 6,
+      "minimum": 1,
+      "title": "Spm Short Months",
+      "type": "integer"
+    },
+    "spm_step_reset": {
+      "default": 0.4,
+      "description": "Month-to-month jump treated as a speed change.",
+      "exclusiveMinimum": 0,
+      "title": "Spm Step Reset",
+      "type": "number"
+    },
+    "worker_mem_cap_bytes": {
+      "default": 1073741824,
+      "exclusiveMinimum": 0,
+      "title": "Worker Mem Cap Bytes",
+      "type": "integer"
+    },
+    "worker_mem_cap_closed_bytes": {
+      "default": 2147483648,
+      "exclusiveMinimum": 0,
+      "title": "Worker Mem Cap Closed Bytes",
+      "type": "integer"
+    }
+  },
+  "title": "GovernorConfig",
+  "type": "object"
+}

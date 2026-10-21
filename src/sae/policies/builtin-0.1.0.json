@@ -1,0 +1,160 @@
+{
+ "created_at": "2026-10-19T00:00:00Z",
+ "detector": {
+  "belief_threshold": 0.45,
+  "likelihood": {
+   "border": {
+    "balanced": [
+     0.35,
+     0.25
+    ],
+    "early_aggression": [
+     0.5,
+     0.25
+    ],
+    "tech_rush": [
+     0.1,
+     0.2
+    ],
+    "turtle": [
+     0.85,
+     0.25
+    ]
+   },
+   "expansion": {
+    "balanced": [
+     1.8,
+     0.9
+    ],
+    "early_aggression": [
+     3.0,
+     1.5
+    ],
+    "tech_rush": [
+     1.2,
+     0.7
+    ],
+    "turtle": [
+     0.5,
+     0.6
+    ]
+   },
+   "fleet": {
+    "balanced": [
+     0.1,
+     0.2,
+     0.4,
+     0.2,
+     0.1
+    ],
+    "early_aggression": [
+     0.02,
+     0.05,
+     0.13,
+     0.3,
+     0.5
+    ],
+    "tech_rush": [
+     0.3,
+     0.35,
+     0.25,
+     0.07,
+     0.03
+    ],
+    "turtle": [
+     0.05,
+     0.15,
+     0.5,
+     0.2,
+     0.1
+    ]
+   },
+   "tech": {
+    "balanced": [
+     0.1,
+     0.2,
+     0.4,
+     0.2,
+     0.1
+    ],
+    "early_aggression": [
+     0.1,
+     0.25,
+     0.4,
+     0.15,
+     0.1
+    ],
+    "tech_rush": [
+     0.02,
+     0.05,
+     0.13,
+     0.3,
+     0.5
+    ],
+    "turtle": [
+     0.05,
+     0.15,
+     0.5,
+     0.2,
+     0.1
+    ]
+   },
+   "war_now": {
+    "balanced": 0.15,
+    "early_aggression": 0.65,
+    "tech_rush": 0.1,
+    "turtle": 0.1
+   }
+  },
+  "likelihood_clip": 3.0,
+  "rho": 0.02
+ },
+ "fixed": {
+  "counter_table": {
+   "balanced": "baseline",
+   "early_aggression": "hold_counterpunch",
+   "tech_rush": "early_punish",
+   "turtle": "outscale_siege"
+  },
+  "outcome_weights": {
+   "d_alloys_income": 0.01,
+   "d_fleet_share": 1.0,
+   "d_systems_owned": 0.1
+  },
+  "templates": {
+   "baseline": {
+    "econ": "balanced",
+    "posture": "deterrent",
+    "reason_key": "baseline"
+   },
+   "early_punish": {
+    "econ": "military",
+    "posture": "offensive",
+    "reason_key": "tech_rush_punish"
+   },
+   "hold_counterpunch": {
+    "econ": "military",
+    "posture": "defensive",
+    "reason_key": "aggression_hold"
+   },
+   "outscale_siege": {
+    "econ": "military",
+    "posture": "offensive",
+    "reason_key": "turtle_siege"
+   }
+  }
+ },
+ "game_version_pin": "v4.4.*",
+ "notes": null,
+ "parent_sha256": null,
+ "schema_version": 1,
+ "tuning": {
+  "campaign_ids": [],
+  "kappa": null,
+  "likelihood_source": "synth_aligned",
+  "method": "builtin",
+  "synth_seeds": [],
+  "tuner_version": "none"
+ },
+ "version": "0.1.0"
+}

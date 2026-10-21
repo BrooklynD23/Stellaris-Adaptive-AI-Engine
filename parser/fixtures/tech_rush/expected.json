@@ -1,0 +1,105 @@
+{
+ "countries": [
+  {
+   "country_id": 0,
+   "is_player": true,
+   "managed": false,
+   "name": "Tech Republic",
+   "sid": 1
+  },
+  {
+   "country_id": 5,
+   "is_player": false,
+   "managed": true,
+   "name": "Slow Hegemony",
+   "sid": 2
+  },
+  {
+   "country_id": 6,
+   "is_player": false,
+   "managed": true,
+   "name": "Mid Combine",
+   "sid": 3
+  }
+ ],
+ "god": {
+  "alloys_income": 20.0,
+  "fleet_power": 3000.0,
+  "fortified_starbases": 1,
+  "systems_owned": 3,
+  "tech_researched": 120
+ },
+ "legal": [
+  {
+   "at_war_with_observer": false,
+   "economy_cat": 0,
+   "fleet_power_cat": 0,
+   "fortified_border_starbases": 1,
+   "frontier_systems": 1,
+   "in_contact": true,
+   "observer_sid": 2,
+   "player_war_count": 0,
+   "systems_owned": 3,
+   "tech_cat": 2
+  },
+  {
+   "at_war_with_observer": false,
+   "economy_cat": 2,
+   "fleet_power_cat": -1,
+   "fortified_border_starbases": 1,
+   "frontier_systems": 1,
+   "in_contact": true,
+   "observer_sid": 3,
+   "player_war_count": 0,
+   "systems_owned": 3,
+   "tech_cat": 0
+  }
+ ],
+ "meta": {
+  "date": "2240.06.01",
+  "game_version": "Cepheus v4.4.4",
+  "ironman": false
+ },
+ "schema_version": 1,
+ "sections": [
+  "meta",
+  "countries",
+  "starbases",
+  "fleets",
+  "wars",
+  "tech"
+ ],
+ "self_state": {
+  "2": {
+   "alloys": 50.0,
+   "alloys_income": 20.0,
+   "applied_econ": 2,
+   "applied_mil": 1,
+   "applied_seq": 4,
+   "energy": 200.0,
+   "fleet_power": 3000.0,
+   "minerals": 300.0,
+   "naval_cap": 80.0,
+   "naval_cap_used": 40.0,
+   "pending_seq": 5,
+   "systems_owned": 2,
+   "wars": 0
+  },
+  "3": {
+   "alloys": 10.0,
+   "alloys_income": 5.0,
+   "applied_econ": 0,
+   "applied_mil": 0,
+   "applied_seq": 0,
+   "energy": -15.5,
+   "fleet_power": 6000.0,
+   "minerals": 100.0,
+   "naval_cap": 120.0,
+   "naval_cap_used": 90.0,
+   "pending_seq": 0,
+   "systems_owned": 1,
+   "wars": 0
+  }
+ },
+ "status": "ok"
+}
