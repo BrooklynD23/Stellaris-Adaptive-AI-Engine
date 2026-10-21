@@ -168,7 +168,7 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
 - Depends on: C5, C8, C9. Feeds: T4, T7, Wave 2 `.rrd` output.
 - Backlog: FastAPI/SPA console only when Rerun blocks; Parquet compaction only if bus size demands.
 
-## T7 — QA, CI and bench (`tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**`)
+## T7 — QA, CI and bench (`tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**`, `tests/game/**`, `tools/game/**`, `tests/conftest.py`)
 
 - Deliverables: CI-1 (forced H0 vs H2 replay: switches in the same window ≥ 90 %), CI-2 (only if the
   opportunistic queue exists; else documented as not applicable in MVP), CI-3 harness with T5,
@@ -226,13 +226,15 @@ to the synth generator's own profiles, so synth runs only show that the engine a
 These tests replace that with evidence from real play. None can run on this machine (Stellaris not
 installed); each needs the maintainer's saves or the game. Added on the maintainer's request.
 
+Game-dependent tests (rule 2026-10-20) are built now and run on the game PC: see `docs/handoff/GAME_PC_AGENT.md` and `docs/handoff/deferred/*.md`. Each is skipped with a reason unless its `SAE_GAME_*` inputs are supplied.
+
 | ID | Test | Pass criterion | Needs | Owner | Milestone |
 |---|---|---|---|---|---|
 | V-1 | Calibrate on real campaigns: hand-label 5 real campaigns with the player's archetype; fit likelihoods with leave-one-campaign-out | Expected calibration error (ECE) ≤ 0.10 on each held-out campaign; correct counter chosen on ≥ 4 of 5 | 5 labelled real campaigns (saves + logs), label manifest (seam S4) | T4 + T9 | M2 |
 | V-2 | Knob A/B in game: does an applied econ plan change AI behaviour? | Fleet power B/A ≥ 1.3 after 15 years (already M0-8 in `docs/m0_checklist.md`) | the game, M0 weekend | maintainer, T8 kit | M0 |
-| V-3 | Adaptation has signal, not noise: long runs must show real strategy switches and a reward spread | On recorded real or replayed campaigns: > 1 switch where the player changes style; rewards not all within ±0.02 (a 200-year synth run gave 1 switch, 3 batches, 99 rewards within ±0.02) | V-1 data or real recordings | T4 + T7 | M2 |
+| V-3 | Adaptation has signal, not noise: long runs must show real strategy switches and a reward spread | On recorded real or replayed campaigns: > 1 switch where the player changes style; rewards not all within ±0.02 (a 200-year synth run gave 1 switch, 3 batches, 99 rewards within ±0.02) | V-1 data or real recordings | T4 + T7 | M2; real-data harness: X3-G9/X3-G11 (tests/game/test_recording.py) |
 | V-4 | Turtle vs builder counters really differ (decision D-V4 in the T4 section: distinct template if M0-7 passes, else collapse the table to 3 counters) | `outscale_siege` and `early_punish` produce measurably different AI behaviour once the hull mix returns; if M0-7 fails, V-4 closes by the collapse recorded in `contracts/CHANGES.md` | M0-7 result (A-22) | T4 + T1; decision architect + maintainer | at the M0-7 result |
-| V-5 | Fog-perturbation test on real saves: hide one god-only field and confirm beliefs don't move | Belief change = 0 for every god-only perturbation | `ReplayAdapter(parser=...)` seam, real recordings | T9 + T7 | M2 (X1: F1's PLYR leg now runs on synth in CI, `tests/e2e/test_fog.py::test_f1_plyr_leg_reaches_god_bus`; real recordings still M2) |
+| V-5 | Fog-perturbation test on real saves: hide one god-only field and confirm beliefs don't move | Belief change = 0 for every god-only perturbation | `ReplayAdapter(parser=...)` seam, real recordings | T9 + T7 | M2 (X1: F1's PLYR leg now runs on synth in CI, `tests/e2e/test_fog.py::test_f1_plyr_leg_reaches_god_bus`; real recordings still M2; real-data harness: X3-G9/X3-G11 (tests/game/test_recording.py)) |
 
 The runtime still ships only validated, versioned policies approved by a human; no test here turns on
 runtime self-modification.
