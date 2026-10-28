@@ -26,6 +26,7 @@ def _need(name: str, why: str) -> str:
     return value
 
 
+@pytest.mark.game(id="X4-G3")
 def test_stage1_then_stage2_on_real_campaigns(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     src = _need("SAE_GAME_SAE_DIR", "set SAE_GAME_SAE_DIR (X4-G3; needs X4-G0 labelled campaigns)")
     sha = _need("SAE_GAME_CANDIDATE_SHA", "set SAE_GAME_CANDIDATE_SHA (X4-G3; a proposed, preregistered candidate)")

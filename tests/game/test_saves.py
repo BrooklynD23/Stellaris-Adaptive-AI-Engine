@@ -100,10 +100,13 @@ def test_roundtrip_vs_fixtures(parsed_saves: Parsed, record_property: Callable[[
     path, _, stdout = parsed_saves[0]
     real = {k: v for k, v in json.loads(stdout).items() if k not in {"cost", "save"}}
     missing = sorted(want - _paths(real))
-    # Lists in a real save may be empty (no managed AI): only list-contained paths may be absent then.
-    hard = [m for m in missing if "[]" not in m]
+    # Lists in a real save may be empty: list-contained paths may be absent. self_state is keyed by managed AI,
+    # so it is empty in a save made without sae_bridge; its element keys are soft only in that case.
+    no_managed = real.get("self_state") == {} and not any(c.get("managed") for c in real.get("countries", []))
+    hard = [m for m in missing if "[]" not in m and not (no_managed and m.startswith("self_state.*"))]
     assert not hard, f"{path.name}: fixture keys missing from real output: {', '.join(hard)}"
     msg = f"{len(missing)} list-element keys absent in {path.name}"
+    msg += " (self_state empty: no managed AI)" if no_managed else ""
     print(f"X3-G3 evidence: {msg}")
     record_property("X3-G3", msg)
 

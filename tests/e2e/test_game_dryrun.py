@@ -13,7 +13,14 @@ from e2e import _synth
 
 REPO = Path(__file__).resolve().parents[2]
 # G5 stays skipped: synth saves are quarterly (month gaps of 3), so the real cadence assert cannot pass on them.
-_ALLOWED_SKIP = (("X3-G6", "SAE_GAME_IRONMAN_SAVE"), ("X3-G5", "no autosave_"))
+# X4-G1..G3 need labelled live campaigns (X4-G0), which a synthetic campaign cannot supply.
+_ALLOWED_SKIP = (
+    ("X3-G6", "SAE_GAME_IRONMAN_SAVE"),
+    ("X3-G5", "no autosave_"),
+    ("X4-G1", "set SAE_GAME_SAE_DIR (X4-G"),
+    ("X4-G2", "set SAE_GAME_SAE_DIR (X4-G"),
+    ("X4-G3", "set SAE_GAME_SAE_DIR (X4-G"),
+)
 
 
 def _make_recording(log: Path, saves: Path, out: Path, exe: Path) -> None:

@@ -31,7 +31,7 @@ Nothing claims a game result. Two exceptions below.
 
 1. **`docs/status/T7.md` has four `<lead fills>` placeholders in "Gate commands".** A status doc with blanks reads as
    unverified work. Fix: replace with the lead's numbers: `tests/game -q`: 0 passed 12 skipped; mypy strict: 95 files
-   clean (also `--platform win32`); ruff: clean; full suite: 1252 passed / 15 skipped, TOTAL 96.68%.
+   clean (also `--platform win32`); ruff: clean; full suite (pre-X4-merge): 1252 passed / 15 skipped, TOTAL 96.68%; 2026-10-21 rerun: see follow-up.
 2. **X3-G5 body has never executed.** Synth saves are named `<offset>-<name>.sav` (`src/sae/adapters/replay.py:9`), so
    `test_autosave_cadence` skips with "no autosave_" and `tests/e2e/test_game_dryrun.py::_ALLOWED_SKIP` whitelists it.
    A typo there surfaces tomorrow with no time to fix. Fix: in the dry run, copy the synth saves into a second dir as
@@ -54,3 +54,7 @@ Nothing claims a game result. Two exceptions below.
 
 Bottom line: X3 adds no runtime code and keeps every game claim deferred with a command and a pass rule, so the four
 architecture axes stay ON TARGET. Close the three blanks-and-false-fail items above (about 20 lines total) and commit.
+
+## Follow-up (2026-10-21)
+
+Re-checked on 6f30a96 + uncommitted docs. Blocking 1 DONE (`T7.md` gate lines realigned; full-suite line filled from the 2026-10-21 rerun), 2 DONE via option B (`deferred/X3.md` G5; body statically sound; "traceback = harness bug" sentence added), 3 DONE (`test_log.py:50-57`, rule in `X3.md`). Suggestion 1 DONE (env-clear note in `GAME_PC_AGENT.md` section 3; exit codes verified empirically: replay/synth/ctl/profile -> 3 `extra_forbidden`, daemon expected (same `resolve_config` path); m0 -> 0; bench never loads C8 env). Suggestions 2-3 not done, non-blocking (G4 exit 6 narrows on game evidence; `game_recording` stderr). Axes unchanged: all four ON TARGET. Verdict: ACCEPT.

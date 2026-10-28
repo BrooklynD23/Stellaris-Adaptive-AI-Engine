@@ -30,6 +30,10 @@ $env:SAE_GAME_MAX_SAVES = "24"                              # optional cap, newe
 # optional: $env:SAE_GAME_RECORDING = "<ready replay dir>"
 ```
 
+Run `sae replay` / `sae synth` / `sae daemon` / `sae profile` / `sae ctl` by hand only after `Remove-Item Env:SAE_GAME_*`:
+they load C8 `env_layer` and exit 3 `extra_forbidden` on unknown `SAE_*` vars (verified for replay/synth/ctl/profile;
+`daemon` shares the same path, expected). `sae m0` and `sae bench` are safe.
+
 ## 4. Producing each input
 
 | Var | How |

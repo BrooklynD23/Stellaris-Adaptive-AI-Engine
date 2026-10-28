@@ -60,3 +60,7 @@ labelled "tripwire, not a significance test" in code and doc. Good.
 X4 scaffolds the tune/gate/policy loop without touching the runtime, keeps the sealed slot single-use and keeps
 every real-data number labelled unverified, so the architecture holds on all four axes. Three stale "pending" notes
 in the deferred doc are the only things standing between this wave and a clean commit.
+
+## Follow-up (2026-10-21)
+
+Re-checked on main as merged into feat/x3-game-test-harness (6f30a96). Must-fix 1 DONE (`deferred/X4.md:4,61`; residual "once they land" wording on line 5 is cosmetic), 2 DONE (`X4.md:72` lists `SAE_GAME_RUNS_DIR`, matches `test_gate_game.py:34`), 3 DONE (`X4.md:9` prefix matches both tests). "Later" items not re-audited. No change to the ACCEPT verdict.
