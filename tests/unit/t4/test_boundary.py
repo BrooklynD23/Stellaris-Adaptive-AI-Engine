@@ -24,7 +24,8 @@ ALLOWED_THIRD_PARTY = frozenset({
     "psutil", "numpy",
 })
 # Interpreter/environment artefacts, not imports of ours.
-ENV_NOISE = frozenset({"__main__", "sitecustomize", "usercustomize"})
+# _virtualenv: venv bootstrap loaded from _virtualenv.pth by uv/virtualenv venvs, not a project import.
+ENV_NOISE = frozenset({"__main__", "_virtualenv", "sitecustomize", "usercustomize"})
 
 _PROBE = """
 import importlib, sys

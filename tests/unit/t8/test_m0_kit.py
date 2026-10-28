@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import io
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -133,9 +134,11 @@ def test_starnet(tmp_path: Path) -> None:
 
 
 def _fake_parser(tmp_path: Path, payload: dict[str, object], code: int = 0) -> Path:
+    # A /bin/sh wrapper, not a python shebang: shebangs split on spaces and the repo path may contain one.
+    script = tmp_path / "fake_sae_parse.py"
+    script.write_text(f"import sys\nsys.stdout.write({json.dumps(json.dumps(payload))})\nsys.exit({code})\n")
     exe = tmp_path / "fake-sae-parse"
-    exe.write_text(f"#!{sys.executable}\nimport sys\nsys.stdout.write({json.dumps(json.dumps(payload))})\n"
-                   f"sys.exit({code})\n")
+    exe.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(script))} "$@"\n')
     exe.chmod(0o755)
     return exe
 
@@ -163,13 +166,14 @@ def test_parse_pass_and_ironman(tmp_path: Path, user_dir: Path) -> None:
 def test_parse_error_and_garbage(tmp_path: Path, user_dir: Path) -> None:
     save = next((user_dir / "save games" / "empire").iterdir())
     err = {"schema_version": 1, "status": "error", "parser_version": "0.1.0", "exit_code": 4,
-           "kind": "format", "message": "not a save"}
+           "error": "format", "detail": "not a save"}
     v = evidence.check_parse(_fake_parser(tmp_path, err, 4), save)
-    assert v.status == "fail"
+    assert v.status == "fail" and isinstance(v.evidence.get("error"), dict)
     garbage = tmp_path / "garbage"
-    garbage.write_text(f"#!{sys.executable}\nprint('nope')\n")
+    garbage.write_text("#!/bin/sh\necho nope\n")
     garbage.chmod(0o755)
-    assert evidence.check_parse(garbage, save).status == "fail"
+    g = evidence.check_parse(garbage, save)
+    assert g.status == "fail" and g.notes[0].startswith("invalid C4 output")
     assert evidence.check_parse(None, save).status == "inconclusive"
 
 

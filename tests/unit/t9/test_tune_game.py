@@ -37,6 +37,7 @@ def _tune_count(sae: Path) -> int:
     return len(ledger.labelled_campaigns(sae, PLAYER, sae / "runs", "tune", False))
 
 
+@pytest.mark.game(id="X4-G1")
 def test_x4_g1_v1_on_real_campaigns(real_sae: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """X4-G1: V-1 on the real tune campaigns (ECE <= 0.10 on each fold, counter right on >= 4 of 5)."""
     n = _tune_count(real_sae)
@@ -62,6 +63,7 @@ def test_x4_g1_v1_on_real_campaigns(real_sae: Path, capsys: pytest.CaptureFixtur
     # exit 0 already means ECE <= 0.10 on every fold and the counter right on >= 4 of 5 (see fit.loco/choose)
 
 
+@pytest.mark.game(id="X4-G2")
 def test_x4_g2_v3_block(real_sae: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """X4-G2: print the V-3 block (switches, reward spread) for the maintainer to record; never fails on values."""
     if (n := _tune_count(real_sae)) < 5:
