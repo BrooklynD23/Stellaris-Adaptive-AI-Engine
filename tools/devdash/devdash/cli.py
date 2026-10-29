@@ -1,12 +1,13 @@
 """Command-line interface for the dev dashboard. Stdlib-only, so hooks can run it under a bare ``python3``.
 
-Implemented now: ``emit``, ``enable``, ``disable``, ``task``, ``serve``, ``ensure`` and ``stop``. A later task adds
-``hook`` by registering more subparsers in :func:`_add_commands`. Each subcommand sets a ``handler`` default.
+Subcommands: ``emit``, ``enable``, ``disable``, ``task``, ``serve``, ``ensure``, ``stop`` and ``hook``. Each sets a
+``handler`` default in :func:`_add_commands`.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -138,6 +139,22 @@ def _cmd_stop(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_hook(args: argparse.Namespace) -> int:
+    """Run a Claude Code hook: JSON payload on stdin, text for the session on stdout. Always exits 0."""
+    from devdash import hooks
+
+    try:
+        loaded = json.loads(sys.stdin.read(1 << 20) or "null")
+        payload = loaded if isinstance(loaded, dict) else {}
+        out = hooks.handle(args.event, payload, dev_dir(), REPO)
+    except Exception as exc:  # hooks must never fail the tool call that triggered them
+        print(f"devdash: hook {args.event} failed: {exc}", file=sys.stderr)
+        return 0
+    if out:
+        print(out)
+    return 0
+
+
 def _add_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Register every subcommand on the parser's subparsers action."""
     emit = commands.add_parser("emit", help="append one event to the dev event log")
@@ -172,6 +189,10 @@ def _add_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser])
 
     stop = commands.add_parser("stop", help="stop the running dashboard server")
     stop.set_defaults(handler=_cmd_stop)
+
+    hook = commands.add_parser("hook", help="handle a Claude Code hook event (payload JSON on stdin; always exits 0)")
+    hook.add_argument("event", choices=("session-start", "pre-tool", "subagent-stop"), help="hook event")
+    hook.set_defaults(handler=_cmd_hook)
 
     disable = commands.add_parser("disable", help="switch the dev event log off (removes .sae-dev/enabled)")
     disable.set_defaults(handler=_cmd_disable)

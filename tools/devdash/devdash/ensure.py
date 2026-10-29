@@ -28,6 +28,8 @@ DEFAULT_PORT = 8765
 PORT_ENV = "SAE_DEVDASH_PORT"
 _HEALTH_TIMEOUT = 0.5
 _START_WAIT = 3.0
+_SPAWN_WAIT = 2.5
+_TERM_WAIT = 1.0
 _STOP_WAIT = 3.0
 
 
@@ -171,8 +173,8 @@ def ensure_running(repo: Path, dev: Path, port: int) -> str:
             stderr=log,
             start_new_session=True,
         )
-    deadline = time.monotonic() + _START_WAIT
-    while time.monotonic() < deadline:
+    deadline = time.monotonic() + _SPAWN_WAIT
+    while True:
         health = _health(port)
         if health is not None:
             info = _read_info(dev)
@@ -180,11 +182,17 @@ def ensure_running(repo: Path, dev: Path, port: int) -> str:
                 return url
             if proc.poll() is None and health["pid"] == proc.pid:
                 return url
+        if proc.poll() is not None or time.monotonic() >= deadline:
+            break  # exited early (after the final health check above), or out of time
         time.sleep(0.05)
     if proc.poll() is None:
         _terminate(proc.pid)
-        proc.wait(timeout=_STOP_WAIT)
-        raise RuntimeError(f"server did not answer on port {port} within {_START_WAIT:.0f} s; see {log_path}")
+        try:
+            proc.wait(timeout=_TERM_WAIT)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=_TERM_WAIT)
+        raise RuntimeError(f"server did not answer on port {port} within {_SPAWN_WAIT:.1f} s; see {log_path}")
     tail = _log_tail(log_path)
     if "in use" in tail.lower() or not _port_free(port):
         raise RuntimeError(f"port {port} in use")

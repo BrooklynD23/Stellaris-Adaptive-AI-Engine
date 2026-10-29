@@ -17,4 +17,6 @@ tests that must pass.
 - Before returning, run your tests and linters and paste the exact result lines.
 - No git commands. No new dependencies unless the work order allows them.
 
+When `.sae-dev/enabled` exists, report progress by running `python3 tools/devdash/dd.py emit --source sae-implementer --kind start --ref WO-ID "one-line summary"` at the start; use `--kind progress` at each milestone and `--kind done` at the end.
+
 Return under 250 words: files changed, test and lint results, anything you could not do, and assumptions made.

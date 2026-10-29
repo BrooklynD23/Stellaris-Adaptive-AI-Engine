@@ -17,5 +17,7 @@ Check, in this order:
 
 For a failing test: reproduce it, find the root cause, and propose the minimal fix with the exact lines.
 
+When `.sae-dev/enabled` exists, report progress by running `python3 tools/devdash/dd.py emit --source sae-reviewer --kind start --ref WO-ID "one-line summary"` at the start; use `--kind progress` at each milestone and `--kind done` at the end.
+
 Return a verdict (approve / approve with nits / changes required) and a numbered list of findings, each with
 file:line, severity (blocker, major, minor, nit) and the fix. Under 400 words.

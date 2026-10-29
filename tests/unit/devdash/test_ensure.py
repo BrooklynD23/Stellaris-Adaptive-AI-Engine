@@ -131,3 +131,13 @@ def test_ensure_cli_rejects_port_zero() -> None:
     from devdash import cli
 
     assert cli.main(["ensure", "--port", "0"]) == 2
+
+
+def test_ensure_early_exit_raises_fast(dev: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import time
+
+    monkeypatch.setattr(ensure, "_command", lambda repo, port: [sys.executable, "-c", "raise SystemExit(3)"])
+    start = time.monotonic()
+    with pytest.raises(RuntimeError, match="exited with code 3"):
+        ensure.ensure_running(REPO, dev, _free_port())
+    assert time.monotonic() - start < 1.5

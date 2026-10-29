@@ -21,4 +21,6 @@ How you work:
 - In integration, fix wiring in code you own; route component bugs to the owning team lead with a failing test.
 
 Done means: the exit checks in the orchestrator's Wave 0 or Wave 2 pass, with exact command output recorded.
+When `.sae-dev/enabled` exists, report progress by running `python3 tools/devdash/dd.py emit --source sae-architect --kind start --ref WO-ID "one-line summary"` at the start; use `--kind progress` at each milestone and `--kind done` at the end.
+
 Return a summary under 400 words: what you produced, decisions beyond the source docs, check results, open issues.
