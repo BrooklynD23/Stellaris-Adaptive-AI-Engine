@@ -1,6 +1,6 @@
 """Command-line interface for the dev dashboard. Stdlib-only, so hooks can run it under a bare ``python3``.
 
-Implemented now: ``emit``, ``enable``, ``disable`` and ``task``. Later tasks add ``serve``, ``ensure``, ``stop`` and
+Implemented now: ``emit``, ``enable``, ``disable``, ``task``, ``serve``, ``ensure`` and ``stop``. A later task adds
 ``hook`` by registering more subparsers in :func:`_add_commands`. Each subcommand sets a ``handler`` default.
 """
 
@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from devdash import REPO, dev_dir, events, tasks
+from devdash import REPO, dev_dir, ensure, events, tasks
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -91,6 +91,53 @@ def _cmd_task(args: argparse.Namespace) -> int:
     return 0
 
 
+def _port(text: str) -> int:
+    """argparse type: a TCP port in 0..65535 (0 = ephemeral, for tests)."""
+    try:
+        value = int(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected a port number, got {text!r}") from exc
+    if not 0 <= value <= 65535:
+        raise argparse.ArgumentTypeError(f"expected a port in 0..65535, got {value}")
+    return value
+
+
+def _real_port(text: str) -> int:
+    """argparse type: a TCP port in 1..65535."""
+    value = _port(text)
+    if value == 0:
+        raise argparse.ArgumentTypeError("expected a port in 1..65535")
+    return value
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    """Run the dashboard server in the foreground. Imported lazily: it needs the repo venv, hooks never load it."""
+    game_tools = str(REPO / "tools" / "game")  # the server imports the gate registry (tools/game/gates.py)
+    if game_tools not in sys.path:
+        sys.path.append(game_tools)
+    from devdash import server
+
+    port: int = ensure.default_port() if args.port is None else args.port
+    return server.run(REPO, dev_dir(), port)
+
+
+def _cmd_ensure(args: argparse.Namespace) -> int:
+    """Start the server if it is not running and print its URL. Exit 1 when the port is taken or startup fails."""
+    port: int = ensure.default_port() if args.port is None else args.port
+    try:
+        print(ensure.ensure_running(REPO, dev_dir(), port))
+    except RuntimeError as exc:
+        print(f"devdash: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_stop(_args: argparse.Namespace) -> int:
+    """Stop the running dashboard server. Exit 0 either way; the message says what happened."""
+    print("devdash: stopped" if ensure.stop(dev_dir()) else "devdash: no running server")
+    return 0
+
+
 def _add_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Register every subcommand on the parser's subparsers action."""
     emit = commands.add_parser("emit", help="append one event to the dev event log")
@@ -114,6 +161,17 @@ def _add_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser])
     task.add_argument("--blocked-on", default=None, dest="blocked_on", help="what the task waits for")
     task.add_argument("--file", default=None, help="board file (default: docs/dev/tasks.json; for tests)")
     task.set_defaults(handler=_cmd_task)
+
+    serve = commands.add_parser("serve", help="run the dashboard server in the foreground")
+    serve.add_argument("--port", type=_port, default=None, help="TCP port (default: $SAE_DEVDASH_PORT or 8765)")
+    serve.set_defaults(handler=_cmd_serve)
+
+    ens = commands.add_parser("ensure", help="start the dashboard server if needed and print its URL")
+    ens.add_argument("--port", type=_real_port, default=None, help="TCP port (default: $SAE_DEVDASH_PORT or 8765)")
+    ens.set_defaults(handler=_cmd_ensure)
+
+    stop = commands.add_parser("stop", help="stop the running dashboard server")
+    stop.set_defaults(handler=_cmd_stop)
 
     disable = commands.add_parser("disable", help="switch the dev event log off (removes .sae-dev/enabled)")
     disable.set_defaults(handler=_cmd_disable)
