@@ -16,3 +16,6 @@ m0_results/
 # Coverage data files (parallel mode writes .coverage.<host>.<pid>.*)
 .coverage
 .coverage.*
+
+# SAE dev dashboard state (event log, enabled flag, gate index); see docs/superpowers/specs
+.sae-dev*/
