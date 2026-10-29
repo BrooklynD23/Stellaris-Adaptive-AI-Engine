@@ -1,0 +1,4 @@
+{"parse": [{"label": "save-a", "wall_s": 1.25, "rss_bytes": 1000}, {"label": "save-b", "wall_s": 2.5, "rss_bytes": 2000}],
+ "budget_s": 3.0,
+ "impact": [{"label": "overhead", "value": "1.2%", "pct": 12}],
+ "run_dir": "run1"}
