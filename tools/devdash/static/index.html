@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="referrer" content="no-referrer">
+<meta name="sae-token" content="__SAE_TOKEN__">
+<title>SAE Dev Dashboard</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="shell">
+  <aside class="side" aria-label="Sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path></svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">SAE</span>
+        <span class="brand-sub">Adaptive Engine · dev</span>
+      </div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Views"></nav>
+    <section class="env" aria-labelledby="env-h">
+      <h2 class="eyebrow" id="env-h">Environment</h2>
+      <dl class="env-list" id="env"></dl>
+    </section>
+  </aside>
+
+  <div class="main-col">
+    <header class="top">
+      <div class="crumbs">
+        <span class="crumb-branch" id="branch">…</span>
+        <span class="crumb-sep" aria-hidden="true">/</span>
+        <h1 class="crumb-title" id="view-title">Overview</h1>
+      </div>
+      <div class="top-actions">
+        <span class="pill" id="conn" role="status" aria-live="polite">Connecting</span>
+        <span class="pill pill-warn" id="hooks-off" hidden>Event hooks off</span>
+        <span class="pill pill-warn" id="invalid" hidden></span>
+        <span class="host mono" id="host"></span>
+        <button type="button" class="btn btn-primary" id="copy-pipeline">Copy pipeline command</button>
+      </div>
+    </header>
+    <div class="restart" id="restart" role="alert" hidden>
+      <span>Server restarted. Reload this page so owner actions use the new token.</span>
+      <button type="button" class="btn btn-sm" id="reload">Reload</button>
+    </div>
+    <div class="copy-fallback" id="copy-fallback" hidden>
+      <label for="copy-fallback-text">Copy this command:</label>
+      <input id="copy-fallback-text" class="mono" type="text" readonly>
+    </div>
+
+    <main class="content" id="main" tabindex="-1">
+      <section class="banner" id="banner" aria-labelledby="banner-title" hidden>
+        <div class="banner-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        </div>
+        <div class="banner-body" id="banner-body"></div>
+        <div class="verdict-actions" id="banner-actions"></div>
+        <div class="banner-note" id="banner-note" role="status" aria-live="polite"></div>
+        <div class="banner-form" id="banner-form"></div>
+      </section>
+      <section class="kpis" id="kpis" aria-label="Summary"></section>
+      <div id="view-now" class="view" data-view="now"></div>
+      <div id="view-board" class="view" data-view="board" hidden></div>
+      <div id="view-gates" class="view" data-view="gates" hidden></div>
+      <div id="view-results" class="view" data-view="results" hidden></div>
+      <p class="foot" id="foot"></p>
+    </main>
+  </div>
+</div>
+</body>
+</html>
