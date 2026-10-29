@@ -1,0 +1,152 @@
+[
+  {
+    "id": "arch-review-x2",
+    "title": "Architecture review of X2",
+    "note": null,
+    "status": "pending",
+    "tag": "review",
+    "link": null,
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "devdash",
+    "title": "Dev dashboard and game-test pipeline",
+    "note": "See docs/plans for the design and plan.",
+    "status": "in_progress",
+    "tag": "devdash",
+    "link": null,
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "game-marker-stderr",
+    "title": "Game marker stderr handling",
+    "note": null,
+    "status": "pending",
+    "tag": "game-test",
+    "link": null,
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "ledger-is-live",
+    "title": "Ledger is live",
+    "note": null,
+    "status": "pending",
+    "tag": "devdash",
+    "link": null,
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "rust-coverage-ci",
+    "title": "Rust coverage in CI",
+    "note": null,
+    "status": "pending",
+    "tag": "ci",
+    "link": null,
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "sae-mvp",
+    "title": "SAE MVP: daemon, parser and bridge mod",
+    "note": null,
+    "status": "done",
+    "tag": "core",
+    "link": "https://github.com/BrooklynD23/Stellaris-Adaptive-AI-Engine/pull/1",
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "v1-calibration",
+    "title": "Calibrate on real campaigns (hand-label 5, leave-one-campaign-out)",
+    "note": null,
+    "status": "blocked",
+    "tag": "validation",
+    "link": null,
+    "blocked_on": "5 labelled real campaigns",
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "v2-knob-ab",
+    "title": "Knob A/B in game: does an applied econ plan change AI behaviour?",
+    "note": "Pass: fleet power B/A >= 1.3 after 15 years.",
+    "status": "blocked",
+    "tag": "validation",
+    "link": null,
+    "blocked_on": "the game, M0 weekend",
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "v3-adaptation-signal",
+    "title": "Adaptation has signal, not noise: long runs must show real strategy switches and a reward spread",
+    "note": null,
+    "status": "blocked",
+    "tag": "validation",
+    "link": null,
+    "blocked_on": "V-1 data or real recordings",
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "v4-turtle-builder",
+    "title": "Turtle vs builder counters really differ",
+    "note": "If M0-7 fails, close by collapsing the table to 3 counters.",
+    "status": "blocked",
+    "tag": "validation",
+    "link": null,
+    "blocked_on": "M0-7 result (A-22)",
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "v5-fog-real-saves",
+    "title": "Fog-perturbation test on real saves",
+    "note": null,
+    "status": "blocked",
+    "tag": "validation",
+    "link": null,
+    "blocked_on": "ReplayAdapter(parser=...) seam, real recordings",
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "x2-field-kit",
+    "title": "X2 field kit",
+    "note": null,
+    "status": "pending",
+    "tag": "game-test",
+    "link": "https://github.com/BrooklynD23/Stellaris-Adaptive-AI-Engine/pull/4",
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "x3-harness",
+    "title": "X3 game-test harness",
+    "note": "Merged as d011f78.",
+    "status": "done",
+    "tag": "game-test",
+    "link": "https://github.com/BrooklynD23/Stellaris-Adaptive-AI-Engine/pull/3",
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "x4-g0-live-campaigns",
+    "title": "X4 live campaign runs",
+    "note": null,
+    "status": "blocked",
+    "tag": "game-test",
+    "link": null,
+    "blocked_on": "later milestone",
+    "updated": "2026-10-28T00:00:00Z"
+  },
+  {
+    "id": "x4-scaffold",
+    "title": "X4 game-test scaffold",
+    "note": null,
+    "status": "done",
+    "tag": "game-test",
+    "link": "https://github.com/BrooklynD23/Stellaris-Adaptive-AI-Engine/pull/2",
+    "blocked_on": null,
+    "updated": "2026-10-28T00:00:00Z"
+  }
+]

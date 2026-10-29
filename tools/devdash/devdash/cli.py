@@ -1,6 +1,6 @@
 """Command-line interface for the dev dashboard. Stdlib-only, so hooks can run it under a bare ``python3``.
 
-Implemented now: ``emit``, ``enable`` and ``disable``. Later tasks add ``task``, ``serve``, ``ensure``, ``stop`` and
+Implemented now: ``emit``, ``enable``, ``disable`` and ``task``. Later tasks add ``serve``, ``ensure``, ``stop`` and
 ``hook`` by registering more subparsers in :func:`_add_commands`. Each subcommand sets a ``handler`` default.
 """
 
@@ -9,8 +9,9 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
-from devdash import dev_dir, events
+from devdash import REPO, dev_dir, events, tasks
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -69,6 +70,27 @@ def _cmd_disable(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_task(args: argparse.Namespace) -> int:
+    """Create or update a task in the board file, then emit an event (a no-op when the dashboard is disabled)."""
+    path = Path(args.file) if args.file else tasks.tasks_file(REPO)
+    try:
+        task = tasks.set_task(
+            path,
+            args.id,
+            status=args.status,
+            title=args.title,
+            note=args.note,
+            tag=args.tag,
+            link=args.link,
+            blocked_on=args.blocked_on,
+        )
+    except (ValueError, OSError) as exc:
+        print(f"devdash: {exc}", file=sys.stderr)
+        return 1
+    events.emit("orchestrator", "info", f"task {args.id} \u2192 {task['status']}", ref=args.id)
+    return 0
+
+
 def _add_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Register every subcommand on the parser's subparsers action."""
     emit = commands.add_parser("emit", help="append one event to the dev event log")
@@ -81,6 +103,17 @@ def _add_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser])
 
     enable = commands.add_parser("enable", help="switch the dev event log on (creates .sae-dev/enabled)")
     enable.set_defaults(handler=_cmd_enable)
+
+    task = commands.add_parser("task", help="create or update a task on the board (docs/dev/tasks.json)")
+    task.add_argument("id", type=_nonempty, help="task id (lowercase-hyphen)")
+    task.add_argument("--status", default=None, choices=tasks.STATUSES, help="task status (required to create)")
+    task.add_argument("--title", default=None, type=_nonempty, help="task title (required to create)")
+    task.add_argument("--note", default=None, help="free-text note")
+    task.add_argument("--tag", default=None, help="grouping tag")
+    task.add_argument("--link", default=None, help="URL, for example a pull request")
+    task.add_argument("--blocked-on", default=None, dest="blocked_on", help="what the task waits for")
+    task.add_argument("--file", default=None, help="board file (default: docs/dev/tasks.json; for tests)")
+    task.set_defaults(handler=_cmd_task)
 
     disable = commands.add_parser("disable", help="switch the dev event log off (removes .sae-dev/enabled)")
     disable.set_defaults(handler=_cmd_disable)
