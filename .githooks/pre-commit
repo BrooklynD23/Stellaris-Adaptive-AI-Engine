@@ -26,8 +26,20 @@ echo "pre-commit: ruff" >&2
 uv run ruff check || fail "ruff check"
 echo "pre-commit: mypy --strict src/sae" >&2
 uv run mypy --strict src/sae || fail "mypy --strict src/sae"
-echo "pre-commit: pytest (full suite, about 5 min)" >&2
-uv run pytest -q -p no:cacheprovider || fail "pytest"
+# Outer bound so a stalled disk or hung test cannot block a commit for hours. timeout wraps pytest itself (not uv,
+# which leaves pytest running when killed); --kill-after because a test installs a SIGTERM handler.
+# Override: SAE_PYTEST_TIMEOUT=<seconds>.
+pytest_limit="${SAE_PYTEST_TIMEOUT:-1800}"
+case "$pytest_limit" in ''|*[!0-9]*|0) fail "SAE_PYTEST_TIMEOUT must be a positive integer of seconds";; esac
+# Windows ships an unrelated timeout.exe; require GNU coreutils timeout on uv's PATH.
+uv run timeout --version 2>/dev/null | grep -q GNU || fail "GNU timeout not found on uv's PATH"
+echo "pre-commit: pytest (full suite, about 10-15 min, limit ${pytest_limit}s)" >&2
+rc=0
+uv run timeout --kill-after=30 "$pytest_limit" pytest -q -p no:cacheprovider || rc=$?
+if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+  fail "pytest timed out or was killed (rc=$rc, limit ${pytest_limit}s) - check disk I/O (cat /proc/pressure/io); retry with TMPDIR=/dev/shm/sae-tmp"
+fi
+[ "$rc" -eq 0 ] || fail "pytest"
 
 # 3. Mod static check when the mod changed.
 if echo "$staged" | grep -q '^mod/sae_bridge/'; then
