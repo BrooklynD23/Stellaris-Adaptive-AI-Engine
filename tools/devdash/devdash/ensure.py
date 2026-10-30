@@ -117,23 +117,26 @@ def _command(repo: Path, port: int) -> list[str]:
     return [*prefix, script, "serve", "--port", str(port)]
 
 
-def _log_tail(path: Path) -> str:
+def _log_tail(path: Path, offset: int = 0) -> str:
+    """Return the last 400 characters of ``path`` written after byte ``offset`` ("" when unreadable)."""
     try:
-        return path.read_text(encoding="utf-8", errors="replace")[-400:].strip()
+        with path.open("rb") as fh:
+            fh.seek(offset)
+            return fh.read().decode("utf-8", errors="replace")[-400:].strip()
     except OSError:
         return ""
 
 
-def _await_devdash(dev: Path, port: int) -> None:
+def _await_devdash(dev: Path, port: int, wait: float = _START_WAIT) -> None:
     """Poll until a healthy devdash whose pid matches ``server.json`` answers on ``port``, else raise.
 
-    Raises ``RuntimeError("port <n> in use")`` when none appears within the start wait.
+    Raises ``RuntimeError("port <n> in use")`` when none appears within ``wait`` seconds.
     """
-    deadline = time.monotonic() + _START_WAIT
+    deadline = time.monotonic() + wait
     while True:
         health = _health(port)
         info = _read_info(dev)
-        if health is not None and info is not None and info["pid"] == health["pid"]:
+        if health is not None and info is not None and info["pid"] == health["pid"] and _alive(info["pid"]):
             return
         if time.monotonic() >= deadline:
             raise RuntimeError(f"port {port} in use")
@@ -164,6 +167,7 @@ def ensure_running(repo: Path, dev: Path, port: int) -> str:
     log_path = dev / "server.log"
     env = dict(os.environ, SAE_DEVDASH_DIR=str(dev))
     with log_path.open("ab") as log:
+        log_offset = log.tell()  # append mode opens at the end: only this spawn's lines are read later
         proc = subprocess.Popen(
             _command(repo, port),
             cwd=repo,
@@ -193,9 +197,12 @@ def ensure_running(repo: Path, dev: Path, port: int) -> str:
             proc.kill()
             proc.wait(timeout=_TERM_WAIT)
         raise RuntimeError(f"server did not answer on port {port} within {_SPAWN_WAIT:.1f} s; see {log_path}")
-    tail = _log_tail(log_path)
+    tail = _log_tail(log_path, log_offset)
     if "in use" in tail.lower() or not _port_free(port):
-        raise RuntimeError(f"port {port} in use")
+        # Our spawn lost the bind to a concurrent starter whose server may not answer health yet: wait for it
+        # (raises ``port <n> in use`` when nothing healthy appears, e.g. a foreign listener).
+        _await_devdash(dev, port, max(0.3, deadline + 1.5 - time.monotonic()))
+        return url
     raise RuntimeError(f"server exited with code {proc.returncode}; {log_path}: {tail}")
 
 

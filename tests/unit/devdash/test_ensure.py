@@ -11,6 +11,7 @@ import signal
 import socket
 import subprocess
 import sys
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -122,8 +123,17 @@ def test_ensure_concurrent_single_instance(dev: Path, cleanup: None) -> None:
             t.join(30)
         assert results == [f"http://127.0.0.1:{port}/"] * 2
         info = json.loads((dev / "server.json").read_text(encoding="utf-8"))
-        out = subprocess.run(["pgrep", "-f", f"[d]d.py serve --port {port}"], capture_output=True, text=True)
-        assert len(out.stdout.split()) == 1 and int(out.stdout) == info["pid"]
+        # Both callers may spawn; the loser fails to bind and exits shortly after (slower under disk stalls), so wait
+        # for it to go: exactly the recorded server must remain.
+        pids: list[str] = []
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            out = subprocess.run(["pgrep", "-f", f"[d]d.py serve --port {port}"], capture_output=True, text=True)
+            pids = out.stdout.split()
+            if len(pids) <= 1:
+                break
+            time.sleep(0.05)
+        assert pids == [str(info["pid"])]
         assert ensure.stop(dev) is True
 
 
@@ -141,3 +151,25 @@ def test_ensure_early_exit_raises_fast(dev: Path, monkeypatch: pytest.MonkeyPatc
     with pytest.raises(RuntimeError, match="exited with code 3"):
         ensure.ensure_running(REPO, dev, _free_port())
     assert time.monotonic() - start < 1.5
+
+
+def test_ensure_lost_bind_waits_bounded(dev: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A spawn that exits with "port in use?" on a free port waits for a concurrent winner, then raises within ~4 s."""
+    dev.mkdir(parents=True, exist_ok=True)
+    (dev / "server.log").write_text("old line: port in use?\n", encoding="utf-8")
+    code = "import sys; print('cannot start (port in use?)'); sys.exit(1)"
+    monkeypatch.setattr(ensure, "_command", lambda repo, port: [sys.executable, "-c", code])
+    port = _free_port()
+    start = time.monotonic()
+    with pytest.raises(RuntimeError, match=f"port {port} in use"):
+        ensure.ensure_running(REPO, dev, port)
+    assert time.monotonic() - start < 4.5
+
+
+def test_ensure_stale_log_in_use_ignored(dev: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An old "in use" line in the append-only log must not be mistaken for this spawn's failure."""
+    dev.mkdir(parents=True, exist_ok=True)
+    (dev / "server.log").write_text("old line: port in use?\n", encoding="utf-8")
+    monkeypatch.setattr(ensure, "_command", lambda repo, port: [sys.executable, "-c", "raise SystemExit(3)"])
+    with pytest.raises(RuntimeError, match="exited with code 3"):
+        ensure.ensure_running(REPO, dev, _free_port())
