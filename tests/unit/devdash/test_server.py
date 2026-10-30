@@ -456,6 +456,11 @@ def test_idle_exit_with_injected_clock(make_live: Callable[..., Live], tmp_path:
 
 
 def test_hub_rotation_keeps_events(live: Live) -> None:
+    # The fixture's background poller (50 ms) would otherwise rotate the oversized file before the explicit
+    # poll_once() below, leaving it nothing to rotate. Stop it so the test alone drives polling and rotation.
+    live.srv.hub.stopping.set()
+    live.srv.poller.join(5)  # type: ignore[attr-defined]
+    assert not live.srv.poller.is_alive()  # type: ignore[attr-defined]
     path = ev.events_path(live.dev, "wsl")
     path.parent.mkdir(parents=True, exist_ok=True)
     pad = json.dumps(ev.make_event("t", "info", "p" * 150, now=datetime(2026, 1, 1, tzinfo=UTC)), separators=(",", ":"))
