@@ -65,6 +65,8 @@ def test_parse_cost_budget(parsed_saves: Parsed, record_property: Callable[[str,
     """wall_s <= 3.0 and rss within the governor worker cap on every save (UNVERIFIED A-24)."""
     cap = GovernorConfig().worker_mem_cap_bytes
     results = _results(parsed_saves)
+    costs = [{"save": name, "wall_s": res.cost.wall_s, "rss_bytes": res.cost.rss_peak_bytes} for name, res in results]
+    record_property("parse_costs", json.dumps(costs))  # before the asserts: the evidence exists when the budget fails
     for name, res in results:
         assert res.cost.wall_s <= 3.0, f"{name}: cost.wall_s {res.cost.wall_s:.2f} > 3.0"
         assert res.cost.rss_peak_bytes <= cap, f"{name}: cost.rss_peak_bytes {res.cost.rss_peak_bytes} > {cap}"
