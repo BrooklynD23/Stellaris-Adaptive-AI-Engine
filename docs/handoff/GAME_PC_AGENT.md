@@ -84,3 +84,11 @@ write their files in parallel with this one. Generic row for those ids in the re
 
 Fill `docs/handoff/GAME_PC_RESULTS_TEMPLATE.md` (copy it to `$out\results.md`), mark every un-run entry
 "not run" with a reason, and report failures with exit code and `summary.md` line.
+
+## 10. Pipeline (optional)
+
+`tools/game/pipeline.py` runs the gates above in order and reports to the dev dashboard
+(`tools/devdash/README.md`). Always dry run first: `uv run python tools/game/pipeline.py --dry-run`. It runs under
+WSL Python and copies saves and logs from the Windows side; gates that only mean something on Windows (X3-G4,
+R-5) report "setup needed: Windows uv" (later "setup needed: Windows-side runner (not built)") and are skipped under WSL, so run those by hand per this runbook. Game
+behaviour it observes is UNVERIFIED until M0 proves it.

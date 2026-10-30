@@ -37,7 +37,7 @@ echo "pre-commit: pytest (full suite, about 10-15 min, limit ${pytest_limit}s)" 
 rc=0
 uv run timeout --kill-after=30 "$pytest_limit" pytest -q -p no:cacheprovider || rc=$?
 if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
-  fail "pytest timed out or was killed (rc=$rc, limit ${pytest_limit}s) - check disk I/O (cat /proc/pressure/io); retry with TMPDIR=/dev/shm/sae-tmp"
+  fail "pytest timed out or was killed (rc=$rc, limit ${pytest_limit}s) - check disk I/O (cat /proc/pressure/io); retry with: mkdir -p /dev/shm/sae-tmp && TMPDIR=/dev/shm/sae-tmp git commit"
 fi
 [ "$rc" -eq 0 ] || fail "pytest"
 

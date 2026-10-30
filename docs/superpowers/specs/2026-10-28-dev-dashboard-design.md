@@ -92,7 +92,7 @@ result files (junit, m0_results/, bench CSVs,   │       stdlib ThreadingHTTPSe
   `{"v":1,"ts":"<RFC3339>","source":"<pipeline|orchestrator|<agent name>|stellaris|ci|hook>","kind":"<info|start|progress|pass|fail|skip|owner|done>","ref":"<task or gate id, optional>","msg":"<one line, ≤200 chars>","pct":<0-100, optional>,"session":"<claude session id, optional>"}`.
 - Writers append with a single `write` of one line (O_APPEND), so concurrent writers do not interleave lines. The
   reader skips invalid or truncated lines and counts them, like the bus reader.
-- Rotation: when the file passes 20 MB, roll it to `events.<n>.jsonl`. The server reads only the current file
+- Rotation: when the file passes 5 MiB, roll it to `events.<n>.jsonl`. The server reads only the current file
   plus whatever the last 24 hours need.
 - Redaction: replace home directories with `<HOME>` before writing, the same rule as `run_deferred.py`.
 

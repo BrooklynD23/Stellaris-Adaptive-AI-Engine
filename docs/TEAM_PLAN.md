@@ -168,7 +168,7 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
 - Depends on: C5, C8, C9. Feeds: T4, T7, Wave 2 `.rrd` output.
 - Backlog: FastAPI/SPA console only when Rerun blocks; Parquet compaction only if bus size demands.
 
-## T7 — QA, CI and bench (`tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**`, `tests/game/**`, `tools/game/**`, `tests/conftest.py`)
+## T7 — QA, CI and bench (`tests/integration/**`, `tests/e2e/**`, `.github/workflows/**`, `bench/**`, `src/sae/bench/**`, `tests/game/**`, `tools/game/**`, `tests/conftest.py`, `tools/devdash/**`, `.claude/**`, `.githooks/**`)
 
 - Deliverables: CI-1 (forced H0 vs H2 replay: switches in the same window ≥ 90 %), CI-2 (only if the
   opportunistic queue exists; else documented as not applicable in MVP), CI-3 harness with T5,
@@ -181,7 +181,7 @@ daemon loop and T7's e2e harness are the last to integrate (Wave 2).
 - Depends on: every contract; integrates every team. Feeds: Wave 2 and 3.
 - Backlog: M4 paired A/B harness on a second machine. (Windows CI leg for Python: done 2026-10-20, required check on `main`.)
 
-## T8 — Release, docs, M0 kit (`docs/**` except this file, `README.md`, `CHANGELOG.md`, `changelog.d/**`, `packaging/**`, `tools/m0/**`, `src/sae/m0/**`)
+## T8 — Release, docs, M0 kit (`docs/**` (incl. `docs/dev/**`) except this file, `README.md`, `CHANGELOG.md`, `changelog.d/**`, `packaging/**`, `tools/m0/**`, `src/sae/m0/**`)
 
 - Deliverables: user and developer docs (honest pitch: "a strategic director that reshapes the AI's
   economy and posture", the influence ceiling; fleet doctrine only after M0-7); the M0 spike kit — `tools/m0/` scripts

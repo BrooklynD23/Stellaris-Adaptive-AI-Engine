@@ -77,6 +77,15 @@ corrupt a shared `.coverage`. `.coverage` and `.coverage.*` are git-ignored.
 Windows-only code sits behind platform checks, is mocked in tests and is labelled "not executed in CI on this
 machine". Tests are deterministic and seeded.
 
+**Pre-commit time limit.** `.githooks/pre-commit` bounds the full pytest run with GNU `timeout`: 1800 s by default,
+`SAE_PYTEST_TIMEOUT` overrides it. On a WSL disk I/O stall (`cat /proc/pressure/io` shows high pressure) commit with
+`mkdir -p /dev/shm/sae-tmp && TMPDIR=/dev/shm/sae-tmp git commit ...` so pytest's temporary files avoid the disk
+(Python silently falls back to `/tmp` when the `TMPDIR` directory is missing, hence the `mkdir`).
+
+**Dev dashboard.** Opt-in dev tooling (event log, task board, game-test gate status, Claude Code hooks) lives in
+`tools/devdash/` and `tools/game/`; `src/sae` never imports it. See [`tools/devdash/README.md`](../tools/devdash/README.md).
+Its mypy check: `MYPYPATH=tools/devdash:tools/game uv run mypy --strict tools/devdash tools/game/gates.py tools/game/pipeline.py`.
+
 ## 5. UNVERIFIED assumptions
 
 Every Stellaris script, console or save assumption carries an id from `contracts/README.md` §5 (A-01..A-42) and

@@ -24,7 +24,7 @@ Visual reference: https://claude.ai/artifact/UPdDTUuQ95wzrqt3iH5djk
 - Read the legal bus `bus.jsonl` only, never `bus.god.jsonl`; never serve raw saves, logs or recordings (§4).
 - Never set or read the game's process priority or affinity; never kill the game (settled decision).
 - A gate is shown passed only when a result file says so; missing data renders as "No data", never a number (§4).
-- Event `msg` ≤ 200 chars, home directory replaced by `<HOME>` (§6.1). Event log rolls over at 20 MB.
+- Event `msg` ≤ 200 chars, home directory replaced by `<HOME>` (§6.1). Event log rolls over at 5 MiB.
 - Hooks are no-ops unless `.sae-dev/enabled` exists, return within 100 ms, always exit 0 (D12, §6.2).
 - Hooks log `tool_input.description` for Bash, never `tool_input.command` (D5).
 - Windows-only gates report `setup` ("setup needed: Windows uv") while `cmd.exe /c where uv` finds nothing; the
