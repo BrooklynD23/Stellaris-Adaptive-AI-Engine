@@ -49,7 +49,7 @@ Runs under Windows PowerShell 5.1 and pwsh 7 (no 7-only syntax). Invoked as
 Parameters: `-DryRun` (print every action as `DRY-RUN would: ...`; no download, no install, no copy, no PATH
 change, no prompt, runs no external program; exit 0).
 
-1. Verify every line of `SHA256SUMS` with `Get-FileHash`; any mismatch or missing file → stop, exit 1.
+1. Verify every line of `SHA256SUMS` with .NET `SHA256` (not `Get-FileHash`, which 5.1 cannot autoload when launched from PowerShell 7); any mismatch or missing file → stop, exit 1.
 2. Locate uv: `Get-Command uv`, else `%LOCALAPPDATA%\sae-kit\uv\uv.exe`.
 3. Print the download list (D9) with URLs, pinned uv version and SHA-256; ask `Continue? [y/N]`; anything but
    `y` → exit 0 with nothing changed.

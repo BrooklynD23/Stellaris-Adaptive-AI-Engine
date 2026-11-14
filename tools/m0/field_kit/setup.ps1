@@ -17,6 +17,19 @@ $UvUrl = 'https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-pc-
 $UvSha256 = '3b2661a463a5baea7f5076ea2b25ab71d77f36a6c0d809e5350651792f80a672'
 $UvRoot = Join-Path $env:LOCALAPPDATA 'sae-kit\uv'
 
+# Launched from PowerShell 7, Windows PowerShell 5.1 inherits PS7 module paths and cannot
+# autoload its own modules (Get-FileHash, Expand-Archive). Restore the machine default.
+if ($PSVersionTable.PSEdition -ne 'Core') {
+    $m = [Environment]::GetEnvironmentVariable('PSModulePath', 'Machine')
+    if ($m) { $env:PSModulePath = $m }
+}
+
+function Sha256($path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $fs = [IO.File]::OpenRead($path)
+    try { ([BitConverter]::ToString($sha.ComputeHash($fs)) -replace '-', '').ToLower() }
+    finally { $fs.Dispose(); $sha.Dispose() }
+}
 function Say($m) { Write-Host $m }
 function Plan($m) { Write-Host "DRY-RUN would: $m" }
 
@@ -28,7 +41,7 @@ foreach ($line in Get-Content -LiteralPath $sums) {
     $parts = $line -split '  ', 2
     $file = Join-Path $Kit ($parts[1] -replace '/', '\')
     if (-not (Test-Path -LiteralPath $file)) { Say "Missing file: $($parts[1])"; exit 1 }
-    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLower() -ne $parts[0]) {
+    if ((Sha256 $file) -ne $parts[0]) {
         Say "Checksum mismatch: $($parts[1]); re-download the kit."; exit 1
     }
 }
@@ -62,7 +75,7 @@ if (-not $uv) {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $UvUrl -OutFile $zip -UseBasicParsing
-        if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLower() -ne $UvSha256) {
+        if ((Sha256 $zip) -ne $UvSha256) {
             Remove-Item -LiteralPath $zip -Force
             Say 'uv download checksum mismatch; deleted.'; exit 1
         }
