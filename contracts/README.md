@@ -11,7 +11,7 @@ exported from them; `tests/contract/` validates every example in these documents
 | C1 | [`SAE|v1|` log lines](C1_log_lines.md) | 1 | FROZEN v1 | T1 mod (T2 simulator) → T2 adapters, T5 via HB |
 | C2 | [`sae_in.ini` command file](C2_sae_in_ini.md) | 1.2 | FROZEN v1.2 | T4 compiler, T2 writer → game console, T1 mod, T2 simulator |
 | C3 | [Intent schema v1 + mapping to C2](C3_intents.md) | 1.2 | FROZEN v1.2 | T4 → T2, T6, T1 |
-| C4 | [`sae-parse` CLI, JSON, fixtures](C4_sae_parse.md) | 1 | FROZEN v1 | T3 → T4/T5 daemon, T2, T7 |
+| C4 | [`sae-parse` CLI, JSON, fixtures](C4_sae_parse.md) | 1.1 | FROZEN v1.1 | T3 → T4/T5 daemon, T2, T7 |
 | C5 | [`bus.jsonl` envelope and events](C5_bus.md) | 1.3 | FROZEN v1.3 | daemon (T4/T5/T2 via T6 writer) → T6, T2 replay, T7 |
 | C6 | [GameAdapter, Observation, fog boundary](C6_game_adapter.md) | 1.3 | FROZEN v1.3 | T2 → T4 |
 | C7 | [Resource Governor](C7_governor.md) | 1.1 | FROZEN v1.1 | T5 → T4, T6, T7 |

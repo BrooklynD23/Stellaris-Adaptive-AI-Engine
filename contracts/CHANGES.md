@@ -3,6 +3,19 @@
 Newest first. Every accepted proposal adds an entry: date, contracts, version change, proposal file,
 summary.
 
+## 2026-11-14 — Proposal 030 ACCEPTED (C4 → v1.1)
+
+Maintainer-approved first step of the optimization study. Proposal: `contracts/proposals/030-T3-parse-cost-peak-commit.md`.
+Review: `docs/status/opt_wave_A1_result_review.md` blocking issues 1 and 2.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 030 parse cost memory metric | C4 §2 | Windows `cost.rss_peak_bytes` = peak commit (`PROCESS_MEMORY_COUNTERS.PeakPagefileUsage`), was `PeakWorkingSetSize` (capped near 32 MiB under `--background`); Linux `ru_maxrss × 1024` unchanged. Field name kept | rule, C4 v1.1 (`schema_version = 1`, no model or schema change) |
+| Migration | C4 §2 | Windows values before the new parser version are working set, after are peak commit; do not compare across | consumer note |
+
+Follow-ups: consumers T5 daemon health, T6 telemetry/health, T7 bench, T8 `tools/m0`, console view read the Windows
+figure as commit. Validation (within 5 % of external peak commit, both modes) stays UNVERIFIED until M0-11.
+
 ## 2026-10-20 — Proposal 029 ACCEPTED (C8 → v1.6; C10 → v1.2)
 
 X4 work order X4-A. Proposal: `contracts/proposals/029-T9-x4-tune-gate-policy-dispatch.md`. Plan review:

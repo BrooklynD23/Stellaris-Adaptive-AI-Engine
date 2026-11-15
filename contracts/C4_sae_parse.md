@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1 (`schema_version = 1` in every JSON document) |
-| Status | FROZEN v1 (2026-10-19) |
+| Version | 1.1 (`schema_version = 1` in every JSON document) |
+| Status | FROZEN v1.1 (2026-11-14; v1.1 proposal 030: Windows `cost.rss_peak_bytes` is peak commit, §2; v1 2026-10-19) |
 | Owner | architect (contract); T3 implements |
 | Producer | `sae-parse` (Rust, jomini; T3) |
 | Consumers | Daemon parse step (T4) through the Governor's worker spawn (T5); ReplayAdapter and SynthAdapter (T2); fixtures for T7 |
@@ -57,7 +57,8 @@ Daemon classification (signoff change 2), recorded as C7 `WorkerOutcome`:
 - anything else — other exit code, signal, timeout, stdout > 4 MiB, missing or invalid JSON → `budget_breach`.
   The Job memory limit makes allocations fail; Rust aborts; the daemon never waits for a Job message.
 
-`cost` is self-measured: `rss_peak_bytes` (Windows `PeakWorkingSetSize`; Linux `getrusage(RUSAGE_SELF).ru_maxrss × 1024`),
+`cost` is self-measured: `rss_peak_bytes` (Windows: peak commit, `PROCESS_MEMORY_COUNTERS.PeakPagefileUsage`; Linux `getrusage(RUSAGE_SELF).ru_maxrss × 1024`, unchanged).
+The field name is kept for compatibility; on Windows it is not RSS, and Windows values from parsers before v1.1 (peak working set) are not comparable. UNVERIFIED until M0-11.
 `cpu_s` (user + system), `wall_s` (from process start to just before writing stdout).
 
 ## 3. What is extracted (normative definitions for T3)

@@ -14,6 +14,7 @@ pub const PARSER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct Cost {
+    /// Peak memory: Unix peak RSS; Windows peak commit (`PeakPagefileUsage`). Name kept per C4.
     pub rss_peak_bytes: u64,
     pub cpu_s: f64,
     pub wall_s: f64,

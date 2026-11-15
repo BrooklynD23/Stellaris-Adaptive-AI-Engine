@@ -160,7 +160,9 @@ class _Loop:
 
     def save(self) -> None:
         try:
-            save_state(self.run_dir / "state.json", self.state)
+            # C3 section 5 seq floor reads state.json on resume; SYNTH/REPLAY cannot resume, so no fsync there.
+            durable = self.adapter is None or self.adapter.mode not in LOCKSTEP_MODES
+            save_state(self.run_dir / "state.json", self.state, fsync=durable)
         except OSError:
             log.exception("state.json write failed")
 

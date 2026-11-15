@@ -41,7 +41,9 @@ def _update_argv(args: argparse.Namespace) -> list[str]:
 def _run_update(args: argparse.Namespace) -> None:
     reason: str | None = None
     try:
-        done = subprocess.run(_update_argv(args), timeout=UPDATE_TIMEOUT_S, check=False)
+        # stdin=DEVNULL: the update must never prompt (a split question would block the daemon start); with no
+        # TTY ``_ask_split`` returns None and the candidate stays pending for the next interactive update.
+        done = subprocess.run(_update_argv(args), stdin=subprocess.DEVNULL, timeout=UPDATE_TIMEOUT_S, check=False)
         if done.returncode != 0:
             reason = f"exit code {done.returncode}"
     except (OSError, subprocess.TimeoutExpired) as e:

@@ -21,7 +21,7 @@ you record by hand.
 | M0-8 | core | | fleet_a, fleet_b, ratio | |
 | M0-9 | later | | dpm_off, dpm_on | |
 | M0-10 | later | | (backlog) | |
-| M0-11 | core | | wall_s, rss_peak_mb, size, fields_match_ui | |
+| M0-11 | core | | wall_s, rss_peak_mb (Linux: peak RSS; Windows: peak commit, parser >= 0.1.1), size, fields_match_ui | |
 | M0-12 | stretch | | s_month_off, s_month_on, game_rss_mb, fault counter, process name | |
 | M0-13 | stretch | | resource trend | |
 | M0-14 | stretch | | ironman flag, mod_allowed, console_blocked | |

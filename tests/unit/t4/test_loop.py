@@ -447,3 +447,18 @@ def test_stale_force_strategy_from_previous_session_is_not_applied(tmp_path: Pat
     assert not any(d.payload.strategy is Strategy.EARLY_PUNISH  # type: ignore[attr-defined]
                    for d in sink.drafts if d.type == "strategy_selected")
     assert load_state(tmp_path / "state.json").strategy.forced is None
+
+
+@pytest.mark.parametrize(("mode", "fsync"), [
+    (AdapterMode.LIVE, True), (AdapterMode.RELEASE, True), (AdapterMode.SYNTH, False), (AdapterMode.REPLAY, False)])
+def test_save_fsyncs_state_only_in_durable_modes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: AdapterMode, fsync: bool
+) -> None:
+    """Review B1: LIVE/RELEASE keep the state.json fsync (C3 section 5 seq floor); SYNTH/REPLAY skip it."""
+    from sae.daemon import loop as loop_mod
+    lp = _mk_loop(tmp_path)
+    monkeypatch.setattr(lp.adapter, "mode", mode)
+    got: list[bool] = []
+    monkeypatch.setattr(loop_mod, "save_state", lambda p, s, *, fsync=True: got.append(fsync))
+    lp.save()
+    assert got == [fsync]

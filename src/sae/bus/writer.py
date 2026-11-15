@@ -37,7 +37,7 @@ from sae.contracts.c5_bus import (
     PolicyRef,
     RunStartedPayload,
 )
-from sae.contracts.c6_adapter import GodObservation
+from sae.contracts.c6_adapter import AdapterMode, GodObservation
 from sae.contracts.c7_governor import GameState, HealthLevel
 from sae.contracts.c8_config import SaeConfig
 
@@ -51,6 +51,9 @@ __all__ = ["BusValidationError", "BusWriter", "open_sink"]
 _TAIL_LINES = 1024
 _LOG_EVERY_NS = 60 * 1_000_000_000
 _O_FLAGS = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0)
+#: Modes whose bus must survive a crash mid-run (C5 section 1 monthly fsync). SYNTH and REPLAY cannot resume
+#: (``sae daemon`` refuses them), so they fsync only on close.
+_DURABLE_MODES = frozenset({AdapterMode.LIVE, AdapterMode.RELEASE})
 
 
 class BusValidationError(ValueError):
@@ -82,8 +85,10 @@ def _iso(t: datetime) -> str:
 class _Stream:
     """One append-only file with its own gapless ``seq``."""
 
-    def __init__(self, path: Path, adapter: TypeAdapter[Any], *, resume: bool, run_id: str) -> None:
+    def __init__(self, path: Path, adapter: TypeAdapter[Any], *, resume: bool, run_id: str,
+                 durable: bool = True) -> None:
         self.path = path
+        self.durable = durable
         self.adapter = adapter
         self.run_id = run_id
         self.next_seq = 0
@@ -174,7 +179,8 @@ class _Stream:
         month = game_date[:7] if game_date else None
         if month is not None and month != self._last_month:
             self._last_month = month
-            self.sync(now_ns)
+            if self.durable:
+                self.sync(now_ns)
         return True
 
     def sync(self, now_ns: int) -> None:
@@ -197,7 +203,10 @@ class _Stream:
 
 
 class BusWriter:
-    """Implements ``sae.daemon.ports.BusSink`` over ``bus.jsonl`` and ``bus.god.jsonl``."""
+    """Implements ``sae.daemon.ports.BusSink`` over ``bus.jsonl`` and ``bus.god.jsonl``.
+
+    In ``_DURABLE_MODES`` each file is fsynced on every game-month change; in SYNTH and REPLAY only on close.
+    """
 
     def __init__(self, run_dir: Path, run_id: str, config: SaeConfig, *, resume: bool = False,
                  wall: Callable[[], datetime] | None = None, mono: Callable[[], int] | None = None,
@@ -215,9 +224,11 @@ class BusWriter:
             engine_version=sae.__version__, contracts=dict(CONTRACT_VERSIONS), adapter_mode=config.adapter,
             preset=config.preset, config_sha256=config_sha256(config),
             platform=f"{sys.platform}-{platform.machine()}", python=platform.python_version(), policy=policy)
-        self._bus = _Stream(run_dir / BUS_FILE, BUS_EVENT_ADAPTER, resume=resume, run_id=run_id)
+        durable = config.adapter in _DURABLE_MODES
+        self._bus = _Stream(run_dir / BUS_FILE, BUS_EVENT_ADAPTER, resume=resume, run_id=run_id, durable=durable)
         try:
-            self._god = _Stream(run_dir / GOD_FILE, GOD_BUS_EVENT_ADAPTER, resume=resume, run_id=run_id)
+            self._god = _Stream(run_dir / GOD_FILE, GOD_BUS_EVENT_ADAPTER, resume=resume, run_id=run_id,
+                                durable=durable)
         except Exception:
             self._bus.close(0)
             raise
