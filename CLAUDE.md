@@ -9,7 +9,7 @@ legal data, and steers the AI empire through bounded Intents applied via a conso
 - `contracts/` — frozen interface contracts C1–C9 and the change protocol. `src/sae/contracts/` holds the typed
   models that implement them.
 - `.claude/agents/` — subagent definitions: sae-architect, sae-team-lead (opus), sae-implementer (sonnet),
-  sae-scout (haiku), sae-reviewer (opus), sae-adversary (fable).
+  sae-scout (haiku), sae-reviewer (opus), sae-adversary (opus; fable on request).
 - `docs/TEAM_PLAN.md` — teams T1–T8, owned paths, deliverables. `docs/status/` and `docs/plans/` per team.
 
 ## Settled decisions (do not reopen without the maintainer)
@@ -24,8 +24,9 @@ v0/v1 strategy selection is a belief → counter-strategy table with 24-month co
 - Never edit another team's owned paths; use contracts/proposals/.
 - Never launch Stellaris, modify its install folder or write to the user's mod folder without explicit permission.
 - Stellaris script, console and save assumptions are UNVERIFIED until M0 proves them; label them so in code and docs.
-- Fable review gates (maintainer rule, 2026-10-19): every plan gets an adversarial review by `sae-adversary`
-  (Fable 5.1) before implementation starts. After each implementation or wave, `sae-adversary` reviews the result
+- Review gates (maintainer rule, 2026-10-19; reviewer model updated 2026-11-14): every plan gets an adversarial
+  review by `sae-adversary` before implementation starts. Run it on Opus 5.5 (Agent `model: "opus"`) by default;
+  use Fable only when the maintainer asks for it. After each implementation or wave, `sae-adversary` reviews the result
   against the overall architecture and reports ON TARGET / AT RISK / OFF TARGET for: (1) performance and memory
   management, (2) telemetry, (3) a properly adaptive AI engine, (4) readiness to learn the player's profile and
   strategies from their saves (the bounded RSI expansion). A wave is not done until that review is addressed.
