@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 (`schema_version = 1`, written to the game as `sae_p_schema = 1`) |
-| Status | FROZEN v1.2 (2026-10-19; v1.1 minus `FLEET_COMPOSITION_BIAS`, maintainer decision; v1.2 audit rule id `deferred`, proposal 018-T4) |
+| Version | 1.3 (`schema_version = 1`, written to the game as `sae_p_schema = 1`) |
+| Status | FROZEN v1.3 (2026-11-15; v1.3 proposal 031: baseline-abstention pre-emption §6, maintainer D1; 2026-10-19: v1.1 minus `FLEET_COMPOSITION_BIAS`, maintainer decision; v1.2 audit rule id `deferred`, proposal 018-T4) |
 | Owner | architect (contract) |
 | Producers | Engine strategy expansion (T4); operator via C9 `force_strategy` (indirectly) |
 | Consumers | Validator and compiler (T4); LiveAdapter `emit` (T2); bus `intent_emitted` (T6); mod `sae.0` (T1) via C2 |
@@ -130,10 +130,42 @@ the C3 v1.2 fleet-bias proposal (§8). T4 must not merge them, and a strategy ch
 is still a strategy change (new commitment window, new `reason_key`).
 
 The expansion numbers are T4 defaults (configurable, not part of the frozen schema). Every
-strategy is held for `engine.commitment_months` (24); the reward window equals the commitment window.
+strategy is held for `engine.commitment_months` (24), except an abstention window (below); the reward window
+equals the window as it actually ran.
 Safety floor (a rule, not an LCB): (1) every SAE budget/subplan entry in the mod is **additive**, so no
 knob can push a budget share below vanilla baseline; (2) the `safety_floor` validator rule;
 (3) below the belief threshold the engine runs `baseline`. No intent adds resources.
+
+### 6.1 Baseline-abstention pre-emption (v1.3, proposal 031, maintainer D1 2026-11-15)
+
+An **abstention window** is a `baseline` window opened by a decision whose reason is `below_threshold`. A
+`baseline` window opened by `table` (confident `balanced`), by `safety_floor` or by an operator force is **not**
+an abstention window.
+
+1. **Pre-emption.** While an abstention window is open and no operator force is active, a tick whose top
+   archetype has posterior ≥ `belief_threshold` and whose table strategy is not `baseline` closes the window at
+   that tick and opens a full commitment window for the counter: `strategy_selected.reason = "table"`,
+   `switched = true`, `commit_from` = the tick's month, `commit_until` = `commit_from` + `commitment_months`.
+   One confident tick is enough; there is no evidence-tick guard.
+2. **Confident `balanced` opens no window.** During an abstention window a confident `balanced` tick changes
+   nothing: strategy `baseline`, reason `commitment_hold`, `commit_until` unchanged, still an abstention window.
+   A later confident counter tick still pre-empts.
+3. **Safety floor.** If the pre-empting counter fails the static floor check, the abstention window is untouched:
+   reason `commitment_hold`, `commit_until` unchanged, no window closed, no `outcome`.
+4. **Nothing else is pre-empted.** Counter windows and non-abstention `baseline` windows are held for the full
+   `commitment_months`; only an operator force or clear-force (C9) reopens them.
+5. **Order per tick:** forced > (pre-emption, else commitment hold) > table / below threshold.
+6. **Expiry.** At `commit_until` the normal re-evaluation runs: below threshold opens a new abstention window;
+   confident `balanced` opens a `table` baseline window (24 months, not pre-emptable).
+7. **Outcome.** Pre-emption emits the closed window's `outcome` (C5) at that tick: `strategy = "baseline"`,
+   `forced = false`, 1 to 23 months long, `decision_id` of the decision that opened it. It is a real reward over
+   a short window. Readers must not assume 24-month windows.
+8. **State (T4).** `StrategyState.abstain: bool = False` marks the window; set only by a `below_threshold`
+   opening, kept across a session reanchor. `state.json` keeps `state_version = 1`; a file written before v1.3
+   loads with `abstain = false`, so its open baseline window is not pre-emptable until it expires.
+
+Known risk, recorded once: the Wave C reviewer advised deferral because one noisy save can lock a 24-month
+counter; the maintainer approved without a guard. UNVERIFIED on real play: every measurement so far is synthetic.
 
 ## 7. Examples
 

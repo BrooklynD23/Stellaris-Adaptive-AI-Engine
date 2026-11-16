@@ -989,6 +989,7 @@
           "additionalProperties": {
             "type": "number"
           },
+          "description": "Monthly keys: C5 section 3. Floats; flags are 1.0/0.0; omit, never null.",
           "title": "Metrics",
           "type": "object"
         },
@@ -2212,7 +2213,7 @@
     },
     "OutcomePayload": {
       "additionalProperties": false,
-      "description": "Reward for one commitment window (reward window = commitment window).",
+      "description": "Reward for one closed window: commitment end, force or clear-force, or a pre-empted abstention\nwindow (``baseline``, 1-23 months; C3 section 6.1, C5 section 3).",
       "properties": {
         "forced": {
           "title": "Forced",

@@ -146,3 +146,65 @@ def test_first_war_new_only_once() -> None:
     assert fv.first_war_new
     _, fv, _, _ = extract(mem, obs("2212.07.01", (lv(player_war_count=1),), "2212.07.01"))
     assert fv.first_war_observed and not fv.first_war_new
+
+
+def test_observer_loss_gives_no_expansion_rate_and_no_evidence_row() -> None:
+    from sae.contracts.common import Archetype  # noqa: F401
+    from sae.core.belief import BeliefState, update
+
+    from .fakes_cfg import eff
+
+    both = (lv(systems_owned=10), LegalView(observer_sid=2, in_contact=True, systems_owned=10))
+    lost = (lv(systems_owned=4),)  # observer 2 gone; the remaining view sees fewer systems
+    mem, _, _, _ = extract(FeatureMemory(), obs("2201.01.01", both, "2201.01.01"))
+    _, fv, ev, k = extract(mem, obs("2202.01.01", lost, "2202.01.01"))
+    assert ev and fv.expansion_rate is None
+    _, p = update(BeliefState(), fv, ev, k, eff())
+    assert not any(e.feature == "expansion_rate" for e in p.top_evidence)
+
+
+def test_fog_gap_gives_no_rate_until_window_refills() -> None:
+    from sae.core.belief import BeliefState, update
+
+    from .fakes_cfg import eff
+
+    full = (lv(systems_owned=10), LegalView(observer_sid=2, in_contact=True, systems_owned=10))
+    lost = (lv(systems_owned=4),)
+    mem = FeatureMemory()
+    st = BeliefState()
+    rates: list[float | None] = []
+    tops: list[float] = []
+    grown = (lv(systems_owned=13), LegalView(observer_sid=2, in_contact=True, systems_owned=13))
+    for date, views in (("2201.01.01", full), ("2202.01.01", lost), ("2203.01.01", full), ("2204.01.01", grown)):
+        mem, fv, ev, k = extract(mem, obs(date, views, date))
+        st, p = update(st, fv, ev, k, eff())
+        rates.append(fv.expansion_rate)
+        tops.append(max(p.posterior.values()))
+    # Month 24 (return): None and no swing. Month 36: rate from post-return samples only (13-10 over 12 months).
+    assert rates == [None, None, None, 3.0]
+    assert tops[2] == tops[0] == 0.25
+
+
+def test_continuous_observer_rate_unchanged() -> None:
+    mem = FeatureMemory()
+    for date, n in (("2201.01.01", 4), ("2202.01.01", 10), ("2203.01.01", 22)):
+        mem, fv, _, _ = extract(mem, obs(date, (lv(systems_owned=n),), date))
+    assert fv.expansion_rate == 9.0  # oldest in-window sample: (22 - 4) / 2 years, as before the fog fix
+
+
+def test_none_report_while_in_contact_breaks_visibility_run() -> None:
+    from sae.core.belief import BeliefState, update
+
+    from .fakes_cfg import eff
+
+    mem = FeatureMemory()
+    st = BeliefState()
+    rates: list[float | None] = []
+    seq = (("2201.01.01", 4), ("2202.01.01", None), ("2203.01.01", None), ("2204.01.01", 10), ("2205.01.01", 13))
+    for date, n in seq:
+        mem, fv, ev, k = extract(mem, obs(date, (lv(systems_owned=n),), date))
+        st, p = update(st, fv, ev, k, eff())
+        rates.append(fv.expansion_rate)
+        if date == "2204.01.01":  # return save: no rate, no evidence row
+            assert not any(e.feature == "expansion_rate" for e in p.top_evidence)
+    assert rates == [None, None, None, None, 3.0]  # 13-10 over 12 months, post-return samples only

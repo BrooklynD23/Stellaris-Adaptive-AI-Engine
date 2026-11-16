@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
-| Status | FROZEN v1.2 (2026-10-20; v1.2 proposal 029: `sae policy` semantics §5, sealed-query ledger, GateReport pass rules and Stage 2 objectives §6, clarifications, no schema change; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
+| Version | 1.3 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
+| Status | FROZEN v1.3 (2026-11-15; v1.3 proposal 031: Stage 1 `feel_commitment` pass rule §6 rule 4, no schema change; 2026-10-20: v1.2 proposal 029: `sae policy` semantics §5, sealed-query ledger, GateReport pass rules and Stage 2 objectives §6, clarifications, no schema change; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
 | Owner | architect (contract); T9 implements the profile side (`src/sae/profile/**`, `src/sae/tune/**`), T7 the gate (`src/sae/bench/gate/**`), T4 the daemon's policy loader |
 | Producers | `sae profile …` (T9: §1, §2); `sae tune` (T9: proposed policies, `propose` rows); `sae gate stage1\|stage2` (T7: `stage*` rows, GateReports); `sae policy …` (T9, human-only rows, Preregistrations) |
 | Consumers | T4 daemon (§4, §5 read-only at start); T9; T7 (gate, privacy and fog tests); T6 (console views); T8 (docs) |
@@ -379,6 +379,12 @@ Rules (v1.2, proposal 029 §3, §3b, §4; the validator `passed == all(checks.pa
    on two crashes) to `--out`, append **no** registry row and exit 4 with "no result: game-paired Stage 2 needs D6
    and real paired runs (M4)". No flag makes them report a result; the game-paired GateReport kind needs its own
    proposal after M4.
+4. **Stage 1 `feel_commitment`** (v1.3, proposal 031). Passes iff, in every replayed campaign's candidate
+   strategy trace, every switch **out of a non-baseline strategy** happens ≥ 24 months (`commitment_months`)
+   after that strategy started. Switches out of `baseline` are not constrained (abstention pre-emption, C3 §6.1).
+   Computed from the per-month strategy trace alone. `feel_switches` (candidate switches ≤ incumbent + 1 per
+   campaign) is unchanged. `counter(0-23), baseline(24-26), counter(27-50)` passes; `counter(0-10), baseline`
+   fails.
 
 ```json model=Preregistration
 {"schema_version": 1, "candidate_sha256": "7d1e5f3a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e",

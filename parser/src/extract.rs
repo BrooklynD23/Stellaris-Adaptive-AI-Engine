@@ -453,6 +453,11 @@ fn read_meta(meta: &[u8]) -> Result<(Option<String>, Option<String>, bool), Fail
     })
 }
 
+/// True when the zip `meta` entry parses and holds both `date` and `version` (meta-only fast path gate).
+pub fn meta_has_date_version(meta: &[u8]) -> bool {
+    read_meta(meta).is_ok_and(|(v, d, _)| v.is_some() && d.is_some())
+}
+
 /// Normalise like the C4 `GameDate` (pydantic `normalize_game_date`): `Y{1,4}.M{1,2}.D{1,2}` with month 1-12
 /// and day 1-30 (Stellaris months have 30 days), re-rendered as zero-padded `YYYY.MM.DD`.
 fn normalize_date(d: &str) -> Option<String> {

@@ -56,9 +56,10 @@ pub fn real_stat(path: &Path) -> io::Result<Stat> {
     })
 }
 
-/// Load `path` using the real filesystem stat.
-pub fn load(path: &Path) -> Result<Loaded, Failure> {
-    load_with(path, &real_stat)
+/// Load `path` using the real filesystem stat. `meta_only` enables the meta-only fast path (C4 section 1,
+/// proposal 032): the caller passes `true` only for exactly `--sections meta` and `false` to force the full path.
+pub fn load(path: &Path, meta_only: bool) -> Result<Loaded, Failure> {
+    load_with(path, &real_stat, meta_only)
 }
 
 /// Windows ERROR_SHARING_VIOLATION (32) or ERROR_LOCK_VIOLATION (33).
@@ -84,7 +85,11 @@ fn unstable(detail: impl AsRef<str>) -> Failure {
 }
 
 /// Load with an injectable stat function (tests inject a changing one).
-pub fn load_with(path: &Path, stat: &dyn Fn(&Path) -> io::Result<Stat>) -> Result<Loaded, Failure> {
+pub fn load_with(
+    path: &Path,
+    stat: &dyn Fn(&Path) -> io::Result<Stat>,
+    meta_only: bool,
+) -> Result<Loaded, Failure> {
     let before = stat(path).map_err(|e| io_failure("stat", &e))?;
     if before.size > MAX_GAMESTATE {
         return Err(Failure::new(
@@ -120,7 +125,7 @@ pub fn load_with(path: &Path, stat: &dyn Fn(&Path) -> io::Result<Stat>) -> Resul
         mtime_ns: before.mtime_ns,
     };
     if buf.starts_with(b"PK\x03\x04") {
-        let (gamestate, meta) = read_zip(&buf)?;
+        let (gamestate, meta) = read_zip(&buf, meta_only)?;
         return Ok(Loaded {
             gamestate,
             meta,
@@ -214,7 +219,28 @@ fn zip_err(what: &str, e: &ZipError) -> Failure {
     }
 }
 
-fn read_zip(buf: &[u8]) -> Result<(Vec<u8>, Option<Vec<u8>>), Failure> {
+/// Presence and declared-size check of the `gamestate` entry, without inflating it (same errors as `read_entry`).
+fn check_gamestate_entry(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<(), Failure> {
+    let entry = match archive.by_name("gamestate") {
+        Ok(e) => e,
+        Err(ZipError::FileNotFound) => {
+            return Err(Failure::new(Kind::Format, "zip has no gamestate entry"))
+        }
+        Err(e) => return Err(zip_err("gamestate", &e)),
+    };
+    if entry.size() > MAX_GAMESTATE {
+        return Err(Failure::new(
+            Kind::Format,
+            format!("gamestate declares {} bytes, over cap", entry.size()),
+        ));
+    }
+    Ok(())
+}
+
+/// Returns `(gamestate, meta)`. With `meta_only` and a `meta` entry holding `date` and `version`, `gamestate`
+/// is empty (never inflated). UNVERIFIED (A-47): real saves' `meta` entry holds `date` and `version`; M0-11
+/// checks it. When it does not, the fast path never fires and behaviour equals v1.1.
+fn read_zip(buf: &[u8], meta_only: bool) -> Result<(Vec<u8>, Option<Vec<u8>>), Failure> {
     if let Some(n) = zip_entry_count(buf).filter(|n| *n > MAX_ZIP_ENTRIES) {
         return Err(Failure::new(
             Kind::Format,
@@ -222,6 +248,14 @@ fn read_zip(buf: &[u8]) -> Result<(Vec<u8>, Option<Vec<u8>>), Failure> {
         ));
     }
     let mut archive = ZipArchive::new(Cursor::new(buf)).map_err(|e| zip_err("zip open", &e))?;
+    if meta_only {
+        // A meta read error is ignored here: the full path below reports it in its original order.
+        let meta = read_entry(&mut archive, "meta", MAX_META).ok().flatten();
+        if let Some(m) = meta.filter(|m| crate::extract::meta_has_date_version(m)) {
+            check_gamestate_entry(&mut archive)?;
+            return Ok((Vec::new(), Some(m)));
+        }
+    }
     let gamestate = match read_entry(&mut archive, "gamestate", MAX_GAMESTATE)? {
         Some(g) => g,
         None => return Err(Failure::new(Kind::Format, "zip has no gamestate entry")),
@@ -276,7 +310,7 @@ mod tests {
     #[test]
     fn plain_text_loads() {
         let p = tmp("plain", b"date=\"2231.04.01\"\n");
-        let l = load(&p).unwrap();
+        let l = load(&p, false).unwrap();
         assert_eq!(l.gamestate, b"date=\"2231.04.01\"\n");
         assert!(l.meta.is_none());
         std::fs::remove_file(p).ok();
@@ -299,7 +333,10 @@ mod tests {
                 }
                 Ok(s)
             };
-            assert_eq!(load_with(&p, &stat).unwrap_err().kind, Kind::Unstable);
+            assert_eq!(
+                load_with(&p, &stat, false).unwrap_err().kind,
+                Kind::Unstable
+            );
         }
         std::fs::remove_file(p).ok();
     }
@@ -313,7 +350,7 @@ mod tests {
                 mtime_ns: 1,
             })
         };
-        assert_eq!(load_with(&p, &stat).unwrap_err().kind, Kind::Format);
+        assert_eq!(load_with(&p, &stat, false).unwrap_err().kind, Kind::Format);
         std::fs::remove_file(p).ok();
     }
 
@@ -363,7 +400,7 @@ mod tests {
         for patched in [n - 1, n + 1] {
             let mut bad = z.clone();
             bad[cd + 24..cd + 28].copy_from_slice(&patched.to_le_bytes());
-            let err = read_zip(&bad).unwrap_err();
+            let err = read_zip(&bad, false).unwrap_err();
             assert_eq!(err.kind, Kind::Unstable, "{patched}: {}", err.detail);
         }
     }
@@ -391,13 +428,13 @@ mod tests {
         }
         let z = w.finish().unwrap().into_inner();
         assert_eq!(zip_entry_count(&z), Some(100));
-        assert_eq!(read_zip(&z).unwrap_err().kind, Kind::Format);
+        assert_eq!(read_zip(&z, false).unwrap_err().kind, Kind::Format);
         // saturated 16-bit count without a zip64 record counts as too many
         let mut sat = z.clone();
         let eocd = sat.windows(4).rposition(|w| w == b"PK\x05\x06").unwrap();
         sat[eocd + 10..eocd + 12].copy_from_slice(&0xFFFFu16.to_le_bytes());
         assert_eq!(zip_entry_count(&sat), Some(0xFFFF));
-        assert_eq!(read_zip(&sat).unwrap_err().kind, Kind::Format);
+        assert_eq!(read_zip(&sat, false).unwrap_err().kind, Kind::Format);
     }
 
     fn zip_of(n: usize) -> Vec<u8> {
@@ -425,7 +462,7 @@ mod tests {
         let eocd = z.windows(4).position(|w| w == b"PK\x05\x06").unwrap();
         z[eocd + 20..eocd + 22].copy_from_slice(&u16::try_from(fake.len()).unwrap().to_le_bytes());
         assert_eq!(zip_entry_count(&z), Some(100));
-        assert_eq!(read_zip(&z).unwrap_err().kind, Kind::Format);
+        assert_eq!(read_zip(&z, false).unwrap_err().kind, Kind::Format);
     }
 
     #[test]
@@ -434,7 +471,7 @@ mod tests {
         let eocd = z.windows(4).rposition(|w| w == b"PK\x05\x06").unwrap();
         z[eocd + 10..eocd + 12].copy_from_slice(&0xFFFFu16.to_le_bytes());
         assert_eq!(zip_entry_count(&z), Some(0xFFFF));
-        assert_eq!(read_zip(&z).unwrap_err().kind, Kind::Format);
+        assert_eq!(read_zip(&z, false).unwrap_err().kind, Kind::Format);
     }
 
     #[test]
@@ -447,7 +484,7 @@ mod tests {
         loc.extend_from_slice(&u64::MAX.to_le_bytes());
         loc.extend_from_slice(&1u32.to_le_bytes());
         z.splice(eocd..eocd, loc);
-        let k = read_zip(&z).unwrap_err().kind;
+        let k = read_zip(&z, false).unwrap_err().kind;
         assert!(k == Kind::Format || k == Kind::Unstable, "{k:?}");
     }
 
@@ -461,6 +498,6 @@ mod tests {
         w.write_all(b"a=1").unwrap();
         let z = w.finish().unwrap().into_inner();
         assert_eq!(zip_entry_count(&z), Some(2));
-        assert!(read_zip(&z).is_ok());
+        assert!(read_zip(&z, false).is_ok());
     }
 }

@@ -185,6 +185,18 @@ def switch_months(strat: list[tuple[int, Strategy]]) -> list[int]:
     return [m for (_, a), (m, b) in pairwise(strat) if a != b]
 
 
+def commitment_gaps(strat: list[tuple[int, Strategy]]) -> list[int]:
+    """Months each non-baseline strategy was held before being switched out (C10 section 6 rule 4)."""
+    out: list[int] = []
+    start = strat[0][0] if strat else 0
+    for (_, a), (m, b) in pairwise(strat):
+        if a != b:
+            if a != Strategy.BASELINE:
+                out.append(m - start)
+            start = m
+    return out
+
+
 def _chk(name: str, passed: bool, value: float | None = None, detail: str | None = None) -> GateCheck:
     return GateCheck(name=name, passed=passed, value=value, detail=detail)
 
@@ -321,9 +333,9 @@ def _replay_checks(
     extra = [len(switch_months(r.cand_strat)) - len(switch_months(r.inc_strat)) for r in reps]
     out.append(_chk("feel_switches", all(x <= 1 for x in extra), float(max(extra)),
                     "candidate switches minus incumbent, worst campaign (<= 1)"))  # fmt: skip
-    gaps = [b - a for r in reps for a, b in pairwise(switch_months(r.cand_strat))]
+    gaps = [g for r in reps for g in commitment_gaps(r.cand_strat)]
     out.append(_chk("feel_commitment", all(g >= COMMIT_MONTHS for g in gaps), float(min(gaps, default=0)),
-                    f"shortest gap between candidate switches in months (>= {COMMIT_MONTHS})"))  # fmt: skip
+                    f"shortest non-baseline hold before switch-out, months (>= {COMMIT_MONTHS})"))  # fmt: skip
     return out
 
 

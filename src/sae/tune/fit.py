@@ -192,8 +192,11 @@ def counter_min(n_folds: int) -> int:
     return (4 * n_folds + 4) // 5
 
 
-def _score(p: Prepared, model: LikelihoodModel, rho: float, clip: float) -> FoldScore:
-    rows = fast_lls([s.vector for s in p.steps], model)
+def _score(
+    p: Prepared, model: LikelihoodModel, rho: float, clip: float, rows: list[dict[str, list[float]]] | None = None
+) -> FoldScore:
+    if rows is None:
+        rows = fast_lls([s.vector for s in p.steps], model)
     return fold_score(fast_trace(p.steps, rows, rho, clip), p.label)
 
 
@@ -219,6 +222,11 @@ def loco(
     pts = list(grid) if grid is not None else default_grid(parent.detector.belief_threshold)
     base = model_of(parent.detector.likelihood)
     cache: dict[tuple[int, float], LikelihoodModel] = {}
+    # fast_lls depends only on (held fold, model) and the model only on (fold, kappa); rho/clip/threshold do not
+    # enter it (checked in metrics.fast_lls), so rows are shared across the rho x clip x threshold sub-grid.
+    rows_memo: dict[tuple[int, float], list[dict[str, list[float]]]] = {}
+    # fold_score ignores the threshold, so a whole fold score is shared across thresholds too.
+    score_memo: dict[tuple[int, float, float, float], FoldScore] = {}
     out: list[Candidate] = []
     need = counter_min(len(prepared))
     for pt in pts:
@@ -227,7 +235,14 @@ def loco(
             model = cache.get((i, pt.kappa))
             if model is None:
                 model = cache[(i, pt.kappa)] = fit_model(base, [p for j, p in enumerate(prepared) if j != i], pt.kappa)
-            folds.append(Fold(held.campaign_id, _score(held, model, pt.rho, pt.clip)))
+            rows = rows_memo.get((i, pt.kappa))
+            if rows is None:
+                rows = rows_memo[(i, pt.kappa)] = fast_lls([s.vector for s in held.steps], model)
+            key = (i, pt.kappa, pt.rho, pt.clip)
+            sc = score_memo.get(key)
+            if sc is None:
+                sc = score_memo[key] = _score(held, model, pt.rho, pt.clip, rows)
+            folds.append(Fold(held.campaign_id, sc))
         feasible = all(f.score.ece <= ECE_MAX for f in folds) and sum(f.score.counter_ok for f in folds) >= need
         out.append(Candidate(pt, tuple(folds), _mean_loss(folds), feasible))
     return out

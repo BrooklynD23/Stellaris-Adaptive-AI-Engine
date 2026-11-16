@@ -10,14 +10,14 @@ exported from them; `tests/contract/` validates every example in these documents
 |---|---|---|---|---|
 | C1 | [`SAE|v1|` log lines](C1_log_lines.md) | 1 | FROZEN v1 | T1 mod (T2 simulator) → T2 adapters, T5 via HB |
 | C2 | [`sae_in.ini` command file](C2_sae_in_ini.md) | 1.2 | FROZEN v1.2 | T4 compiler, T2 writer → game console, T1 mod, T2 simulator |
-| C3 | [Intent schema v1 + mapping to C2](C3_intents.md) | 1.2 | FROZEN v1.2 | T4 → T2, T6, T1 |
-| C4 | [`sae-parse` CLI, JSON, fixtures](C4_sae_parse.md) | 1.1 | FROZEN v1.1 | T3 → T4/T5 daemon, T2, T7 |
-| C5 | [`bus.jsonl` envelope and events](C5_bus.md) | 1.3 | FROZEN v1.3 | daemon (T4/T5/T2 via T6 writer) → T6, T2 replay, T7 |
+| C3 | [Intent schema v1 + mapping to C2](C3_intents.md) | 1.3 | FROZEN v1.3 | T4 → T2, T6, T1 |
+| C4 | [`sae-parse` CLI, JSON, fixtures](C4_sae_parse.md) | 1.2 | FROZEN v1.2 | T3 → T4/T5 daemon, T2, T7 |
+| C5 | [`bus.jsonl` envelope and events](C5_bus.md) | 1.5 | FROZEN v1.5 | daemon (T4/T5/T2 via T6 writer) → T6, T2 replay, T7 |
 | C6 | [GameAdapter, Observation, fog boundary](C6_game_adapter.md) | 1.3 | FROZEN v1.3 | T2 → T4 |
-| C7 | [Resource Governor](C7_governor.md) | 1.1 | FROZEN v1.1 | T5 → T4, T6, T7 |
-| C8 | [Config, layout, presets, CLI](C8_config_cli.md) | 1.3 | FROZEN v1.3 | all |
-| C9 | [Control plane](C9_control_plane.md) | 1 | FROZEN v1 | T6 `sae ctl` → T4 daemon |
-| C10 | [Player profile and policy](C10_profile_policy.md) | 1 | FROZEN v1 | T9 `sae profile`/`tune`/`policy`, T7 gate → T4 daemon (policy, read-only), T6, T8 |
+| C7 | [Resource Governor](C7_governor.md) | 1.3 | FROZEN v1.3 | T5 → T4, T6, T7 |
+| C8 | [Config, layout, presets, CLI](C8_config_cli.md) | 1.8 | FROZEN v1.8 | all |
+| C9 | [Control plane](C9_control_plane.md) | 1.1 | FROZEN v1.1 | T6 `sae ctl` → T4 daemon |
+| C10 | [Player profile and policy](C10_profile_policy.md) | 1.3 | FROZEN v1.3 | T9 `sae profile`/`tune`/`policy`, T7 gate → T4 daemon (policy, read-only), T6, T8 |
 
 Status values: `DRAFT` (Wave 0, open to the adversary loop) → `FROZEN v<N>` (teams build against it;
 changes only through §3).
@@ -127,3 +127,6 @@ proposal. Nothing here is VERIFIED without evidence from the game.
 | A-44 | `IsIconic` on the game's top-level window detects minimise | M0-12 | C7 |
 | A-45 | A `psutil.process_iter` rescan on Windows stays under the 100 ms probe bound | M0-12 | C7 |
 | A-46 | Each campaign's autosaves live in one folder under `save games/`; a folder name is reused only by a new game of the same empire name | M0-11 | C6, C10 |
+| A-47 | The zip `meta` entry of a real save holds `date` and `version` (C4 v1.2 meta-only fast path; else it never fires) | M0-11 | C4 |
+| A-48 | A Windows console close ends the `sae play` launcher within about 5 s, before any profile update | M0-12 | C8 |
+| A-49 | Windows `memory_info().private` and Linux `RssAnon` read within the 100 ms probe bound and track the daemon's private memory (C7 v1.3 `daemon_private_bytes`) | M0-12 | C7, C5 |

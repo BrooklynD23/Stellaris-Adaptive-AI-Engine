@@ -84,6 +84,17 @@ class ResourceGovernor:
         """Median spm of the whole ``spm_long_months`` window (C5 monthly ``spm_med24``); None if no samples."""
         return float(statistics.median(self._win)) if self._win else None
 
+    @property
+    def spm_armed(self) -> bool:
+        """C7 v1.2 section 4.3: the long window is full and its median is >= 5 x ``poll_s``."""
+        cfg = self._cfg
+        return len(self._win) >= cfg.spm_long_months and statistics.median(self._win) >= 5 * cfg.poll_s
+
+    @property
+    def spm_ratio(self) -> float | None:
+        """mean(last ``spm_short_months``) / mean(last ``spm_long_months``) the trigger compares; None when unarmed."""
+        return self._ratio()
+
     # -- protocol ---------------------------------------------------------------------------------------------
 
     def set_next_boundary(self, date: GameDate | None) -> None:
@@ -100,7 +111,7 @@ class ResourceGovernor:
             self._queue((2, Trigger.BUDGET_BREACH))
 
     def on_month(self, sample: SpmSample) -> None:
-        """Feed one spm sample: step test, windows, spm escalation (never above H1)."""
+        """Feed one spm sample: step test, windows (all samples), spm escalation when armed (never above H1)."""
         cfg = self._cfg
         w = sample.wall_s
         if sample.months > cfg.spm_short_months:
@@ -167,11 +178,12 @@ class ResourceGovernor:
         return max(med, 5 * self._cfg.poll_s)  # T4 floors wall_s at 0.001; never let that run months away
 
     def _ratio(self) -> float | None:
-        cfg = self._cfg
-        if len(self._win) < cfg.spm_long_months:
+        # C7 v1.2 (proposal 034): every sample is windowed; means, not medians, so 2 s-quantised samples can show
+        # a step. Dilution: a sustained step r peaks at r / (0.75 + 0.25 r), so 1.10 needs >= 13.8 % slowdown.
+        if not self.spm_armed:
             return None
-        vals = list(self._win)
-        return float(statistics.median(vals[-cfg.spm_short_months :]) / statistics.median(vals))
+        vals = list(self._win)  # maxlen = spm_long_months, so this is the long window
+        return statistics.fmean(vals[-self._cfg.spm_short_months :]) / statistics.fmean(vals)
 
     def _state(self, s: SensorSample) -> GameState:
         cfg = self._cfg

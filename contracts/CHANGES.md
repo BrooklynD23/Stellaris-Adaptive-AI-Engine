@@ -3,6 +3,67 @@
 Newest first. Every accepted proposal adds an entry: date, contracts, version change, proposal file,
 summary.
 
+## 2026-11-16 — C8 §5 `sae play` re-exec rule (C8 → v1.7 → v1.8)
+
+Wave 1–2 architecture review blocking 3 (`docs/status/opt_w12_arch_review.md`), clarifying proposal 033.
+Consequence 4: a daemon re-exec skips the post-exit profile update. POSIX `os.execv` replaces the in-process
+launcher, so no update runs; on Windows the daemon returns 0 while its child lives, and the launcher detects it from
+`runs/CURRENT` naming a live `sae` pid other than its own, prints the `run sae profile update after closing the game`
+hint and returns the daemon's code. No model, schema or wire change; rule only.
+
+## 2026-11-15 — C7 §4.4 wording correction (no version change)
+
+The step test is skipped when **either** month's spm is below 5 × `poll_s`, not both. The code has always done
+this (`test_spm_step_skipped_when_either_sample_tiny`); the text now matches. Found by W2-1. No behaviour change.
+
+## 2026-11-15 — Proposals 034, 035 ACCEPTED (C7 → v1.2 → v1.3; C5 → v1.4 → v1.5)
+
+Maintainer-approved, Wave 2 of the optimization study (work order W2-A0). Proposals:
+`contracts/proposals/034-T5-spm-mean-ratio.md`, `035-T5-T4-flip-metrics.md`. Plan:
+`docs/plans/opt/IMPLEMENTATION_WAVES.md` §3; reviews `docs/status/opt_wave_B_review.md` item 1 (changes 1–3),
+`docs/status/opt_wave_D_review.md` §4 item 2, `docs/status/opt_implementation_waves_review.md` B5, B7.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 034 spm ratio | C7 §4.3–§4.5 | All samples windowed; ratio = mean(6) / mean(24), only when armed (24 entries and median(24) ≥ 5 × `poll_s`); unarmed = no spm trigger; step test unchanged. The v1.1 per-sample exclusion is removed. One `SpmSample` per poll that saw HB lines (§1 wording fixed) | rule, C7 v1.2 (no model or config change) |
+| 034 effective threshold | C7 §4.3 | `spm_h1_ratio` 1.10 fires only for a sustained slowdown ≥ 13.8 % (peak ratio r / (0.75 + 0.25 r)); +12 % never fires. Pause budget ≤ 1 false H1 per 100 game months | stated consequence |
+| 034 accessors | C7 §1 | T5 governor attributes `spm_armed: bool`, `spm_ratio: float \| None` (not in the `Governor` protocol; read with `getattr`) | additive |
+| 034 bus keys | C5 §3 | Monthly `health` keys `spm_armed` (1.0/0.0, always) and `spm_ratio` (omitted when unarmed) | additive, C5 v1.4 (`v = 1`) |
+| 035 sensor field | C7 §5, `SensorSample` | `daemon_private_bytes: int \| None = None` (Linux `RssAnon`, Windows private commit, else `None`; failed probe keeps the last value). `daemon_rss_bytes` and the §4.6 self-limit unchanged | additive model field, C7 v1.3; schema re-exported |
+| 035 bus keys | C5 §3 | Monthly `health` keys `daemon_private_bytes` (omitted when `None`) and `engine_ms` (observation-handling wall ms since the previous monthly event; always) | additive, C5 v1.5 (`v = 1`) |
+| 035 stack-flip rule | C7 §4.7 | Restated on recorded keys: `daemon_private_bytes` p95 > 100 MiB, `daemon_cpu_pct` mean > 1, or `engine_ms` p95 > 50 at M0-12. Not a Governor trigger | decision rule |
+| Docstrings | `c5_bus.py` | `OutcomePayload` no longer says "reward window = commitment window" (left over from 031); `HealthPayload.metrics` description | schema description only |
+| Assumptions | README §5, C7 §11 | A-49 (private-memory probes are cheap and truthful on Windows/Linux, M0-12) | UNVERIFIED |
+
+Decisions beyond the inputs: the exact dilution floor is 13.8 %, not the review's 14.3 % (a 14.3 % step peaks at
+1.103); "armed" includes the 24-entry requirement; no RSS substitute for `daemon_private_bytes` on other platforms
+(026 used one for the telemetry cap); the flip-rule statistics (p95, session mean).
+
+Follow-ups: T5 W2-1 (`governor/core.py`), T5 W2-3 (`platform/sensors.py`), T4 W2-2 (`daemon/loop.py`, after both),
+T6 W2-4 (mapping, console view), T8 W2-5 (M0-12 row).
+
+## 2026-11-15 — Proposals 031, 032, 033 ACCEPTED (C3 → v1.3; C4 → v1.2; C8 → v1.7; C10 → v1.3)
+
+Maintainer-approved, Wave 1 of the optimization study (work order W1-A0; decisions D1 and D2). Proposals:
+`contracts/proposals/031-T4-baseline-abstention-preemption.md`, `032-T3-meta-only-fast-path.md`,
+`033-T7-T9-gate-refusal-play-update-after-exit.md`. Plan: `docs/plans/opt/IMPLEMENTATION_WAVES.md` §3; plan review
+`docs/status/opt_implementation_waves_review.md` B1, B2, B5, B6.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 031 abstention pre-emption (D1) | C3 §6.1 | A `below_threshold` baseline window (abstention) is pre-empted by one confident counter tick: new 24-month counter window, reason `table`. Confident `balanced` opens no window; `safety_floor`, `table` and forced baseline windows and all counter windows are not pre-empted; a floor failure leaves the window untouched. No evidence-tick guard (the Wave C reviewer advised deferral; maintainer approved) | rule, C3 v1.3 (`schema_version = 1`, no model or schema change) |
+| 031 state | C3 §6.1 rule 8 | T4 `StrategyState.abstain: bool = False` (`src/sae/core/`, not a contract model); `state_version` stays 1; pre-v1.3 `state.json` loads as not pre-emptable | consumer note |
+| 031 gate rule | C10 §6 rule 4 | Stage 1 `feel_commitment`: every switch out of a non-baseline strategy is ≥ 24 months after it started; switches out of `baseline` unconstrained | rule, C10 v1.3 (no schema change) |
+| 031 outcome wording | C5 §3 | `outcome` trigger is "window close" (commitment end, force/clear-force, or pre-emption); baseline outcomes of 1–23 months exist | clarification, C5 stays v1.3 |
+| 032 meta-only fast path | C4 §1 | Exactly `--sections meta` with `date` and `version` in the zip `meta` entry skips the `gamestate` inflate; the `gamestate` presence check stays; otherwise the v1.1 full path. Accepted divergence: valid `meta` + corrupt `gamestate` exits 0. No CLI flag; parser 0.1.2 | rule, C4 v1.2 (`schema_version = 1`, no model or schema change) |
+| 033 gate refusal | C8 §5 | `sae gate` exits 5 while the game process is detected unless `--force`; lowers its own priority only. Exit code 5 added | additive, C8 v1.7 |
+| 033 `sae play` order (D2) | C8 §5 | Daemon first; `sae profile update` after it returns (never `--force`); returns the daemon's exit code; the daemon runs on the previous session's profile and policy | rule, C8 v1.7 (`v = 1`) |
+| Header and index fixes | C5, C6, C9, README §1 | C5 and C6 status lines said "FROZEN v1.2" under Version 1.3; C9 said Version 1 under "FROZEN v1.1"; README index rows for C8, C9, C10 were stale. New test `tests/contract/test_versions.py` pins header = status = index | doc fix, no version moves |
+| Assumptions | README §5, C4 §8, C8 §10 | A-47 (zip `meta` holds `date` and `version`, M0-11), A-48 (Windows console close ends the launcher before any update, M0-12) | UNVERIFIED |
+
+Follow-ups: T4 W1-1 (`core/strategy.py`), T7 W1-8 (`gate/stage1.py`) and W1-5 (`gate/cli.py`), T3 W1-3 (parser
+0.1.2), T9 W1-7 (`profile/launcher.py`). CI-1's pooled switch-match threshold (0.90) is not edited.
+
 ## 2026-11-14 — Proposal 030 ACCEPTED (C4 → v1.1)
 
 Maintainer-approved first step of the optimization study. Proposal: `contracts/proposals/030-T3-parse-cost-peak-commit.md`.

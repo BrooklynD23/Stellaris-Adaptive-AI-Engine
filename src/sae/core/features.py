@@ -34,6 +34,10 @@ class FeatureMemory:
     last_asof_mi: int | None = None
     last_evidence_mi: int | None = None
     war_applied: bool = False  # the observed war already entered the belief
+    # Observer set seen at the last evidence tick and the as-of month its continuous run began. The expansion
+    # rate is never computed across a visibility gap (observer lost or regained), see ``extract``.
+    vis: frozenset[int] | None = None
+    run_start_mi: int | None = None
 
 
 @dataclass(frozen=True)
@@ -76,7 +80,9 @@ def _rate(samples: tuple[tuple[int, int], ...], now_mi: int, now_sys: int) -> fl
     if not ages:
         return None
     age, then = max(ages)
-    return (now_sys - then) / (age / 12)
+    rate = (now_sys - then) / (age / 12)
+    # A negative rate is an observer-loss artefact (a smaller view set), not a real contraction: no evidence.
+    return rate if rate >= 0 else None
 
 
 def _at_war(views: list[LegalView]) -> bool | None:
@@ -106,6 +112,8 @@ def reset_session(memory: FeatureMemory, obs_mi: int, regressed: bool = True) ->
         first_war_offset=memory.first_war_offset if war is not None else None,
         war_applied=memory.war_applied and war is not None,
         anchor_mi=None,
+        vis=memory.vis,
+        run_start_mi=None if memory.run_start_mi is None else min(memory.run_start_mi, obs_mi),
         last_asof_mi=last_asof,
         last_evidence_mi=last_ev,
     )
@@ -116,7 +124,7 @@ def extract(memory: FeatureMemory, obs: Observation) -> tuple[FeatureMemory, Fea
     obs_mi = mi_of(obs.game_date)
     views = [v for v in obs.player_legal if v.in_contact]
     if not views:
-        return memory, FeatureVector(), False, 0
+        return (memory if memory.vis == frozenset() else replace(memory, vis=frozenset())), FeatureVector(), False, 0
     anchor = memory.anchor_mi if memory.anchor_mi is not None else obs_mi
     asof = mi_of(obs.legal_as_of) if obs.legal_as_of is not None else None
     new_ev = asof is not None and (memory.last_asof_mi is None or asof > memory.last_asof_mi)
@@ -124,8 +132,13 @@ def extract(memory: FeatureMemory, obs: Observation) -> tuple[FeatureMemory, Fea
     now_sys = max(systems) if systems else None
     samples = memory.samples
     rate = None
+    # A None systems_owned report breaks the continuous run exactly like a lost observer.
+    vis = frozenset(v.observer_sid for v in views if v.systems_owned is not None)
+    run_start = memory.run_start_mi
+    if new_ev and asof is not None and (memory.vis != vis or run_start is None):
+        run_start = asof  # observer set changed: a new continuous visibility run starts here
     if asof is not None and now_sys is not None:
-        rate = _rate(samples, asof, now_sys)
+        rate = _rate(tuple(s for s in samples if run_start is None or s[0] >= run_start), asof, now_sys)
         if new_ev:
             samples = (*(s for s in samples if s[0] != asof), (asof, now_sys))[-MAX_SAMPLES:]
     first_war, offset = memory.first_war_mi, memory.first_war_offset
@@ -153,6 +166,8 @@ def extract(memory: FeatureMemory, obs: Observation) -> tuple[FeatureMemory, Fea
         first_war_offset=offset,
         war_applied=memory.war_applied or (observed and new_ev),
         anchor_mi=anchor,
+        vis=vis if new_ev else memory.vis,
+        run_start_mi=run_start,
         last_asof_mi=asof if new_ev else memory.last_asof_mi,
         last_evidence_mi=obs_mi if new_ev else last_ev,
     )

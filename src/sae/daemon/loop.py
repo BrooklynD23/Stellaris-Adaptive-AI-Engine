@@ -104,7 +104,12 @@ class _Loop:
         self.terminated = False  # SIGTERM / console close received
         self.guard_key: tuple[int | None] | None = None  # (game month,) of the last reexec_guard event
         self.spm: float | None = None  # latest seconds per game month (monthly health)
-        self.prev_log: tuple[int, float] | None = None  # (m, monotonic) of the last log observation
+        self.prev_m: int | None = None  # m of the last HB (log) observation
+        self.pending_k = 0  # HB months counted since the last spm sample (C7 section 4.3 poll-tick sampler)
+        self.hb_seen = False  # an HB arrived since the last poll
+        self.hb_date: str | None = None  # game date of the latest HB
+        self.last_hb_poll: float | None = None  # monotonic time of the last poll that saw an HB
+        self.engine_s = 0.0  # perf_counter seconds in _on_obs since the last monthly event (C5 engine_ms)
         self.breach_key: tuple[int | None] | None = None  # (game month,) of the last RSS breach event
         self.health_mi: int | None = None
         self.exit_logged = False
@@ -215,7 +220,8 @@ class _Loop:
             await asyncio.sleep(self.inbox_s)
 
     def poll_once(self) -> None:
-        """One governor poll: sample, decide, publish level/state changes, route the decision."""
+        """One governor poll: spm sample, sensor sample, decide, publish level/state changes, route the decision."""
+        self._spm_tick()
         s = self.deps.sensors.sample()
         self.sample = s
         d = self.deps.governor.poll(s)
@@ -262,8 +268,8 @@ class _Loop:
             log.exception("could not record re-exec timestamp")
         return True
 
-    def _metrics(self, s: SensorSample) -> dict[str, float]:
-        """Monthly health metrics with the C5 section 3 keys."""
+    def _metrics(self, s: SensorSample, monthly: bool = False) -> dict[str, float]:
+        """Health metrics with the C5 section 3 keys; ``monthly`` adds ``engine_ms`` and resets its accumulator."""
         m = {"daemon_rss_bytes": float(s.daemon_rss_bytes), "daemon_cpu_pct": s.daemon_cpu_pct,
              "avail_ram_bytes": float(s.available_ram_bytes)}
         if s.hard_fault_rate is not None:
@@ -274,6 +280,17 @@ class _Loop:
             v = getattr(self.deps.governor, key, None)
             if isinstance(v, int | float):
                 m[key] = float(v)
+        armed = getattr(self.deps.governor, "spm_armed", None)  # C5 v1.4 (proposal 034)
+        if isinstance(armed, bool):
+            m["spm_armed"] = 1.0 if armed else 0.0
+        ratio = getattr(self.deps.governor, "spm_ratio", None)  # omitted when unarmed (None)
+        if isinstance(ratio, int | float):
+            m["spm_ratio"] = float(ratio)
+        if s.daemon_private_bytes is not None:  # C5 v1.5 (proposal 035); omitted, never null
+            m["daemon_private_bytes"] = float(s.daemon_private_bytes)
+        if monthly:
+            m["engine_ms"] = self.engine_s * 1000.0
+            self.engine_s = 0.0
         cost = self.parser.last_cost if self.parser is not None else None
         if cost is not None:
             m.update(parse_rss_peak_bytes=float(cost.rss_peak_bytes), parse_cpu_s=cost.cpu_s, parse_wall_s=cost.wall_s)
@@ -334,31 +351,49 @@ class _Loop:
         if not pin_matches(pol.game_version_pin, o.game_version):
             self._health(HealthKind.POLICY_PIN_MISMATCH, "engine", f"{pol.game_version_pin} vs {o.game_version}")
 
-    def _spm(self, o: Observation) -> None:
+    def _count_hb(self, o: Observation) -> None:
+        """Count HB months for the poll-tick sampler (no clock read here: C7 section 4.3 measures at polls)."""
         if o.source != "log" or o.m is None:
             return
+        self.hb_seen, self.hb_date = True, o.game_date
+        if self.prev_m is not None and o.m > self.prev_m:
+            self.pending_k += o.m - self.prev_m
+        self.prev_m = o.m  # a backward jump (save load) re-bases, as before
+
+    def _spm_tick(self) -> None:
+        """C7 section 4.3: one ``SpmSample(months=k)`` per poll that saw HBs, wall = (now - last HB poll) / k."""
+        if not self.hb_seen:
+            return
         now = self.deps.monotonic()
-        if self.prev_log is not None and o.m > self.prev_log[0]:
-            k = o.m - self.prev_log[0]
-            wall = max((now - self.prev_log[1]) / k, 0.001)
-            self.deps.governor.on_month(SpmSample(game_date=o.game_date, wall_s=wall, months=k))
+        k, date, last = self.pending_k, self.hb_date, self.last_hb_poll
+        self.hb_seen, self.pending_k, self.last_hb_poll = False, 0, now
+        if k > 0 and last is not None and date is not None:
+            wall = max((now - last) / k, 0.001)
+            self.deps.governor.on_month(SpmSample(game_date=date, wall_s=wall, months=k))
             self.spm = wall
-        self.prev_log = (o.m, now)
 
     async def _on_obs(self, adapter: GameAdapter, o: Observation) -> None:
-        self._spm(o)
+        await self._handle_obs(adapter, o)
+
+    async def _handle_obs(self, adapter: GameAdapter, o: Observation) -> None:
+        self._count_hb(o)
         self._check_pin(o)
         before = self.state.last_decided_mi
+        # C5 engine_ms: engine work incl. emit and bus writes; check_disk, health sampling and save() are excluded.
+        t0 = time.perf_counter()
         self.state, out = engine.on_observation(self.state, o, self._ctx(adapter, o))
         self._publish(out)
+        spent = time.perf_counter() - t0
         self.deps.governor.set_next_boundary(engine.next_boundary(self.state))
         mi = mi_of(o.game_date)
         if self.health_mi != mi:
             self.health_mi = mi
             self.check_disk()
             if self.sample is not None:
-                self._health(HealthKind.MONTHLY, "daemon", metrics=self._metrics(self.sample))
+                self._health(HealthKind.MONTHLY, "daemon", metrics=self._metrics(self.sample, monthly=True))
+        self.engine_s += spent  # this observation's time counts toward the next monthly event
         if out.batch is not None:
+            t1 = time.perf_counter()
             self.knob = None
             try:
                 receipt = await adapter.emit(out.batch)
@@ -367,6 +402,7 @@ class _Loop:
                 receipt = EmitReceipt(seq=out.batch.seq, ok=False, error="write_failed", detail=type(e).__name__)
             self.state, more = engine.on_emitted(self.state, out.batch, receipt)
             self._publish(more)
+            self.engine_s += time.perf_counter() - t1
         if self.state.last_decided_mi != before:
             self.save()
 

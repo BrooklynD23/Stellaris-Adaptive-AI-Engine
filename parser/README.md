@@ -64,6 +64,12 @@ Save dates are normalised like the contract `GameDate`: `Y.M.D` with 1-4 / 1-2 /
 re-rendered as zero-padded `YYYY.MM.DD` (`2231.4.1` becomes `2231.04.01`); anything else is exit 5. The fixture
 renderer stays strict and accepts only zero-padded dates.
 
+Meta-only fast path (parser 0.1.2, C4 section 1, proposal 032): for exactly `--sections meta`, when the zip `meta`
+entry holds `date` and `version`, `gamestate` is not inflated (its entry must still exist). Output equals the full
+path except `cost`; the one accepted divergence is a valid `meta` with a corrupt `gamestate`, which exits 0 here. No
+CLI flag forces the full path (debug builds honour the `SAE_PARSE_FORCE_FULL` env var for tests). UNVERIFIED on real
+saves (A-47, M0-11): if a real `meta` entry lacks `date` or `version`, the fast path never fires.
+
 `--sections` syntax: comma-separated section names with no spaces and no empty items (`meta,wars`; `meta,,wars`,
 `meta,` and ` meta` are usage errors, exit 2). Duplicates collapse.
 
@@ -146,6 +152,7 @@ output with `PARSE_OUTPUT_ADAPTER`). `tests/golden.rs` compares `parse(save.sav)
 | A system is owned by the owner of its starbase; defense modules and `orbitals` count as defenses | A-19 | M0-11 |
 | `relation` blocks mark contact symmetrically enough for the either-side rule | A-19 | M0-11 |
 | `ironman=yes` in the `meta` entry; null when there is no `meta` entry | A-20 | M0-14 |
+| The zip `meta` entry holds `date` and `version` (meta-only fast path) | A-47 | M0-11 |
 | `variables.sae_*` and `flags.sae_managed` are saved | A-30 | M0-11 |
 | Real save size and "2x largest save" padding and stress sizes | A-18 | M0-11 |
 

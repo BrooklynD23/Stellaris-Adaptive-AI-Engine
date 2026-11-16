@@ -1,7 +1,8 @@
 """``sae gate stage1|stage2`` (proposal 029 section 1; C10 sections 5-6; owner T7).
 
 Exit codes: 0 pass, 1 stage fail or I/O error, 2 usage or refused, 3 invalid config (C8 section 5), 4 no result by
-design (game-paired Stage 2). The CLI never edits config, never starts a daemon and writes only under
+design (game-paired Stage 2), 5 Stellaris is running (C8 section 5; ``--force`` overrides). The CLI never edits config,
+never starts a daemon and writes only under
 ``<sae_dir>/policies`` (plus ``--out`` for a draft protocol).
 """
 
@@ -14,7 +15,7 @@ import sys
 
 from sae.bench.gate.stage1 import GateError, cmd_stage1
 from sae.bench.gate.stage2 import cmd_stage2
-from sae.profile.cli import _context
+from sae.profile.cli import _context, _game_running, _lower_priority
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ def _parser() -> argparse.ArgumentParser:
     common.add_argument("--set", dest="sets", action="append", default=[], metavar="K=V", help="dotted key override")
     common.add_argument("--runs-dir", help="runs directory")
     common.add_argument("--include-synth", action="store_true", help="use synth campaigns: diagnostic, no registry row")
+    common.add_argument("--force", action="store_true", help="run even while Stellaris is running")
     p = argparse.ArgumentParser(prog="sae gate", description="Release gate (C10).")
     sub = p.add_subparsers(dest="verb", required=True)
     s1 = sub.add_parser("stage1", parents=[common])
@@ -53,6 +55,11 @@ def main(command: str, argv: list[str]) -> int:
         args = _parser().parse_args(argv)
     except SystemExit as e:
         return e.code if isinstance(e.code, int) else 2
+    if _game_running() and not args.force:
+        print("sae gate: Stellaris is running; close it or pass --force", file=sys.stderr)
+        log.warning("gate refused: game running (exit 5)")
+        return 5
+    _lower_priority()  # SAE's own process only; never the game's
     ctx = _context(args)
     if isinstance(ctx, int):
         return ctx

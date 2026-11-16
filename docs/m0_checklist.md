@@ -35,8 +35,8 @@ not this weekend (M1 or release gate). Result field: `m0_results/<id>.json` (`au
 | M0-8 | core | base save made after M0-5 and before M0-6 (no seed field); B: econ=military via M0-6, APPLIED, then `observe`; A: `observe`; 15 years each, one after the other | fleet power B/A ≥ 1.3 | fleet power of both | defines / full economic-plan overrides (per campaign) | `record M0-8` |
 | M0-9 | later | 20 years at 0.95 speed, emit period 1, mod on/off | < 5 % days/minute change | days per minute | emit every 3 months (`low_impact`) | `record M0-9` |
 | M0-10 | later | keystroke injection (backlog, T2) | 10/10 clean runs | — | hotkey only (v0 default) | `record M0-10 skip` |
-| M0-11 | core | build `sae-parse`, monthly autosave, parse it, compare with UI; note the autosave folder name (A-46) | exit 0, valid C4 output, ≤ 3 s, fields match UI, A-46 folder behaviour recorded | wall time, peak RSS, size, raw date, god-view fields, A-46 folder behaviour | parse a section subset; dashboard parser cross-check | `check M0-11 --save`, `record M0-11` |
-| M0-12 | stretch | s/month mod off vs on, game RAM, fault counter, process name | mod ≤ 1 % of s/game-year | s/month, RSS, counter, process name | redesign emission before engine work | `record M0-12` |
+| M0-11 | core | build `sae-parse`, monthly autosave, parse it, compare with UI; note the autosave folder name (A-46) | exit 0, valid C4 output, ≤ 3 s, fields match UI, A-46 folder behaviour recorded | wall time, peak RSS, size, raw date, god-view fields, A-46 folder behaviour, largest-save (copy, `--background`) text bytes / peak commit / max entry span, bench `cpu_s` vs `parse_cpu_s` (within 10 %), game process name | parse a section subset; dashboard parser cross-check | `check M0-11 --save`, `record M0-11` |
+| M0-12 | core | s/month mod off vs on, game RAM, fault counter, process name | mod ≤ 1 % of s/game-year | s/month, RSS, `daemon_private_bytes` p95, `daemon_rss_bytes` p95, counter, process name | redesign emission before engine work | `record M0-12` |
 | M0-13 | stretch | additive `zz_` economic subplan, 10 years vs twin | new subplan active, StarNet's kept | resource trends | flag-gated budgets only | `record M0-13` |
 | M0-14 | stretch | Ironman game with the mod, 2 months | Ironman save parses, `ironman` flagged; meta entry has `ironman=yes` (key UNVERIFIED) and `sae-parse --sections meta` reads it as true; behaviour recorded | `meta.ironman`, SAE lines, console blocked | Ironman stays observe-only (settled) | `check M0-14 --save`, `record M0-14` |
 | M1-P | later | CPU-time rate paused vs running (M1, T5) | separable bands, 4–6 s debounce | CPU-rate bands | pause harvesting only when CLOSED | `record M1-P skip` |
@@ -96,6 +96,9 @@ none has run. They are not part of M0; their UNVERIFIED inputs are X-12..X-14 in
 | A-44 | `IsIconic` on the game's top-level window detects minimise | M0-12 | Governor CLOSED after 10 min minimised (later, with the daemon) | CLOSED only when the game is absent |
 | A-45 | A `psutil.process_iter` rescan on Windows stays under the 100 ms probe bound | M0-12 | `sae daemon` health timing (later) | longer rescan interval |
 | A-46 | Each campaign's autosaves live in one folder under `save games/`; a folder name is reused only by a new game of the same empire name | M0-11 | folder names seen across two new games of the same empire (`save_folder_key` stability) | §1 split rule (user confirms) + profile exclude (C10 §1) |
+| A-47 | The zip `meta` entry holds `date` and `version` (C4 v1.2 meta-only fast path) | M0-11 | `--sections meta` on a real save returns without the gamestate inflate | fast path never fires; behaviour equals v1.1 |
+| A-48 | A Windows console close ends the `sae play` launcher within about 5 s, before any profile update | M0-12 | close the console during `sae play`; no update runs | user runs `sae profile update` by hand |
+| A-49 | `memory_info().private` (Windows) / `RssAnon` (Linux) read within the 100 ms probe bound and track the daemon's private memory | M0-12 | `daemon_private_bytes` p95 vs Task Manager private working set | stack-flip rule restated on working set |
 
 ## C. Items outside the registry
 

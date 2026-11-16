@@ -1,4 +1,4 @@
-"""``sae play``: update first (never fatal), then the daemon with the original argv."""
+"""``sae play``: the daemon first with the original argv, then the update (never fatal)."""
 
 from __future__ import annotations
 
@@ -14,11 +14,13 @@ from sae.profile import launcher
 
 class Spy:
     def __init__(self, monkeypatch: pytest.MonkeyPatch, *, result: Any = 0) -> None:
+        self.order: list[str] = []
         self.calls: list[list[str]] = []
         self.daemon: list[tuple[str, list[str]]] = []
         self.result = result
 
         def run(argv: list[str], **kw: Any) -> Any:
+            self.order.append("update")
             self.calls.append(argv)
             assert kw == {"stdin": subprocess.DEVNULL, "timeout": 600, "check": False}
             if isinstance(self.result, BaseException):
@@ -26,6 +28,7 @@ class Spy:
             return subprocess.CompletedProcess(argv, self.result)
 
         def daemon_main(command: str, argv: list[str]) -> int:
+            self.order.append("daemon")
             self.daemon.append((command, argv))
             return 7
 
@@ -53,7 +56,7 @@ def test_mode_off_spawns_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert spy.calls == [] and spy.daemon == [("daemon", argv)]
 
 
-def test_success_runs_update_then_daemon(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+def test_success_runs_daemon_then_update(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
                                          capsys: pytest.CaptureFixture[str]) -> None:
     spy = Spy(monkeypatch)
     argv = [*base(tmp_path, "strict"), "--preset", "dev", "--runs-dir", str(tmp_path / "r"), "--adapter", "live",
@@ -65,21 +68,63 @@ def test_success_runs_update_then_daemon(tmp_path: Path, monkeypatch: pytest.Mon
         "--set", f"paths.sae_dir={tmp_path / 'sae'}", "--set", "profile.mode=strict", "--runs-dir", str(tmp_path / "r"),
     ]]
     assert spy.daemon == [("daemon", argv)]  # original argv, --adapter included
-    assert capsys.readouterr().err == ""
+    assert spy.order == ["daemon", "update"]
+    out = capsys.readouterr()
+    assert out.err == "" and "updating the profile" in out.out
 
 
 @pytest.mark.parametrize(
     ("result", "reason"),
-    [(3, "exit code 3"), (OSError("no python"), "no python"),
+    [(1, "exit code 1"), (3, "exit code 3"), (OSError("no python"), "no python"),
      (subprocess.TimeoutExpired(["x"], 600), "TimeoutExpired")],
 )
 def test_update_failure_is_not_fatal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
                                      capsys: pytest.CaptureFixture[str], result: Any, reason: str) -> None:
     spy = Spy(monkeypatch, result=result)
     argv = [*base(tmp_path, "strict"), "--resume", "20261001-120001-live-0001"]
+    assert launcher.main("play", argv) == 7  # the daemon's code, whatever the update does
+    err = capsys.readouterr().err
+    assert f"sae play: profile update failed ({reason})" in err
+    assert ("run sae profile update after closing the game" in err) == (result == 1)
+    assert spy.daemon == [("daemon", argv)] and spy.order == ["daemon", "update"]
+
+
+@pytest.mark.parametrize("resume", [False, True])
+def test_reexec_child_alive_skips_update(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+                                         capsys: pytest.CaptureFixture[str], resume: bool) -> None:
+    """Windows re-exec: the daemon returns while its child, named in runs/CURRENT, still runs (C8 §5 item 4)."""
+    import os
+
+    spy = Spy(monkeypatch)
+    runs = tmp_path / "r"
+    runs.mkdir()
+    (runs / "CURRENT").write_text("20261001-120001-live-0001 4242", encoding="utf-8")
+    monkeypatch.setattr(launcher, "_is_sae_alive", lambda pid: pid == 4242 and pid != os.getpid())
+    argv = [*base(tmp_path, "strict"), "--runs-dir", str(runs)]
+    if resume:
+        argv += ["--resume", "20261001-120001-live-0001"]
     assert launcher.main("play", argv) == 7
-    assert f"sae play: profile update failed ({reason}); starting the daemon anyway" in capsys.readouterr().err
-    assert spy.daemon == [("daemon", argv)] and len(spy.calls) == 1
+    out = capsys.readouterr()
+    assert spy.calls == [] and spy.order == ["daemon"]
+    assert out.err.count("\n") == 1 and "re-executed" in out.err
+    assert "run sae profile update after closing the game" in out.err
+    assert "updating the profile" not in out.out
+
+
+@pytest.mark.parametrize("current", [None, "own", "dead", "junk"])
+def test_no_live_child_runs_update(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, current: str | None) -> None:
+    """No CURRENT (normal exit), our own pid, a dead pid or a malformed file: the update runs as before."""
+    import os
+
+    spy = Spy(monkeypatch)
+    runs = tmp_path / "r"
+    runs.mkdir()
+    text = {"own": f"x {os.getpid()}", "dead": "x 4242", "junk": "garbage"}.get(current or "")
+    if text is not None:
+        (runs / "CURRENT").write_text(text, encoding="utf-8")
+    monkeypatch.setattr(launcher, "_is_sae_alive", lambda pid: pid == os.getpid())
+    assert launcher.main("play", [*base(tmp_path, "strict"), "--runs-dir", str(runs)]) == 7
+    assert spy.order == ["daemon", "update"]
 
 
 def test_config_error_skips_update_but_starts_daemon(monkeypatch: pytest.MonkeyPatch,
@@ -159,6 +204,7 @@ def test_play_on_a_tty_never_prompts_and_leaves_split_pending(tmp_path: Path) ->
     assert exited == 0 and "DAEMON STARTED" in text, text
     assert "profile update failed" not in text and "[n]ew game" not in text, text
     assert f"split candidate left pending: run {run_id(2)}" in text
+    assert text.index("DAEMON STARTED") < text.index("split candidate left pending")  # daemon first, then update
     rows = store.read_index(tmp_path / "sae" / "campaigns.jsonl")[0]
     assert [r.event for r in rows] == ["seen"]  # run 2 was neither joined nor split
 
@@ -189,5 +235,6 @@ def test_play_with_nul_stdin_on_windows_leaves_split_pending(tmp_path: Path) -> 
     assert proc.returncode == 0 and "DAEMON STARTED" in text, text
     assert "profile update failed" not in text, text
     assert f"split candidate left pending: run {run_id(2)}" in text
+    assert text.index("DAEMON STARTED") < text.index("split candidate left pending")  # daemon first, then update
     rows = store.read_index(tmp_path / "sae" / "campaigns.jsonl")[0]
     assert [r.event for r in rows] == ["seen"]  # run 2 was neither joined nor split

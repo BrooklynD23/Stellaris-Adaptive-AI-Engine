@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Version | 1.3 (`schema_version = 1` on `Observation`/`GodObservation`) |
-| Status | FROZEN v1.2 (2026-10-19; v1.1 multiplayer write guard §1.6, proposals 009 health hook §1.8, 011 replay/synth lockstep §1.7; v1.2 proposal 017: neutralise on close/`mp=1` §1.9, Ironman observe-only §1.10, `EmitReceipt.error = "ironman"`, `SaveParser.parse(..., sections=)`; v1.3 proposals 019 Part A `Observation.save_folder_key`/`game_version` §2, 022 recording hygiene §3; §3 recorded PLYR stub keeps `sid`, review 2 B1) |
+| Status | FROZEN v1.3 (2026-10-19; v1.1 multiplayer write guard §1.6, proposals 009 health hook §1.8, 011 replay/synth lockstep §1.7; v1.2 proposal 017: neutralise on close/`mp=1` §1.9, Ironman observe-only §1.10, `EmitReceipt.error = "ironman"`, `SaveParser.parse(..., sections=)`; v1.3 proposals 019 Part A `Observation.save_folder_key`/`game_version` §2, 022 recording hygiene §3; §3 recorded PLYR stub keeps `sid`, review 2 B1) |
 | Owner | architect (contract); T2 implements the adapters |
 | Producers | LiveAdapter, ReplayAdapter, SynthAdapter, release mode (T2) |
 | Consumers | Engine core and daemon loop (T4); bus writer (T6) for `observation`/`observation_god` |

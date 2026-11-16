@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.1 (`schema_version = 1` in every JSON document) |
-| Status | FROZEN v1.1 (2026-11-14; v1.1 proposal 030: Windows `cost.rss_peak_bytes` is peak commit, §2; v1 2026-10-19) |
+| Version | 1.2 (`schema_version = 1` in every JSON document) |
+| Status | FROZEN v1.2 (2026-11-15; v1.2 proposal 032: meta-only fast path, §1; 2026-11-14: v1.1 proposal 030: Windows `cost.rss_peak_bytes` is peak commit, §2; v1 2026-10-19) |
 | Owner | architect (contract); T3 implements |
 | Producer | `sae-parse` (Rust, jomini; T3) |
 | Consumers | Daemon parse step (T4) through the Governor's worker spawn (T5); ReplayAdapter and SynthAdapter (T2); fixtures for T7 |
@@ -25,9 +25,16 @@ sae-parse --version            -> prints "sae-parse <semver>" and exits 0
   whose section did not run is `null`. The live loop always passes all sections (seq continuity, C3 §5).
   (Proposal 001-T3.)
   Meta-only (`--sections meta`) is the Ironman detection call (C6 §1.10, proposal 017; no new mode):
-  `meta.ironman` comes from the zip `meta` entry only (`null` when the save has none, A-20). The parser
-  still inflates and top-level-scans `gamestate` (for `date`/`version` fallback) but extracts no section;
-  `countries = []`, `legal = []`, `self_state = {}`, `god = null`.
+  `meta.ironman` comes from the zip `meta` entry only (`null` when the save has none, A-20). No section is
+  extracted; `countries = []`, `legal = []`, `self_state = {}`, `god = null`.
+  **Meta-only fast path (v1.2, proposal 032, parser ≥ 0.1.2).** When the call is exactly `--sections meta` and
+  the zip `meta` entry holds both `date` and `version`, the parser does not inflate `gamestate`; it still checks
+  that a `gamestate` entry exists (a save without one fails with the same exit code as before). When `meta`
+  lacks `date` or `version`, or there is no `meta` entry, it inflates and top-level-scans `gamestate` as in
+  v1.1. Where both paths succeed the JSON is identical except `cost`; a malformed `date` gives the same exit
+  code on both. **Accepted divergence (the only one):** valid `meta` + corrupt `gamestate` (bad deflate, bad
+  CRC, unparseable text) → the fast path exits 0 where v1.1 returned its error code (§2); a later full parse of
+  that save reports the error. No CLI flag forces the full path. UNVERIFIED on real saves (A-47).
 - `--threads`: default 1. The Governor passes the allowance (C7); the parser never uses more.
 - `--background` (Windows): the worker's first action is `SetPriorityClass(GetCurrentProcess(),
   PROCESS_MODE_BACKGROUND_BEGIN)`, then EcoQoS via `SetProcessInformation`. Ignored on Linux (the
@@ -220,6 +227,7 @@ changing a feature definition (§3), or changing an exit code meaning is a v2 ch
 | Id | Assumption | M0 test | Fallback |
 |---|---|---|---|
 | A-18 | 4.4 autosaves are zip(`meta`, `gamestate`) Clausewitz text that jomini parses in ≤ 3 s, ≤ 1 GB | M0-11 | Section-selective parsing; binary support if needed |
+| A-47 | The zip `meta` entry of a real save holds `date` and `version` (meta-only fast path, §1) | M0-11 | Fast path never fires; behaviour equals v1.1 |
 | A-19 | Contact, ownership, starbase modules, fleet power and tech count are present and locatable in the save | M0-11 | Drop the feature; mark `null` |
 | A-20 | Ironman saves are parseable and `ironman` is detectable | M0-14 | `ironman = null` |
 | A-24 | The autosave interval can be set to monthly for development | M0-11 | Yearly saves; log channel carries the monthly signal |

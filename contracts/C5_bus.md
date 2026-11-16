@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.3 (`v = 1` in every line) |
-| Status | FROZEN v1.2 (2026-10-19; payload enums follow C3/C6/C7 v1.1; CUSUM settled; v1.2 health kinds `ini_neutralised`, `ironman_observe_only` and receipt error `ironman`, proposal 017; v1.3 `run_started.policy` (019 Part A), health kinds `record_capped` (022) and `policy_pin_mismatch` (021)) |
+| Version | 1.5 (`v = 1` in every line) |
+| Status | FROZEN v1.5 (2026-11-15: v1.5 monthly keys `engine_ms`, `daemon_private_bytes`, proposal 035; v1.4 monthly keys `spm_ratio`, `spm_armed`, proposal 034; 2026-10-19: payload enums follow C3/C6/C7 v1.1; CUSUM settled; v1.2 health kinds `ini_neutralised`, `ironman_observe_only` and receipt error `ironman`, proposal 017; v1.3 `run_started.policy` (019 Part A), health kinds `record_capped` (022) and `policy_pin_mismatch` (021); 2026-11-15 `outcome` trigger wording, proposal 031, no version change) |
 | Owner | architect (contract); T6 implements the writer and readers |
 | Producer | the daemon only (single writer per run): engine (T4), Governor (T5), adapters (T2) via the bus writer (T6) |
 | Consumers | `sae-telemetry` and Rerun (T6), DuckDB views (T6), ReplayAdapter (T2), CI-1/CI-2 and e2e checks (T7), `sae ctl status` (T6) |
@@ -55,7 +55,7 @@ decision audit is a DuckDB view joining rows on `decision_id`.
 | `intent_emitted` | none | the `IntentBatch` (C3) and the `EmitReceipt` (C6) | each batch write attempt |
 | `intent_rejected` | none | the intent, validator `rule` (C3 §4; v1.2 adds the non-refusal audit id `deferred`, proposal 018-T4), detail | each validator rejection |
 | `intent_ack` | none | seq, country, status, code, intent_ids, attempt, ack lag (months) | each mod ACK, and each engine LOST/SUPERSEDED |
-| `outcome` | legal | strategy, window, forced flag, metrics, reward ∈ [−1, 1] | commitment window end |
+| `outcome` | legal | strategy, window, forced flag, metrics, reward ∈ [−1, 1] | window close: commitment end, operator force or clear-force, or pre-emption of an abstention window (C3 §6.1; `baseline`, 1–23 months) |
 | `control` | none | C9 `ControlCommand` (`null` if the inbox file was unreadable, too large or invalid; present for `expired`) and `ControlResult` (`error` adds `expired`, C9 §3.1, v1.1) | each operator command (status included) |
 | `health` | none | kind, component, Governor state and level, trigger, metrics, detail | C7 §9 and error tables in C1/C2/C4 |
 
@@ -70,6 +70,18 @@ first observed `game_version` does not fit the loaded policy's `game_version_pin
 `intent_emitted.receipt.error` may be `ironman` (C6 v1.2). Monthly `health` metrics keys (T0 tier, resource proposal §7):
 `avail_ram_bytes`, `fault_rate`, `spm`, `spm_med6`, `spm_med24`, `daemon_rss_bytes`, `daemon_cpu_pct`,
 `parse_rss_peak_bytes`, `parse_cpu_s`, `parse_wall_s`, `saves_skipped`, `workers_killed`, `pause_fraction`.
+`metrics` values are floats; a key whose source is unavailable is omitted (never `null`). Added keys:
+
+| Key | Since | Value | Rule |
+|---|---|---|---|
+| `spm_armed` | v1.4 (034) | `1.0` / `0.0` | the spm trigger is armed (C7 §4.3); on every `monthly` event |
+| `spm_ratio` | v1.4 (034) | float | the ratio the spm trigger compares (mean 6 / mean 24); **omitted** when unarmed |
+| `daemon_private_bytes` | v1.5 (035) | float, bytes | latest `SensorSample.daemon_private_bytes` (C7 §5); omitted when `None` |
+| `engine_ms` | v1.5 (035) | float ≥ 0, ms | wall time (`time.perf_counter`) the daemon spent handling observations (features, belief, strategy, intent compile/validate/emit and their bus writes), summed since the previous `monthly` event; `0.0` when none; on every `monthly` event. Excludes the parse worker, sensor polls, idle waits, the `runs/` disk check and the `state.json` save (wording clarified 2026-11-15, no version change) |
+
+`spm_med6` / `spm_med24` stay (medians); since C7 v1.2 they do not reproduce the trigger, `spm_ratio` does.
+A reader treats a missing `spm_armed` (older bus) as unknown, not as 0. C7 §4.7 states the stack-flip rule on
+`daemon_private_bytes`, `daemon_cpu_pct` and `engine_ms`.
 
 `health.trigger` takes the C7 `Trigger` values, including `budget_breach` (C7 §7, v1.1).
 
@@ -78,7 +90,7 @@ the bus writer from the most recent `GovernorDecision` (PLAYING/H0 before the fi
 
 A full decision chain for one month shares one `decision_id`:
 `observation → belief_update → strategy_selected → intent_emitted (or intent_rejected) → intent_ack` (later)
-and, at window end, `outcome` (which carries the decision_id of the decision that opened the window).
+and, at window close, `outcome` (which carries the decision_id of the decision that opened the window).
 
 ## 4. Examples
 
@@ -139,6 +151,19 @@ v1.3 `run_started` with a policy (built-in after a registry fallback) and a capp
 {"v":1,"run_id":"20261101-200000-live-3e4f","seq":2,"t_wall":"2026-11-01T20:01:00.000Z","t_mono_ns":3000,"game_date":"2230.01.01","type":"health","fow":"none","payload":{"kind":"policy_pin_mismatch","component":"engine","state":"PLAYING","level":"H0","detail":"v4.4.* vs Corvus v4.5.0"}}
 ```
 
+v1.5 monthly `health` with an armed spm trigger, then an unarmed one (`spm_ratio` omitted):
+
+```jsonl model=BusEvent
+{"v":1,"run_id":"20261115-200000-live-5a6b","seq":70,"t_wall":"2026-11-15T21:00:00.000Z","t_mono_ns":70000,"game_date":"2240.01.01","type":"health","fow":"none","payload":{"kind":"monthly","component":"governor","state":"PLAYING","level":"H0","metrics":{"avail_ram_bytes":3200000000,"spm":23.4,"spm_med6":23.0,"spm_med24":22.0,"spm_armed":1.0,"spm_ratio":1.04,"daemon_rss_bytes":61000000,"daemon_private_bytes":38000000,"daemon_cpu_pct":0.4,"engine_ms":3.2}}}
+{"v":1,"run_id":"20261115-200000-live-5a6b","seq":71,"t_wall":"2026-11-15T21:00:04.000Z","t_mono_ns":71000,"game_date":"2240.02.01","type":"health","fow":"none","payload":{"kind":"monthly","component":"governor","state":"PLAYING","level":"H0","metrics":{"avail_ram_bytes":3200000000,"spm":4.0,"spm_med6":4.0,"spm_med24":4.1,"spm_armed":0.0,"daemon_rss_bytes":61000000,"daemon_private_bytes":38000000,"daemon_cpu_pct":0.4,"engine_ms":0.0}}}
+```
+
+A metric value must be a number (`null` is invalid; omit the key instead):
+
+```jsonl model=BusEvent invalid
+{"v":1,"run_id":"20261115-200000-live-5a6b","seq":72,"t_wall":"2026-11-15T21:00:08.000Z","t_mono_ns":72000,"game_date":"2240.03.01","type":"health","fow":"none","payload":{"kind":"monthly","component":"governor","state":"PLAYING","level":"H0","metrics":{"spm_armed":0.0,"spm_ratio":null}}}
+```
+
 A policy with a fallback reason must be the built-in one:
 
 ```jsonl model=BusEvent invalid
@@ -175,6 +200,11 @@ v1.3 stays `v = 1`: `run_started.policy` is optional (`null`/absent on older bus
 policy 0.1.0) and the two health kinds are additive. Whole-bus comparisons (tests, determinism hashes) drop
 `run_started.policy`; replay-determinism hashes also drop `observation.payload.save_folder_key` (salted per
 install, C6 §2).
+
+v1.4 and v1.5 stay `v = 1`: four additive monthly `metrics` keys (proposals 034, 035). `HealthPayload.metrics`
+is `dict[str, float]`, so no model field changed and every existing reader validates the new lines. The new
+values are wall-clock and host dependent; determinism digests already skip `health` events, and any new
+whole-bus comparison must do the same.
 
 ## 7. UNVERIFIED assumptions
 

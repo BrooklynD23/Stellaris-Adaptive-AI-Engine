@@ -245,7 +245,7 @@ def test_monthly_health_and_spm_samples(tmp_path: Path) -> None:
     deps = replace(make_deps(FakePlatform(), gov), monotonic=mono)
     run(run_engine(CFG, EchoAdapter(6), "r1", deps, tmp_path, None, **FAST))
     assert kinds(deps.sink) .count(HealthKind.MONTHLY) >= 4  # type: ignore[arg-type]
-    assert gov.months and all(m.months == 1 and m.wall_s > 0 for m in gov.months)
+    assert gov.months and all(m.months >= 1 and m.wall_s > 0 for m in gov.months)  # poll-tick: k per poll
 
 
 def _mk_loop(tmp: Path, sensors: FakeSensors | None = None, gov: FakeGovernor | None = None,
@@ -462,3 +462,124 @@ def test_save_fsyncs_state_only_in_durable_modes(
     monkeypatch.setattr(loop_mod, "save_state", lambda p, s, *, fsync=True: got.append(fsync))
     lp.save()
     assert got == [fsync]
+
+
+# -- W2-2: poll-tick spm sampler (C7 section 4.3) and C5 v1.4/v1.5 monthly keys ------------------------------------
+
+
+class ArmedGovernor(FakeGovernor):
+    """FakeGovernor with the T5 read-only spm accessors."""
+
+    def __init__(self, armed: bool, ratio: float | None) -> None:
+        super().__init__()
+        self.spm_armed, self.spm_ratio = armed, ratio
+
+
+def _clocked_loop(tmp: Path, gov: FakeGovernor, sensors: FakeSensors | None = None) -> tuple[Any, list[float]]:
+    from dataclasses import replace
+    lp = _mk_loop(tmp, sensors, gov)
+    clock = [0.0]
+    lp.deps = replace(lp.deps, monotonic=lambda: clock[0])
+    return lp, clock
+
+
+def _hb(sim: Sim, t: int) -> Observation:
+    sim.t = t
+    return sim.obs("log")
+
+
+def test_two_hbs_in_one_poll_give_one_sample(tmp_path: Path) -> None:
+    gov = FakeGovernor()
+    lp, clock = _clocked_loop(tmp_path, gov)
+    sim = Sim(Archetype.TURTLE, 1)
+    lp._count_hb(_hb(sim, 0))
+    clock[0] = 10.0
+    lp.poll_once()  # baseline: first HB poll, no sample
+    assert gov.months == []
+    lp._count_hb(_hb(sim, 1))
+    lp._count_hb(_hb(sim, 2))
+    clock[0] = 34.0
+    lp.poll_once()
+    assert len(gov.months) == 1
+    sm = gov.months[0]
+    assert sm.months == 2 and sm.wall_s == (34.0 - 10.0) / 2 and sm.game_date == date_for(2)
+    assert lp.spm == 12.0
+
+
+def test_poll_without_hb_gives_no_sample(tmp_path: Path) -> None:
+    gov = FakeGovernor()
+    lp, clock = _clocked_loop(tmp_path, gov)
+    sim = Sim(Archetype.TURTLE, 1)
+    lp._count_hb(_hb(sim, 0))
+    lp.poll_once()
+    for i in range(5):
+        clock[0] = 2.0 * (i + 1)
+        lp.poll_once()
+    assert gov.months == []
+    lp._count_hb(_hb(sim, 1))  # wall spans the idle polls: measured from the last poll that saw an HB
+    clock[0] = 30.0
+    lp.poll_once()
+    assert [(m.months, m.wall_s) for m in gov.months] == [(1, 30.0)]
+
+
+def test_save_observation_is_not_counted(tmp_path: Path) -> None:
+    gov = FakeGovernor()
+    lp, clock = _clocked_loop(tmp_path, gov)
+    sim = Sim(Archetype.TURTLE, 1)
+    lp._count_hb(_hb(sim, 0))
+    lp.poll_once()
+    sim.t = 3
+    lp._count_hb(sim.obs("save"))
+    clock[0] = 9.0
+    lp.poll_once()
+    assert gov.months == []
+
+
+class PrivSensors(FakeSensors):
+    def __init__(self, private: int | None) -> None:
+        super().__init__()
+        self.private = private
+
+    def sample(self) -> Any:
+        return super().sample().model_copy(update={"daemon_private_bytes": self.private})
+
+
+def _monthly(sink: FakeSink) -> list[dict[str, float]]:
+    return [d.payload.metrics for d in sink.drafts if d.type == "health"  # type: ignore[attr-defined]
+            and d.payload.kind is HealthKind.MONTHLY]  # type: ignore[attr-defined]
+
+
+def _synth_month(tmp: Path, gov: FakeGovernor, private: int | None) -> tuple[Any, list[dict[str, float]]]:
+    lp = _mk_loop(tmp, PrivSensors(private), gov)
+    lp.poll_once()
+    run(lp._on_obs(lp.adapter, _hb(Sim(Archetype.TURTLE, 1), 0)))
+    return lp, _monthly(lp.deps.sink)
+
+
+def test_monthly_has_all_four_keys_when_armed(tmp_path: Path) -> None:
+    lp, ms = _synth_month(tmp_path, ArmedGovernor(True, 1.04), 38_000_000)
+    assert len(ms) == 1
+    m = ms[0]
+    assert m["spm_armed"] == 1.0 and m["spm_ratio"] == 1.04 and m["daemon_private_bytes"] == 38_000_000.0
+    assert m["engine_ms"] == 0.0  # no observation handled before this month's event
+    assert lp.engine_s > 0.0  # the observation's own time goes to the next monthly event
+    valid(next(d for d in lp.deps.sink.drafts if d.type == "health"))
+
+
+def test_monthly_omission_rules(tmp_path: Path) -> None:
+    _, ms = _synth_month(tmp_path, ArmedGovernor(False, None), None)
+    m = ms[0]
+    assert m["spm_armed"] == 0.0 and "spm_ratio" not in m and "daemon_private_bytes" not in m
+    assert "engine_ms" in m and all(v is not None for v in m.values())
+
+
+def test_engine_ms_accumulates_and_resets(tmp_path: Path) -> None:
+    lp = _mk_loop(tmp_path, gov=ArmedGovernor(False, None))
+    lp.poll_once()
+    sim = Sim(Archetype.TURTLE, 1)
+    for t in range(4):
+        run(lp._on_obs(lp.adapter, _hb(sim, t)))
+    ms = _monthly(lp.deps.sink)
+    assert len(ms) == 4 and ms[0]["engine_ms"] == 0.0
+    assert all(m["engine_ms"] > 0.0 for m in ms[1:])
+    assert all("engine_ms" not in m for m in (lp._metrics(lp.sample),))  # non-monthly metrics omit it
