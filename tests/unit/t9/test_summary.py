@@ -157,14 +157,3 @@ def test_bus_god_is_never_opened(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(Path, "open", path_open)
     s = build_summary(state(ids, "2200.01.01", "2233.01.01"), tmp_path)
     assert s is not None
-
-
-def test_builder_version_is_0_2_0() -> None:
-    """C10 v1.4: war features changed meaning (offensive), so profiles must not mix 0.1.0 summaries.
-
-    Enforced by construction: ``sae profile update`` rebuilds every summary from the bus (profile/cli.py
-    ``_rebuild``), so a stale on-disk 0.1.0 summary is overwritten, never fed to ``build_profile``.
-    """
-    from sae.profile.summary import BUILDER_VERSION
-
-    assert BUILDER_VERSION == "0.2.0"

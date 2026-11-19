@@ -180,3 +180,5 @@ Verdict: **CLOSED** (R1, R2, N1). No new findings. N2 stays with the maintainer.
 - **Tier 1:** `uv run pytest -x -q tests/unit/t9 tests/unit/t4` passed (2 skipped); `uv run ruff check` clean;
   `uv run mypy --strict src/sae/profile/summary.py` clean.
 - **R2, N1:** wording reads correctly (`features.py:105`, `.githooks/pre-commit:2`).
+- **N2 closed by maintainer decision (2026-11-19):** approved; `test_builder_version_is_0_2_0` deleted. Builder mixing
+  holds by construction (`profile/cli.py` rebuilds every summary from the bus).
