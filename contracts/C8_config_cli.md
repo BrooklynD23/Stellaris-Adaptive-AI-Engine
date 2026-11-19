@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.6 (`v = 1` in the resolved config) |
-| Status | FROZEN v1.6 (2026-10-20; v1.6 proposal 029: `sae tune`, `sae policy`, `sae gate` dispatched, exit code 4; v1.5 proposal 026: telemetry memory budget measures private memory, §2; v1.4 proposal 025: `sae profile` and `sae play` dispatched, `tests/unit/t9/**`; 2026-10-19: v1 + composition-root factories §5.1, proposal 008, maintainer decisions; 009 `health=` keyword, 010 optional extras; v1.2 proposals 019 Part A `open_sink(policy=)`, 020 `paths.sae_dir` + `profile`, 021 `policy`, 022 `record`, D5 launcher entry; v1.3 `engine.rho|likelihood_clip|belief_threshold` default `null` = from policy, W1-1 landed) |
+| Version | 1.8 (`v = 1` in the resolved config) |
+| Status | FROZEN v1.8 (2026-11-16; v1.8 W1-2 review blocking 3: `sae play` skips the post-exit update when a daemon re-exec leaves the run alive, §5 consequence 4; 2026-11-15: v1.7 proposal 033: `sae gate` refuses while the game runs (exit code 5, `--force`), `sae play` runs the profile update after the daemon exits (maintainer D2), §5; 2026-10-20: v1.6 proposal 029: `sae tune`, `sae policy`, `sae gate` dispatched, exit code 4; v1.5 proposal 026: telemetry memory budget measures private memory, §2; v1.4 proposal 025: `sae profile` and `sae play` dispatched, `tests/unit/t9/**`; 2026-10-19: v1 + composition-root factories §5.1, proposal 008, maintainer decisions; 009 `health=` keyword, 010 optional extras; v1.2 proposals 019 Part A `open_sink(policy=)`, 020 `paths.sae_dir` + `profile`, 021 `policy`, 022 `record`, D5 launcher entry; v1.3 `engine.rho|likelihood_clip|belief_threshold` default `null` = from policy, W1-1 landed) |
 | Owner | architect (contract, `pyproject.toml`, `src/sae/cli.py`) |
 | Producers | user (`sae.toml`, env, flags); `resolve_config` |
 | Consumers | every team |
@@ -109,10 +109,26 @@ as an H1 floor. H3 is reached only by RAM triggers. **Confirmed by the maintaine
 | `sae bench` | `sae.bench.cli` (T7) | defined in T7's plan; entry point only is contracted |
 | `sae m0` | `sae.m0.cli` (T8) | defined in T8's plan; entry point only is contracted |
 | `sae profile update\|show\|delete\|close\|exclude\|label` | `sae.profile.cli` (T9, v1.4) | C10 §1–§2 (v1.1 rules); refuses while the game process is detected unless `--force`; idle priority |
-| `sae play` (launcher, maintainer D5) | `sae.profile.launcher` (T9, v1.4) | common flags; runs `sae profile update` when `profile.mode != "off"`, then starts `sae daemon` with the same flags; on a profile-update failure it prints a visible notice and **still starts the daemon**; never launches Stellaris, never touches its install or mod folder |
+| `sae play` (launcher, maintainer D5) | `sae.profile.launcher` (T9, v1.4; order v1.7; re-exec v1.8) | common flags; starts `sae daemon` with the same flags **first**; after the daemon returns, when `profile.mode != "off"`, the config resolved and no re-exec child is alive (consequence 4), prints one line and runs `sae profile update` (stdin closed, up to 600 s, never `--force`); returns the **daemon's** exit code whatever the update does; update exit 1 → prints `run sae profile update after closing the game`, any other update failure → a visible notice; never launches Stellaris, never touches its install or mod folder (rules below) |
 | `sae tune detector` | `sae.tune.cli` (T9, v1.6) | common flags; `--player <key>`; `--force` (run while the game is detected); `--include-synth` (test-only, C10 §1 rule 1). Reads only `split == "tune"` campaigns; writes `policies/<sha>.json` + one `propose` row `by: tuner`; never touches config or the running daemon |
 | `sae policy propose <file>\|prereg <sha>\|approve <sha>\|reject <sha>\|promote <sha>\|rollback [<sha>]\|pin builtin\|show` | `sae.profile.policy_cli` (T9, v1.6) | common flags; human rows via `append_registry_row` (TTY) plus a typed first-8-hex confirmation; `prereg` takes `--metric`, `--min-effect`, `--margin`, `--budget`, `--min-n`; semantics C10 §5 |
-| `sae gate stage1 <sha>\|stage2 <sha>` | `sae.bench.gate.cli` (T7, v1.6) | common flags; `--include-synth` (test-only); `stage1 [--repo <checkout>]`; `stage2 --objective detector_replay\|beat_player\|challenge_band` (**required**, no default; maintainer D6 undecided) `[--out <protocol.json>]`; semantics C10 §6 |
+| `sae gate stage1 <sha>\|stage2 <sha>` | `sae.bench.gate.cli` (T7, v1.6) | common flags; `--include-synth` (test-only); `--force` (run while the game is detected, v1.7); `stage1 [--repo <checkout>]`; `stage2 --objective detector_replay\|beat_player\|challenge_band` (**required**, no default; maintainer D6 undecided) `[--out <protocol.json>]`; semantics C10 §6; refuses with exit 5 while the game process is detected unless `--force` (v1.7, rules below) |
+
+**`sae gate` refusal (v1.7, proposal 033).** While the game process is detected, `sae gate stage1|stage2` exits 5
+before any stage work: one stderr line, no registry row, no evidence file, no sealed query spent. `--force` runs
+anyway. When it runs it lowers the priority of its own process only; it never touches the game's priority or
+affinity. As built and unchanged: `sae profile update` exits 1 and `sae tune` exits 2 for the same refusal.
+
+**`sae play` order (v1.7, proposal 033, maintainer D2 2026-11-15).** Daemon first, profile update after it
+returns. Consequences:
+1. A session's daemon runs on the profile and policy as of the previous session's update.
+2. The update is refused while the game runs (exit 1), which is common right after the daemon stops. Then no
+   update runs until the user runs `sae profile update` by hand, or a later `sae play` ends with the game closed.
+3. Closing the console window on Windows kills the launcher within about 5 s, so no update runs. UNVERIFIED (A-48).
+4. (v1.8) A daemon re-exec (C7 §4.6) skips the update. On POSIX `os.execv` replaces the launcher, so nothing
+   after the daemon runs. On Windows the daemon returns 0 while its child runs; when `runs/CURRENT` then names a
+   live `sae` process other than the launcher, the launcher prints one stderr line ending
+   `run sae profile update after closing the game` and returns the daemon's code without updating.
 
 Common flags: `--config <path>`, `--preset <name>`, `--set <k>=<v>` (repeatable), `--runs-dir <dir>`.
 `replay` and `synth` construct their adapter and call the daemon loop through one function T4 exports:
@@ -145,7 +161,7 @@ factory below (via `importlib`) before calling any; a missing module or attribut
 
 The ports `BusSink` and `ControlInbox` live in `sae.daemon.ports` (T4) and are satisfied structurally.
 
-Exit codes for every command: 0 success; 1 runtime failure (logged); 2 usage; 3 invalid config; 4 no result by design (sae gate stage2 game-paired objectives only).
+Exit codes for every command: 0 success; 1 runtime failure (logged); 2 usage; 3 invalid config; 4 no result by design (sae gate stage2 game-paired objectives only); 5 refused because the game process is detected (`sae gate` only, v1.7).
 
 ## 6. Run directory
 
@@ -276,3 +292,4 @@ changing the meaning of a key, preset or CLI argument listed here: `v = 2` with 
 | A-03 | `game.log` under `<user_dir>/logs/` | M0-3 | `paths.game_log` |
 | A-08 | `run` reads `<user_dir>/sae_in.ini` | M0-6 | `paths.ini_path` |
 | A-33 | Documents redirection (OneDrive) is where Stellaris puts its user folder | M0-2 | `paths.user_dir` |
+| A-48 | A Windows console close ends the `sae play` launcher within about 5 s, before any profile update (§5) | M0-12 | User runs `sae profile update` by hand |

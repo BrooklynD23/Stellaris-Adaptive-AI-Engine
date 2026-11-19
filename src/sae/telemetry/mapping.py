@@ -50,14 +50,19 @@ def effective_tier(config: TelemetryTier, level: HealthLevel) -> TelemetryTier:
     return config if _TIER_RANK[config] <= _TIER_RANK[cap] else cap
 
 
-_SPM_KEYS = frozenset({"spm", "spm_med6", "spm_med24"})
+_SPM_KEYS = frozenset({"spm", "spm_med6", "spm_med24", "spm_armed", "spm_ratio"})  # armed/ratio: C5 v1.4
 _PARSE_KEYS = frozenset({"parse_rss_peak_bytes", "parse_cpu_s", "parse_wall_s", "saves_skipped", "workers_killed"})
+
+
+_DAEMON_KEYS = frozenset({"daemon_private_bytes", "engine_ms"})  # C5 v1.5
 
 
 def _metric_entity(key: str) -> str:
     """Governor panel: spm and last-parse cost get their own entities; other metrics stay under health."""
     if key in _SPM_KEYS:
         return f"governor/spm/{key}"
+    if key in _DAEMON_KEYS:
+        return f"governor/daemon/{key}"
     if key in _PARSE_KEYS:
         return f"governor/parse/{key}"
     return f"health/metric/{key}"

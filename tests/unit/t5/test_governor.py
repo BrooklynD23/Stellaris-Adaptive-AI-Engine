@@ -448,3 +448,45 @@ def test_spm_medians_exposed_for_monthly_health() -> None:
         gov.on_month(SpmSample(game_date=f"2200.{i % 12 + 1:02d}.01", wall_s=w))
     assert gov.spm_med6 == 26.0
     assert gov.spm_med24 == 20.0
+
+
+@pytest.mark.parametrize(("wall_s", "armed"), [(9.9, False), (10.1, True)])
+def test_spm_armed_floor_is_five_polls(wall_s: float, armed: bool) -> None:
+    cfg = GovernorConfig()  # poll_s = 2.0, so the C7 v1.2 floor is 5 x 2.0 = 10 s
+    assert 5 * cfg.poll_s == 10.0
+    gov = ResourceGovernor(cfg, H0, "balanced", cpu_count=8, emit_period=1)
+    for _ in range(cfg.spm_long_months - 1):
+        gov.on_month(SpmSample(game_date="2200.01.01", wall_s=wall_s))
+    assert not gov.spm_armed and gov.spm_ratio is None  # 23 entries: never armed
+    gov.on_month(SpmSample(game_date="2200.01.01", wall_s=wall_s))
+    assert gov.spm_armed is armed
+    assert gov.spm_ratio == (pytest.approx(1.0) if armed else None)
+
+
+def test_spm_ratio_is_mean_not_median() -> None:
+    gov = ResourceGovernor(GovernorConfig(), H0, "balanced", cpu_count=8, emit_period=1)
+    vals = [20.0] * 23 + [27.0]  # +35 %: under the step reset; median(6) = 20, mean(6) = 127 / 6
+    for w in vals:
+        gov.on_month(SpmSample(game_date="2200.01.01", wall_s=w))
+    assert gov.spm_ratio == pytest.approx((127.0 / 6) / (487.0 / 24))
+
+
+def test_sub_floor_samples_are_windowed() -> None:
+    gov = ResourceGovernor(GovernorConfig(), H0, "balanced", cpu_count=8, emit_period=1)
+    for _ in range(12):
+        gov.on_month(SpmSample(game_date="2200.01.01", wall_s=20.0))
+    gov.on_month(SpmSample(game_date="2200.01.01", wall_s=3.0, months=6))  # 2 s-quantised fast months count too
+    assert gov.spm_med6 == 3.0
+
+
+def test_unarmed_counts_as_no_spm_trigger_for_deescalation() -> None:
+    r = Rig()
+    r.months(18, wall_s=20.0)
+    for _ in range(6):
+        r.month(26.0)
+        d = r.poll()
+    assert d.level is H1
+    r.month(0.001, 1000)  # date jump clears the windows: unarmed
+    levels = [d.level for d in r.months(6, wall_s=26.0)]
+    assert not r.gov.spm_armed  # type: ignore[attr-defined]
+    assert levels[-1] is H0 and levels[:-1] == [H1] * 5

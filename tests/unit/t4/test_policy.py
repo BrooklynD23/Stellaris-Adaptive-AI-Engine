@@ -422,7 +422,7 @@ def test_builtin_policy_is_identical_to_no_policy_and_other_tables_change_output
     withp = _run_sim(EngineCtx(mode=mode, cfg=cfg, likelihood=pol.likelihood, templates=pol.templates,
                                outcome_weights=pol.weights))
     assert base == withp
-    post = DEFAULT_EXPANSIONS[Strategy.EARLY_PUNISH].posture
+    post = DEFAULT_EXPANSIONS[Strategy.HOLD_COUNTERPUNCH].posture
     flipped = {s: replace(t, posture=post) for s, t in pol.templates.items()}
     assert _run_sim(EngineCtx(mode=mode, cfg=cfg, templates=flipped)) != base
     skewed = replace(pol.likelihood, war_now={a: 0.9 for a in Archetype})

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Version | 1 (`v = 1` in commands and results) |
+| Version | 1.1 (`v = 1` in commands and results) |
 | Status | FROZEN v1.1 (2026-10-19; proposal 016-T6: command expiry) |
 | Owner | architect (contract); T6 implements `sae ctl` and the daemon-side inbox reader |
 | Producers | operator via `sae ctl` (T6); tests |

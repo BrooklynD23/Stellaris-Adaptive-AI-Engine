@@ -989,6 +989,7 @@
           "additionalProperties": {
             "type": "number"
           },
+          "description": "Monthly keys: C5 section 3. Floats; flags are 1.0/0.0; omit, never null.",
           "title": "Metrics",
           "type": "object"
         },
@@ -1585,6 +1586,21 @@
           "minimum": 1,
           "title": "Observer Sid",
           "type": "integer"
+        },
+        "player_offensive_war_count": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "v1.3 (proposal 038). Offensive wars of the player known to this observer: the player is in `attackers` and no other country carrying `sae_sid` is. Third-party war sides are UNVERIFIED A-55; if A-55 fails, only wars with this observer in `defenders` count. None = not known (parser < v1.3, `wars` section not run, not in contact).",
+          "title": "Player Offensive War Count"
         },
         "player_war_count": {
           "anyOf": [
@@ -2212,7 +2228,7 @@
     },
     "OutcomePayload": {
       "additionalProperties": false,
-      "description": "Reward for one commitment window (reward window = commitment window).",
+      "description": "Reward for one closed window: commitment end, force or clear-force, or a pre-empted abstention\nwindow (``baseline``, 1-23 months; C3 section 6.1, C5 section 3).",
       "properties": {
         "forced": {
           "title": "Forced",

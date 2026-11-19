@@ -440,3 +440,10 @@ def test_hygienic_recording_replays_without_parse_errors(tmp_path: Path) -> None
     a, _sink, ev, _ = make(tmp_path, src)
     asyncio.run(drive(a))
     assert [k for k, _ in ev if k == HealthKind.LOG_PARSE_ERROR] == []
+
+
+def test_save_does_not_overtake_its_polls_log_observation(tmp_path: Path) -> None:
+    """Live and synth flush a poll's log observation before a later save applies; replay must match (C6)."""
+    obs, *_ = run(tmp_path / "r", build_session(tmp_path, save_after=6))
+    order = [(o.source, o.game_date) for o in obs if o.game_date == "2200.06.01"]
+    assert order[:2] == [("log", "2200.06.01"), ("save", "2200.06.01")]

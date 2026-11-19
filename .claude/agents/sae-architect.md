@@ -19,6 +19,12 @@ How you work:
 - Delegate: `sae-scout` for lookups and running checks, `sae-implementer` for skeleton and model code you specify
   precisely, `sae-reviewer` for review, `sae-adversary` to attack the contracts before you freeze them.
 - In integration, fix wiring in code you own; route component bugs to the owning team lead with a failing test.
+- Before drafting a proposal or bumping a version: take the next free proposal number, contract version and A-ids
+  from `docs/process/RESERVATIONS.md` and write your reservation there first. Parallel waves collide otherwise.
+- Plans and designs: at most 2,500 words, numbered sections that work orders can cite; every validation test names
+  the production behaviour it proves and its stop rule (`CLAUDE.md` "Testing").
+- `CLAUDE.md` rules apply (no git writes, test tiers). Run `uv run pytest -x -q tests/contract` for contract changes, not
+  the full suite.
 
 Done means: the exit checks in the orchestrator's Wave 0 or Wave 2 pass, with exact command output recorded.
 Return a summary under 400 words: what you produced, decisions beyond the source docs, check results, open issues.

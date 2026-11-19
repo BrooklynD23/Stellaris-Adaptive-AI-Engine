@@ -352,3 +352,16 @@ def test_unreadable_registry_is_exit_1(genv: GEnv) -> None:
     genv.pdir.mkdir(parents=True)
     genv.registry.mkdir()  # a directory where the file should be
     assert genv.run("stage1", "a" * 64)[0] == 1
+
+
+def _trace(*runs: tuple[Strategy, int, int]) -> list[tuple[int, Strategy]]:
+    return [(m, st) for st, lo, hi in runs for m in range(lo, hi + 1)]
+
+
+def test_commitment_gaps_baseline_exit_unconstrained() -> None:
+    from sae.bench.gate.stage1 import commitment_gaps
+
+    c, b = Strategy.OUTSCALE_SIEGE, Strategy.BASELINE
+    assert min(commitment_gaps(_trace((c, 0, 23), (b, 24, 26), (c, 27, 50)))) >= 24
+    assert commitment_gaps(_trace((c, 0, 10), (b, 11, 12))) == [11]
+    assert commitment_gaps(_trace((b, 0, 2), (c, 3, 30))) == []

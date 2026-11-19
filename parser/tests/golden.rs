@@ -22,8 +22,8 @@ fn fixtures() -> Vec<PathBuf> {
 fn every_fixture_matches_expected() {
     let dirs = fixtures();
     assert!(
-        dirs.len() >= 9,
-        "expected the 9 committed fixtures, found {}",
+        dirs.len() >= 11,
+        "expected the 11 committed fixtures, found {}",
         dirs.len()
     );
     let tmp = Dir::new("golden");
@@ -66,4 +66,32 @@ fn section_subset_and_threads_flag() {
         ),
         (0, 0)
     );
+}
+
+/// F4 pin: every in-contact view of the player reports the same `systems_owned` (the player's true
+/// total, C4 section 3); offensive wars are bounded by all wars; expected counts per war fixture.
+#[test]
+fn legal_views_pin_systems_owned_and_offensive_war_count() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures");
+    for (name, want) in [
+        ("war_two_fronts", Some(1)),
+        ("war_ai_attacker", Some(0)),
+        ("war_ai_led_player_coattacker", Some(0)),
+        ("no_contact", None),
+    ] {
+        let r = parse(&root.join(name).join("save.sav"), &[]);
+        assert_eq!(r.code, 0, "{name}");
+        let mut owned = std::collections::BTreeSet::new();
+        for v in r.json["legal"].as_array().unwrap() {
+            if v["in_contact"] != true {
+                assert!(v["player_offensive_war_count"].is_null(), "{name}");
+                continue;
+            }
+            owned.insert(v["systems_owned"].as_u64().unwrap());
+            let off = v["player_offensive_war_count"].as_u64().unwrap();
+            assert!(off <= v["player_war_count"].as_u64().unwrap(), "{name}");
+            assert_eq!(Some(off), want, "{name}");
+        }
+        assert!(owned.len() <= 1, "{name}: systems_owned differs: {owned:?}");
+    }
 }

@@ -13,8 +13,8 @@ from hypothesis import strategies as st
 
 from sae.bus import BusValidationError, BusWriter, open_sink, read_events
 from sae.contracts.c5_bus import BUS_FILE, GOD_FILE, HealthEvent
-from sae.contracts.c6_adapter import GodObservation
-from sae.contracts.c8_config import PresetName
+from sae.contracts.c6_adapter import AdapterMode, GodObservation
+from sae.contracts.c8_config import PresetName, SaeConfig
 from sae.core.state import EventDraft
 from sae.daemon.ports import BusSink
 from sae.daemon.runs import config_sha256 as t4_sha
@@ -166,16 +166,21 @@ def test_oversize_line_dropped(tmp_path: Path) -> None:
         d.emit(EventDraft(type="belief_update", payload=big, decision_id="d-2231.04-07"))
 
 
-def test_fsync_once_per_month(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(("mode", "during"), [
+    (AdapterMode.LIVE, 2), (AdapterMode.RELEASE, 2), (AdapterMode.SYNTH, 0), (AdapterMode.REPLAY, 0)])
+def test_fsync_once_per_month(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: AdapterMode,
+                              during: int) -> None:
+    """Durable modes fsync per month change; SYNTH/REPLAY only on close (review B1/B2a)."""
     calls: list[int] = []
     monkeypatch.setattr(os, "fsync", lambda fd: calls.append(fd))
-    w = _open(tmp_path)
-    base = len(calls)
+    wall, mono = clocks()
+    w = open_sink(tmp_path, RUN_ID, SaeConfig(adapter=mode), wall=wall, mono=mono)
+    assert calls == []  # run_started carries no game date
     for date in ("2231.04.01", "2231.04.15", "2231.05.01", "2231.05.02"):
         w.emit(health_draft(date=date))
-    assert len(calls) - base == 2
+    assert len(calls) == during
     w.close()
-    assert len(calls) - base == 2 + 2  # bus + god on close
+    assert len(calls) == during + 2  # bus + god on close, every mode
 
 
 def test_fsync_error_only_logged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

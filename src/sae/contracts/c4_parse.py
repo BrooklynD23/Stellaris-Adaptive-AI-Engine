@@ -102,6 +102,15 @@ class LegalView(Frozen):
     economy_cat: RelCat | None = None
     at_war_with_observer: bool | None = None
     player_war_count: GameCount | None = Field(default=None, description="Wars the player is in (public).")
+    player_offensive_war_count: GameCount | None = Field(
+        default=None,
+        description=(
+            "v1.3 (proposal 038). Offensive wars of the player known to this observer: the player is in "
+            "`attackers` and no other country carrying `sae_sid` is. Third-party war sides are UNVERIFIED A-55; "
+            "if A-55 fails, only wars with this observer in `defenders` count. None = not known (parser < v1.3, "
+            "`wars` section not run, not in contact)."
+        ),
+    )
 
     @model_validator(mode="after")
     def _contact(self) -> LegalView:
@@ -109,6 +118,12 @@ class LegalView(Frozen):
             v is not None for k, v in self.model_dump().items() if k not in {"observer_sid", "in_contact"}
         ):
             raise ValueError("no legal features may be set when not in contact")
+        if (
+            self.player_offensive_war_count is not None
+            and self.player_war_count is not None
+            and self.player_offensive_war_count > self.player_war_count
+        ):
+            raise ValueError("player_offensive_war_count must not exceed player_war_count")
         return self
 
 

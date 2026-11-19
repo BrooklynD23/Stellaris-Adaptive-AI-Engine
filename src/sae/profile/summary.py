@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 __all__ = ["BUILDER_VERSION", "build_summary", "kept_observations"]
 
-BUILDER_VERSION = "0.1.0"
+BUILDER_VERSION = "0.2.0"
 EARLY_YEARS = 30  # C10 section 2: first 30 game years
 MIN_SPAN_YEARS = 1.0
 _BELIEF_TOL = 1e-6
@@ -97,14 +97,17 @@ def _samples(kept: list[_Kept]) -> list[_Sample]:
     """One sample per game month (last wins), ordered by month."""
     memory = FeatureMemory()
     by_month: dict[int, _Sample] = {}
+    fleet = tech = None  # the last evidence tick's verdict; log ticks reuse that save, so they inherit it (rev 3.1 R1)
     for k in kept:
-        memory, fv, _new, _k = extract(memory, k.obs)
+        memory, fv, new, _k = extract(memory, k.obs)
         views = [v for v in k.obs.player_legal if v.in_contact]
+        if new or not views:
+            fleet, tech = fv.fleet_power_cat, fv.tech_cat
         econ = [v.economy_cat for v in views if v.economy_cat is not None]
         systems = [v.systems_owned for v in views if v.systems_owned is not None]
         mi = mi_of(k.obs.game_date)
         by_month[mi] = _Sample(
-            mi, max(systems) if systems else None, fv.border_fort_ratio, fv.fleet_power_cat, fv.tech_cat,
+            mi, max(systems) if systems else None, fv.border_fort_ratio, fleet, tech,
             statistics.median_low(econ) if econ else None, fv.at_war,
         )  # fmt: skip
     return [by_month[m] for m in sorted(by_month)]

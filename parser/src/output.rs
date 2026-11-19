@@ -14,6 +14,7 @@ pub const PARSER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct Cost {
+    /// Peak memory: Unix peak RSS; Windows peak commit (`PeakPagefileUsage`). Name kept per C4.
     pub rss_peak_bytes: u64,
     pub cpu_s: f64,
     pub wall_s: f64,
@@ -80,6 +81,8 @@ pub struct LegalView {
     pub at_war_with_observer: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub player_war_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub player_offensive_war_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -176,6 +179,7 @@ mod tests {
             economy_cat: None,
             at_war_with_observer: None,
             player_war_count: None,
+            player_offensive_war_count: None,
         };
         assert_eq!(
             serde_json::to_string(&v).unwrap_or_default(),

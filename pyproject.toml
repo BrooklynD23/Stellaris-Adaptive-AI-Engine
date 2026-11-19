@@ -53,6 +53,8 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# `slow` is opt-out only: the default run and CI still include it. Fast tier: `uv run pytest -x -q -m "not slow" <paths>`.
+markers = ["slow: takes minutes (long subprocess runs); skipped only by an explicit -m \"not slow\""]
 
 # Coverage is run explicitly (`uv run pytest --cov`), never from addopts. Maintainer target: >= 90 % line coverage.
 [tool.coverage.run]

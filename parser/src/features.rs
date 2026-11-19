@@ -147,6 +147,26 @@ fn war_count(m: &SaveModel, id: u64) -> u64 {
         .count() as u64
 }
 
+/// Wars the player leads: player in `attackers` and no other country carrying `sae_sid` (managed
+/// or not) there. Never derived from list order. Always <= `war_count`.
+// UNVERIFIED (A-55): real save war structure (attackers/defenders lists, who is listed as the
+// declarer); M0 would test it by declaring a war as the player and as an SAE-tagged AI in a
+// real autosave and diffing the `war` blocks.
+fn offensive_war_count(m: &SaveModel, player: u64) -> u64 {
+    let tagged: BTreeSet<u64> = m
+        .countries
+        .iter()
+        .filter(|c| c.sid.is_some() && c.id != player)
+        .map(|c| c.id)
+        .collect();
+    m.wars
+        .iter()
+        .filter(|w| {
+            w.attackers.contains(&player) && !w.attackers.iter().any(|a| tagged.contains(a))
+        })
+        .count() as u64
+}
+
 fn at_war_between(m: &SaveModel, a: u64, b: u64) -> bool {
     m.wars.iter().any(|w| {
         (w.attackers.contains(&a) && w.defenders.contains(&b))
@@ -197,6 +217,7 @@ pub fn check_bounds(f: &Features) -> Result<(), crate::error::Failure> {
             ("frontier_systems", l.frontier_systems),
             ("fortified_border_starbases", l.fortified_border_starbases),
             ("player_war_count", l.player_war_count),
+            ("player_offensive_war_count", l.player_offensive_war_count),
         ];
         for (what, v) in counts {
             if let Some(v) = v.filter(|v| *v > CLAUSEWITZ_INT_MAX) {
@@ -339,6 +360,7 @@ fn legal_of(
         economy_cat: None,
         at_war_with_observer: None,
         player_war_count: None,
+        player_offensive_war_count: None,
     };
     if !v.in_contact {
         return v;
@@ -371,6 +393,7 @@ fn legal_of(
     if ran.wars {
         v.at_war_with_observer = Some(at_war_between(m, p.id, o.id));
         v.player_war_count = Some(war_count(m, p.id));
+        v.player_offensive_war_count = Some(offensive_war_count(m, p.id));
     }
     v
 }
@@ -394,6 +417,7 @@ mod tests {
             economy_cat: None,
             at_war_with_observer: None,
             player_war_count: Some(v),
+            player_offensive_war_count: Some(0),
         };
         let f = |v| Features {
             countries: Vec::new(),

@@ -238,7 +238,8 @@ class IntentAckEvent(_Envelope):
 
 
 class OutcomePayload(Frozen):
-    """Reward for one commitment window (reward window = commitment window)."""
+    """Reward for one closed window: commitment end, force or clear-force, or a pre-empted abstention
+    window (``baseline``, 1-23 months; C3 section 6.1, C5 section 3)."""
 
     strategy: Strategy
     window_from: GameDate
@@ -315,7 +316,9 @@ class HealthPayload(Frozen):
     state: GameState
     level: HealthLevel
     trigger: Trigger | None = None
-    metrics: dict[str, float] = Field(default_factory=dict)
+    metrics: dict[str, float] = Field(
+        default_factory=dict, description="Monthly keys: C5 section 3. Floats; flags are 1.0/0.0; omit, never null."
+    )
     detail: str | None = Field(default=None, max_length=500)
 
 

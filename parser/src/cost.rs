@@ -1,4 +1,4 @@
-//! Self-measured cost: peak RSS, CPU seconds, wall seconds.
+//! Self-measured cost: peak memory (Unix peak RSS, Windows peak commit), CPU seconds, wall seconds.
 
 use std::time::Instant;
 
@@ -52,8 +52,11 @@ fn process_usage() -> (u64, f64) {
         let h = GetCurrentProcess();
         let mut pmc: PROCESS_MEMORY_COUNTERS = std::mem::zeroed();
         pmc.cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+        // Peak commit, not PeakWorkingSetSize: `--background` caps the working set (~32 MiB,
+        // UNVERIFIED; M0-11 compares this against Process Explorer peak private bytes) and
+        // the Job memory limit (C7 §8) caps commit, so commit is the figure that matters.
         let rss = if GetProcessMemoryInfo(h, &mut pmc, pmc.cb) != 0 {
-            pmc.PeakWorkingSetSize as u64
+            pmc.PeakPagefileUsage as u64
         } else {
             0
         };
@@ -78,5 +81,20 @@ mod tests {
     fn non_negative() {
         let c = measure(Instant::now());
         assert!(c.cpu_s >= 0.0 && c.wall_s >= 0.0);
+    }
+
+    // Windows only (CI windows job): a touched 64 MiB buffer must show up in peak commit.
+    #[cfg(windows)]
+    #[test]
+    fn windows_reports_peak_commit() {
+        let buf = std::hint::black_box(vec![1u8; 64 << 20]);
+        let c = measure(Instant::now());
+        std::hint::black_box(&buf);
+        assert!(
+            c.rss_peak_bytes >= 64 << 20,
+            "peak commit {}",
+            c.rss_peak_bytes
+        );
+        drop(buf);
     }
 }

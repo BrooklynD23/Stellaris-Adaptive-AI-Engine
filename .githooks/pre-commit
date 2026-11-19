@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SAE pre-commit gate: the same checks CI runs (CLAUDE.md "Tests"), plus a secret scan.
+# SAE pre-commit gate: a fast subset of the checks CI runs (CLAUDE.md "Tests"), plus a secret scan.
 # Enable once per clone: git config core.hooksPath .githooks
 # Skip only in an emergency: SAE_SKIP_HOOKS=1 git commit ...   (say why in the commit body)
 set -euo pipefail
@@ -26,8 +26,9 @@ echo "pre-commit: ruff" >&2
 uv run ruff check || fail "ruff check"
 echo "pre-commit: mypy --strict src/sae" >&2
 uv run mypy --strict src/sae || fail "mypy --strict src/sae"
-echo "pre-commit: pytest (full suite, about 5 min)" >&2
-uv run pytest -q -p no:cacheprovider || fail "pytest"
+# Fast tier only (maintainer P2, 2026-11-17): the full suite runs in CI and once per wave (CLAUDE.md Testing).
+echo "pre-commit: pytest fast tier (unit + contract, not slow)" >&2
+uv run pytest -q -p no:cacheprovider -m "not slow" tests/unit tests/contract || fail "pytest (fast tier)"
 
 # 3. Mod static check when the mod changed.
 if echo "$staged" | grep -q '^mod/sae_bridge/'; then

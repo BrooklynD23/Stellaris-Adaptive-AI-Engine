@@ -56,7 +56,7 @@ def _err(msg: str) -> int:
 
 
 def _parse_json(exe: Path, save: Path, run: Runner, sections: str | None = None) -> dict[str, object]:
-    cmd = [str(exe), "parse", "--save", str(save)] + (["--sections", sections] if sections else [])
+    cmd = [str(exe), "parse", "--background", "--save", str(save)] + (["--sections", sections] if sections else [])
     res = run(cmd)
     if res.returncode != 0:
         raise ValueError(f"sae-parse failed on {save}: exit {res.returncode}")

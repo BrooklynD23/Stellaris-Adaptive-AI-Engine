@@ -71,6 +71,24 @@ def test_fsync_before_replace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert calls == ["fsync", "replace"]
 
 
+def test_no_fsync_keeps_atomic_replace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """SYNTH/REPLAY path (review B2b): replace only, no fsync, same bytes."""
+    calls: list[str] = []
+    real_replace = os.replace
+
+    def replace(a: Path, b: Path) -> None:
+        calls.append("replace")
+        real_replace(a, b)
+
+    monkeypatch.setattr(os, "fsync", lambda fd: calls.append("fsync"))
+    monkeypatch.setattr(os, "replace", replace)
+    state, _ = Sim(Archetype.TURTLE, 1).run(30)
+    p = tmp_path / "state.json"
+    save_state(p, state, fsync=False)
+    assert calls == ["replace"]
+    assert load_state(p) == state and [f.name for f in tmp_path.iterdir()] == ["state.json"]
+
+
 def test_default_runs_dir() -> None:
     from sae.daemon.runs_dir import default_runs_dir
 

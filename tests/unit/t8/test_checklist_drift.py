@@ -103,3 +103,28 @@ def test_save_manual_second_call_replaces_first(tmp_path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     assert "same_name_new_game_reuses_folder" in text
     assert "fields_match_ui" not in text
+
+
+def test_m0_11_largest_save_and_cpu_steps() -> None:
+    text = " ".join(BY_ID["M0-11"].steps)
+    assert "COPY" in text and "--background" in text
+    for key in ("largest_save_text_bytes", "largest_save_peak_commit_bytes", "largest_save_max_entry_span_bytes",
+                "bench_cpu_s", "daemon_parse_cpu_s", "game_process_name"):
+        assert key in text
+    assert "10 %" in text
+
+
+def test_m0_12_required_with_daemon_memory_keys() -> None:
+    check = BY_ID["M0-12"]
+    assert check.tier == "core"
+    text = " ".join(check.steps)
+    assert "daemon_private_bytes" in text and "daemon_rss_bytes" in text
+
+
+def test_setup_ps1_consent_lists_every_host() -> None:
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[3] / "tools/m0/field_kit/setup.ps1").read_text(encoding="utf-8")
+    for host in ("github.com", "objects.githubusercontent.com", "pypi.org", "files.pythonhosted.org"):
+        assert host in text
+    assert "UV_PYTHON_INSTALL_MIRROR" in text and "only if no Python" not in text

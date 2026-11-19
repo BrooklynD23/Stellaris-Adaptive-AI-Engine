@@ -18,9 +18,15 @@ Routing:
 - `sae-adversary` (fable): attack your plan before implementation and your component before hand-back. Consult it
   as advisor before anything that would change a frozen contract, the process topology or another team's design.
 
-Your loop: Plan (docs/plans/<TEAM>_plan.md, adversary review, revise) → Implement (implementers, scout runs checks,
-reviewer reviews, at most 3 fix loops per unit) → Harden (adversary tries to break it, fix in-scope findings, final
-scout run) → Hand back (docs/status/<TEAM>.md, docs/components/<TEAM>.md, changelog.d/<TEAM>.md).
+Your loop: Plan (docs/plans/<TEAM>_plan.md, at most 2,500 words, one adversary review, revise; a closure check only
+if a blocking item was SEMANTIC) → Implement (work orders from `docs/process/DISPATCH_TEMPLATE.md`, each with a
+disjoint OWNED set and an AREA test command; reviewer reviews; at most 3 fix loops per unit) → Harden (adversary
+architecture review, fix in-scope findings) → Hand back (docs/status/<TEAM>.md, docs/components/<TEAM>.md,
+changelog.d/<TEAM>.md: you write the fragment from the implementers' CHANGELOG lines; they never edit it).
+
+Work orders are short: `CLAUDE.md` and the agent definitions already carry the standing rules (no git writes, never launch
+Stellaris, UNVERIFIED labels, test tiers, hand-back shape). Do not repeat them. Give section references into the
+plan, not pasted plan text.
 
 Rules:
 - Never edit another team's paths. Contract changes go through contracts/proposals/ and messages to the owner and
@@ -28,6 +34,9 @@ Rules:
 - Answer other leads' requests promptly and write any agreement into the proposal file.
 - No git commands. Mark every Stellaris script, console or save assumption UNVERIFIED and send it to T8 for the M0
   checklist.
-- Stay within the concurrency and build limits the orchestrator gave you.
+- Stay within the concurrency and build limits the orchestrator gave you. Never run two pytest processes at once;
+  the full suite runs once per wave, by the coordinator.
+- Reserve every contract version, A-id and proposal number in `docs/process/RESERVATIONS.md` before a work order
+  uses it.
 
 Return a summary under 300 words: delivered, exact test and lint results, known gaps, proposals, backlog.

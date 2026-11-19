@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from itertools import pairwise
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -121,3 +122,21 @@ def test_late_war_after_long_peace_is_not_penalised() -> None:
     b = _raw_lls(FeatureVector(first_war_month=150.0, first_war_observed=True, at_war=True), LikelihoodModel())
     assert a == b and "first_war_month" not in a
 
+
+
+def _post_at_rate(x: float) -> dict[Archetype, float]:
+    return update(BeliefState(), FeatureVector(expansion_rate=x), True, 12, CFG)[1].posterior
+
+
+def test_expansion_rate_monotone_turtle_down_aggression_up() -> None:
+    xs = [i / 10 for i in range(101)]
+    ps = [_post_at_rate(x) for x in xs]
+    for lo, hi in pairwise(ps):
+        assert hi[Archetype.TURTLE] <= lo[Archetype.TURTLE] + 1e-12
+        assert hi[Archetype.EARLY_AGGRESSION] >= lo[Archetype.EARLY_AGGRESSION] - 1e-12
+
+
+def test_negative_expansion_rate_is_no_evidence() -> None:
+    s, p = update(BeliefState(), FeatureVector(expansion_rate=-2.0), True, 12, CFG)
+    assert not any(e.feature == "expansion_rate" for e in p.top_evidence)
+    assert s.posterior == update(BeliefState(), FeatureVector(), True, 12, CFG)[0].posterior

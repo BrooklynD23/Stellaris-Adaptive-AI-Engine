@@ -1,6 +1,7 @@
 """Strategy selection: counter table + commitment + operator force + safety floor (T4 plan U2, v2 rules 1-2).
 
-Order each tick: forced > commitment hold > table / below_threshold. The safety floor is a static
+Order each tick: forced > (abstention pre-emption, else commitment hold) > table / below_threshold
+(C3 v1.3 section 6.1). The safety floor is a static
 check of the chosen template; strategy never reads validator results.
 """
 
@@ -31,6 +32,7 @@ class StrategyState:
     forced: tuple[Strategy, int] | None = None  # (strategy, until_mi)
     last_mi: int | None = None
     reopen: bool = False  # a force/clear asks for a fresh window next tick
+    abstain: bool = False  # C3 6.1: the window is a below_threshold baseline window (pre-emptable)
 
 
 @dataclass(frozen=True)
@@ -92,12 +94,19 @@ def select(
     reopen = state.reopen or expired
     window_open = (not reopen and state.commit_until_mi is not None and state.commit_from_mi is not None
                    and mi < state.commit_until_mi)
+    counter = COUNTER_TABLE[ARCHS[top]]
+    # C3 6.1 rules 1-4: only an abstention window yields, to one confident non-baseline counter that passes the
+    # floor. A floor-failed counter or confident balanced falls through to commitment hold (window untouched).
+    preempt = (window_open and state.abstain and state.strategy == Strategy.BASELINE and conf >= _threshold(cfg)
+               and counter != Strategy.BASELINE and _floor_ok(counter, cfg, templates))
     if forced is not None:
         chosen, reason, is_forced = forced[0], SelectReason.FORCED, True
+    elif preempt:
+        chosen, reason, is_forced = counter, SelectReason.TABLE, False
     elif window_open and state.strategy is not None:
         chosen, reason, is_forced = state.strategy, SelectReason.COMMITMENT_HOLD, state.window_forced
     elif conf >= _threshold(cfg):
-        chosen, reason, is_forced = COUNTER_TABLE[ARCHS[top]], SelectReason.TABLE, False
+        chosen, reason, is_forced = counter, SelectReason.TABLE, False
     else:
         chosen, reason, is_forced = Strategy.BASELINE, SelectReason.BELOW_THRESHOLD, False
     if reason not in (SelectReason.COMMITMENT_HOLD, SelectReason.FORCED) and chosen != Strategy.BASELINE \
@@ -123,7 +132,7 @@ def select(
         # UNVERIFIED (A-21): 24-month window length is a HYP; M0-8 checks effects appear in that span.
         until = forced[1] if forced is not None else mi + cfg.commitment_months
         new = replace(new, commit_from_mi=mi, commit_until_mi=until, opened_by=decision_id, opened_key=key,
-                      window_forced=is_forced, reopen=False)
+                      window_forced=is_forced, reopen=False, abstain=reason == SelectReason.BELOW_THRESHOLD)
     new = replace(new, strategy=chosen)
     if new.commit_from_mi is None or new.commit_until_mi is None:
         raise ValueError("strategy window unset after select (inconsistent StrategyState)")
