@@ -39,15 +39,16 @@ def test_known_fixture_exact_values(tmp_path: Path) -> None:
     f = {k: (v.value, v.n_obs) for k, v in s.features.items()}
     assert f["expansion_rate_early"] == (3.0, 3)
     assert f["expansion_rate_late"] == (5.0, 3)
-    border = f["border_fort_ratio"]
-    assert border[0] == pytest.approx((0.5 + 0.25 + 1.0) / 3) and border[1] == 3
+    # Wave 1.5 F1: only the month whose observer sees >= MIN_FRONTIER (3) frontier systems counts (1/4).
+    assert f["border_fort_ratio"] == (pytest.approx(0.25), 1)
     assert f["first_war_year"] == (2.0, 6)
     assert f["war_share"] == (pytest.approx(1 / 6), 6)
+    # Rev 3.1 B1: the first month is the campaign's first evidence and counts; one observer, so no set change.
     assert f["fleet_power_cat_mean"] == (pytest.approx(0.5), 6)
     assert f["tech_cat_mean"] == (pytest.approx(4 / 6), 6)
     assert f["economy_cat_mean"] == (pytest.approx(2 / 6), 6)
     assert s.final_belief is not None and s.final_belief[Archetype.TURTLE] == pytest.approx(0.7)
-    assert (s.start_date, s.last_date, s.builder_version) == ("2200.01.01", "2233.01.01", "0.1.0")
+    assert (s.start_date, s.last_date, s.builder_version) == ("2200.01.01", "2233.01.01", "0.2.0")
 
 
 def test_one_sample_per_month_last_wins_and_short_span_is_none(tmp_path: Path) -> None:
@@ -81,7 +82,24 @@ def test_in_contact_false_is_ignored(tmp_path: Path) -> None:
     assert s is not None
     assert s.features["expansion_rate_early"].value == pytest.approx(2.0)
     assert s.features["war_share"].value == 0.0 and s.features["war_share"].n_obs == 2
-    assert s.features["fleet_power_cat_mean"].n_obs == 2
+    # 2200 counts (first evidence); the hidden month is a contact gap, so 2202 is dropped once (rev 3.1 rule 5).
+    assert s.features["fleet_power_cat_mean"].n_obs == 1
+
+
+def test_stale_log_tick_inherits_the_dropped_save(tmp_path: Path) -> None:
+    """A log tick that reuses a save whose categoricals were dropped must not count them (C10 row 148)."""
+    months = [
+        month("2200.01.01", 5, cats=(0, 0, 0, 1, 2)),
+        month("2200.02.01", 5, in_contact=False),  # contact gap: the next save is dropped once (rule 5)
+        month("2200.03.01", 5, cats=(2, 2, 0, 1, 2)),  # dropped: reporting set reset by the gap
+        month("2200.04.01", 5, cats=(2, 2, 0, 1, 2)),  # stale log tick of the 2200.03 save
+    ]
+    make_run(tmp_path, run_id(1), "live", T(2026, 10, 1), K, months,
+             as_of=["2200.01.01", "2200.02.01", "2200.03.01", "2200.03.01"])
+    s = build_summary(state((run_id(1),), "2200.01.01", "2200.04.01"), tmp_path)
+    assert s is not None
+    for name in ("fleet_power_cat_mean", "tech_cat_mean"):  # only the first month; the dropped save and its echo out
+        assert (s.features[name].value, s.features[name].n_obs) == (0.0, 1)
 
 
 def test_other_folder_missing_run_and_beliefless_cases(tmp_path: Path) -> None:
@@ -139,3 +157,14 @@ def test_bus_god_is_never_opened(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(Path, "open", path_open)
     s = build_summary(state(ids, "2200.01.01", "2233.01.01"), tmp_path)
     assert s is not None
+
+
+def test_builder_version_is_0_2_0() -> None:
+    """C10 v1.4: war features changed meaning (offensive), so profiles must not mix 0.1.0 summaries.
+
+    Enforced by construction: ``sae profile update`` rebuilds every summary from the bus (profile/cli.py
+    ``_rebuild``), so a stale on-disk 0.1.0 summary is overwritten, never fed to ``build_profile``.
+    """
+    from sae.profile.summary import BUILDER_VERSION
+
+    assert BUILDER_VERSION == "0.2.0"

@@ -58,7 +58,7 @@ def test_success_live(penv: PolicyEnv, _quiet: list[str]) -> None:
         "loco_shrinkage",
         "fitted_real",
         t.kappa,
-        "0.1.0",
+        "0.2.0",
     )
     assert len(t.campaign_ids) == 5 and t.kappa in (3.0, 30.0)
     assert doc.notes is not None and "CUSUM: diagnostic only" in doc.notes and "V-3" in doc.notes

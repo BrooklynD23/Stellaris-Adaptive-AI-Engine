@@ -77,7 +77,8 @@ class Sim:
                 frontier_systems=6,
                 fortified_border_starbases=max(0, min(6, round(fort * 6 + rng.gauss(0, 0.8 * spread)))),
                 fleet_power_cat=_cat(rng, fleet, spread), tech_cat=_cat(rng, tech, spread),
-                at_war_with_observer=war, player_war_count=1 if war else 0))
+                at_war_with_observer=war, player_war_count=1 if war else 0,
+                player_offensive_war_count=1 if war else 0))  # the aggressor's war is player-led
         return tuple(out)
 
     def obs(self, source: str, in_contact: bool = True) -> Observation:

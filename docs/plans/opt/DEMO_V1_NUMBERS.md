@@ -73,3 +73,78 @@ Command: `uv run python <scratchpad>/fs.py synth --archetype turtle --years 1 --
 3 fsyncs confirms the earlier 40 to 3.
 
 > Note (code review N7): under D1 the lag is measured from the first confident tick, so 0 months is the expected value by construction; the wrong-lock rate (0/40) is the informative number. The measurement script does not check the synth exit code.
+
+## Wave 1.5 before
+
+Tree: HEAD `bf2e56b` plus WO-A contract-only changes (`LegalView.player_offensive_war_count`, default None; no engine
+change). No source edits. Synth only; perturbation shapes are an approximation of fog artefacts (UNVERIFIED against
+real saves; M0 would replay real saves with a dropped observer).
+
+Commands (sequential, runs dirs empty):
+
+1. `uv run python tools/bench/fog_adversarial_measure.py <empty-dir>` (4 archetypes x seeds 0-9 x 8 perturbations =
+   320 replays, plus an unperturbed control `0`). Exit code of every `sae synth` is checked (N7); a failure aborts
+   with rc 2. Perturbation starts at 0-6 months after the first observation (the first lock is about month 3, so an
+   artefact later than that cannot change the first lock), lasts 12-24 months; (b), (d), (h) persist or span the run.
+2. `uv run python tools/bench/demo_v1_measure.py 0.45 <empty-dir>`
+3. `uv run pytest -q -o addopts= tests/e2e/test_ci1.py -s` (default seeds 1, 2) and the same with `T7_E2E_FULL=1`
+   (seeds 1-4).
+
+Wrong lock = first `table` strategy is not the archetype's counter (or none). "In window" = that lock fell inside the
+perturbed window.
+
+| Id | Perturbation | Wrong / 40 | In window | Improvement claim |
+|---|---|---|---|---|
+| 0 | control, unperturbed | 0 | 0 | n/a |
+| a | one of several observers lost | 0 | 0 | not demonstrated |
+| b | observer swapped | 0 | 0 | not demonstrated |
+| c | one view cut to 1 frontier system | 0 | 0 | not demonstrated |
+| d | war by a managed AI | **3** | 3 | meaningful (target 0) |
+| e | save gap + (a) | 0 | 0 | not demonstrated |
+| f | sole observer lost and regained | 0 | 0 | not demonstrated |
+| g | one system bordering 3 observers | **4** | 4 | meaningful (target 0) |
+| h | reporting set alternating each save | 0 | 0 | not demonstrated |
+
+(h) fraction of evidence ticks that kept a categorical: **1.000** (control also 1.000). F2 starvation baseline is
+zero; "after" is judged against this.
+
+Note on (c) and (f): the plan requires 0 at the perturbed tick; before is already 0 so the rows prove nothing either
+way. Synth views are uniform across observers, so the categorical artefacts of (a), (b), (e), (f), (h) do not move the
+median; unit tests T-1..T-9 and the property test carry that proof, not this tool.
+
+Baseline `demo_v1_measure.py 0.45`: TOTAL wrong 0 / 40, nodata 0; lag 0 months for turtle, tech_rush,
+early_aggression; balanced 21 (artifact, its counter is baseline). All synth exit codes were 0 (the original script
+does not check them; the new tool does).
+
+CI-1 pooled switch-match rate before: **1.000 over 20 switches** (default seeds 1, 2); **1.000 over 40 switches**
+(`T7_E2E_FULL=1`, seeds 1-4). Stop rule threshold 0.90 untouched.
+
+## Wave 1.5 after (rev 3.1), 2026-11-17
+
+Commands: `uv run python tools/bench/fog_adversarial_measure.py <empty-dir>`,
+`uv run python tools/bench/demo_v1_measure.py 0.45 <empty-dir>`, `uv run pytest -q -o addopts= tests/e2e/test_ci1.py -s`
+(default and `T7_E2E_FULL=1`). Synthetic data only; observer views are uniform; A-55 UNVERIFIED.
+
+| Pert | Wrong before | Wrong after | Kept frac before | Kept frac after | Target | Status |
+|---|---|---|---|---|---|---|
+| 0 control | 0 | 0 | 1.000 | 1.000 | 0 | met |
+| a observer lost | 0 | 0 | 1.000 | 1.000 | - | not demonstrated |
+| b swapped | 0 | 0 | 1.000 | 1.000 | - | not demonstrated |
+| c view cut to 1 frontier | 0 | 0 | 1.000 | 1.000 | - | not demonstrated |
+| d AI war | 3 | **0** | 1.000 | 1.000 | 0 | **met** |
+| e gap + (a) | 0 | 0 | 1.000 | 1.000 | - | not demonstrated |
+| f sole observer lost | 0 | 0 | 1.000 | 0.957 | - | not demonstrated |
+| g 3 observers x 1 system (rev 2 tool) | 4 | **0** | 1.000 | 1.000 | 0 | **met** |
+| h partial flicker (first observer id every other save) | 0 | 0 | 1.000 | **1.000** | >= 0.5 | **met** |
+| i every observer id swapped every other save | 0 | 0 | 1.000 | 0.042 | - | by design (see note) |
+
+- `demo_v1_measure` at 0.45: 0/40 wrong; lag 0 for turtle, tech_rush, early_aggression (0 by construction under D1).
+- CI-1 pooled: 1.000 over 20 switches (default) and 1.000 over 40 (`T7_E2E_FULL=1`); before 1.000 / 1.000.
+- **(g) first measured 6 wrong, then diagnosed as a tool artefact:** the old (g) replaced the player's real views with
+  3 views of 1 frontier system, so `border_fort_ratio` went 0.333 -> `None` (the `MIN_FRONTIER=3` rule, as designed)
+  and the balanced posterior fell from 0.69 to 0.33, which let D1 lock on fleet and tech alone. The tool now keeps
+  the real views and appends 3 observers that see the same single system: 0 wrong / 40, met. Not tested: how often a
+  real balanced player has fewer than 3 frontier systems and so loses border evidence (open question for Wave 3).
+- **(h) / (i):** the old (h) swapped every observer id (an empty intersection, which rule 4 drops by design) and is
+  now row (i): 0.042. (h) is now a partial flicker: 1.000 kept, target >= 0.5, met. Synth views are uniform, so equal
+  values only; the Fable probe measured 0.78-0.91 with differing values, which this tool does not exercise.

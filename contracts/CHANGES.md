@@ -3,6 +3,29 @@
 Newest first. Every accepted proposal adds an entry: date, contracts, version change, proposal file,
 summary.
 
+## 2026-11-16 — Proposals 038, 039 ACCEPTED (C4 → v1.2 → v1.3; C10 → v1.3 → v1.4)
+
+Maintainer-approved, Wave 1.5 (single-tick false-confidence fixes, feature level; work order WO-A). Proposals:
+`contracts/proposals/038-T3-T4-offensive-war-count.md`, `039-T4-feature-validity.md`. Plan:
+`docs/plans/opt/WAVE_1_5_PLAN.md` rev 2 §3, §4; plan review `docs/status/opt_wave_1_5_plan_review.md` blocking
+3–6.
+
+| Item | Contracts | Change | Kind |
+|---|---|---|---|
+| 038 field | C4 §3, `LegalView` | `player_offensive_war_count: GameCount \| None = None`: wars with the player in `attackers` and no other `sae_sid` country in `attackers`, as known to the observer; validator `<= player_war_count`; never from list order | additive model field, C4 v1.3 (`schema_version = 1`); schemas re-exported |
+| 038 fog note | C6 §4 item 6, §7 | Own war sides legal; third-party sides public like `player_war_count` (A-55); fallback = observer in `defenders` | doc note, no version change |
+| 039 war features | C10 §2 | `war_share`, `first_war_year` mean offensive wars; `at_war = null` months leave the denominator and `n_obs`; builder versions never mixed; hyperpriors (0.2, 25) are HYP | rule, C10 v1.4 (no model or schema change) |
+| 039 bus note | C5 §3 | A dropped feature is `null`; `first_war_month` stays "any war" | doc note, no version change |
+| Assumptions | README §5, C4 §8, C6 §7, `docs/m0_checklist.md` | A-55 (third-party war sides public; save lists both sides) | UNVERIFIED |
+| Renumbering | `docs/plans/opt/W3_DESIGN.md`, `IMPLEMENTATION_WAVES.md` | 036 → C10 v1.5, 037 → C10 v1.6; 036's C8 line → v1.9 (v1.8 already taken); golden on the "merged Waves 1-2 + 1.5 commit"; A-50..A-54 reserved for 036 | plan docs |
+
+Decisions beyond the inputs: "observer country" is written as "any other country carrying `sae_sid`" (the player
+carries one too); the validator compares only when both counts are set; A-55 names no M0 id until T8 adds a kit
+step (the plan said M0-5; the save-vs-UI comparison is M0-11); 036's C8 version moved to v1.9.
+
+Follow-ups: T3 WO-B (emit the field, 2 fixtures), T4 WO-C (`features.py`), T9 WO-D (`BUILDER_VERSION`,
+`TUNER_VERSION` 0.2.0), T8 (A-55 kit step in M0-11).
+
 ## 2026-11-16 — C8 §5 `sae play` re-exec rule (C8 → v1.7 → v1.8)
 
 Wave 1–2 architecture review blocking 3 (`docs/status/opt_w12_arch_review.md`), clarifying proposal 033.

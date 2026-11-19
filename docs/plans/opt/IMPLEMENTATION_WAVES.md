@@ -85,8 +85,10 @@ Model: sonnet unless marked opus. Every order also runs `uv run pytest -x -q`, m
 | 033 | 1 | T7/T9 gate refusal; `sae play` update after exit | C8 §5 -> v1.7: new `sae gate` exit code; `sae play` row reordered; the daemon runs on the previous session's policy; update refused while the game runs; a Windows console close kills the launcher within about 5 s, so no update runs (UNVERIFIED) |
 | 034 | 2 | T5 spm mean ratio (T4 co-owner) | C7 §4.3 item 4 replaced, 14.3 % effective threshold stated -> C7 v1.2. C5 additive `spm_ratio` (omitted when unarmed), `spm_armed` (1.0/0.0) -> C5 v1.4 |
 | 035 | 2 | T5/T4 flip metrics | C7 `SensorSample.daemon_private_bytes` -> C7 v1.3. C5 §3 additive `engine_ms`, `daemon_private_bytes` -> C5 v1.5. Stack flip rule restated on these keys |
-| 036 | 3 | T4 carried campaign state | C8 §6 layout + `engine.carry_state` -> v1.8. C5 additive `carried_from`/`carry_refused`, `metrics.void` -> C5 v1.6. C10 split predicate moved to contracts -> C10 v1.4. States which part is behind the flag |
-| 037 | 4 | T4 scale-free outcome metrics | C10 `outcome_weights` accepts both key sets, chosen by PolicyVersion major -> C10 v1.5 (no v2). No-mixing rule |
+| 036 | 3 | T4 carried campaign state | C8 §6 layout + `engine.carry_state` -> v1.9 (v1.8 was taken by the 2026-11-16 re-exec rule). C5 additive `carried_from`/`carry_refused`, `metrics.void` -> C5 v1.6. C10 split predicate moved to contracts -> C10 v1.5 (v1.4 is proposal 039, Wave 1.5). States which part is behind the flag |
+| 037 | 4 | T4 scale-free outcome metrics | C10 `outcome_weights` accepts both key sets, chosen by PolicyVersion major -> C10 v1.6 (no v2). No-mixing rule |
+| 038 | 1.5 | T3/T4 offensive war count | C4 additive `LegalView.player_offensive_war_count` -> C4 v1.3. C6 §4 doc note (no bump). A-55. ACCEPTED 2026-11-16 (`WAVE_1_5_PLAN.md`) |
+| 039 | 1.5 | T4 feature validity | C10 §2 `war_share` / `first_war_year` mean offensive wars; denominator rule; HYP priors -> C10 v1.4. C5 doc note (no bump). ACCEPTED 2026-11-16 |
 
 ## 4. Demo plan (game-free only)
 
@@ -152,7 +154,7 @@ the A1 `black_box` fix in `cost.rs`.
 | B2 | W1-1 spec + tests (b), (e), (f), (g), (i); 031 text |
 | B3 | W1-1 test (h); W1-9 wrong-lock rate; Demo v1 row |
 | B4 | W1-2 tests and T4 fragment note |
-| B5 | §3 versions: C10 v1.3/1.4/1.5, C5 v1.4/1.5/1.6, C7 v1.2/1.3; 037 accepts both key sets; C5 header fix in W1-A0 |
+| B5 | §3 versions: C10 v1.3/1.5/1.6 (v1.4 = 039, Wave 1.5), C5 v1.4/1.5/1.6, C7 v1.2/1.3; 037 accepts both key sets; C5 header fix in W1-A0 |
 | B6 | W1-3 file set + divergence test; W1-5/W1-7 `profile/cli.py` rule; changelog rule in §1; W1-7 game-running test; 033 text |
 | B7 | W2-2 emits 4 keys, runs after W2-1 and W2-3; 034 float rule |
 | B8 | W2-6 marked, out of the estimate |

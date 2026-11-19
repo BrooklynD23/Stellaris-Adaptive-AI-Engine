@@ -59,6 +59,15 @@ decision audit is a DuckDB view joining rows on `decision_id`.
 | `control` | none | C9 `ControlCommand` (`null` if the inbox file was unreadable, too large or invalid; present for `expired`) and `ControlResult` (`error` adds `expired`, C9 §3.1, v1.1) | each operator command (status included) |
 | `health` | none | kind, component, Governor state and level, trigger, metrics, detail | C7 §9 and error tables in C1/C2/C4 |
 
+`belief_update.features` notes (2026-11-16, proposals 038/039; wording only, no version change):
+- A feature is `null` when unobserved **or dropped** by `sae.core.features` for that tick (too little frontier,
+  reporting set changed, war role unknown). The bus does not tell the two apart.
+- `first_war_month` means the first month with **any** war (`player_war_count > 0`); it is reported, not used as
+  evidence. The profile's `first_war_year` (C10 §2, v1.4) means the first **offensive** war. The two differ by
+  design.
+- `observation.payload.player_legal[]` entries are C4 `LegalView`s and so gain the optional
+  `player_offensive_war_count` (C4 v1.3); buses recorded before it read as `null`.
+
 `health.kind` values: `level_change`, `state_change`, `monthly`, `budget_breach`, `parse_failed`,
 `save_skipped`, `worker_killed`, `log_parse_error`, `version_skew`, `reconnect`, `ini_write_failed`,
 `ack_alarm`, `daemon_exit`, `invalid_event`, and since v1.2 (proposal 017, component `adapter`):

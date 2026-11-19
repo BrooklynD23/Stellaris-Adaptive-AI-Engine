@@ -37,7 +37,7 @@ M0 = 2205 * 12
 TURTLE = {"systems_owned": 20, "frontier_systems": 10, "fortified_border_starbases": 8, "fleet_power_cat": 0,
           "tech_cat": 0}
 AGGR = {"systems_owned": 20, "frontier_systems": 10, "fortified_border_starbases": 1, "fleet_power_cat": 2,
-        "tech_cat": -1, "player_war_count": 1}
+        "tech_cat": -1, "player_war_count": 1, "player_offensive_war_count": 1}
 
 
 def view(sid: int, **kw: int) -> LegalView:
@@ -150,7 +150,8 @@ def test_huge_untrusted_ints_never_raise() -> None:
     vs = (view(2, systems_owned=10), view(3, systems_owned=10))
     s, _, _ = step(initial_state(ECFG), obs(M0, 100, views=vs, asof=M0))
     # Defence in depth: values that bypassed validation are clamped, never raise.
-    raw = dict(systems_owned=big, frontier_systems=big, fortified_border_starbases=big, player_war_count=big)
+    raw = dict(systems_owned=big, frontier_systems=big, fortified_border_starbases=big, player_war_count=big,
+               player_offensive_war_count=big)
     vs2 = (LegalView.model_construct(observer_sid=2, in_contact=True, fleet_power_cat=None, tech_cat=None,
                                      economy_cat=None, at_war_with_observer=None, **raw),)
     mgd = tuple(ManagedState.model_construct(**{**m.model_dump(), "systems_owned": big})
@@ -295,3 +296,17 @@ def test_multiplayer_receipt_logged_and_never_counts_toward_ack_alarm() -> None:
         kinds_ = [d.payload.kind for d in o.drafts if d.type == "health"]  # type: ignore[attr-defined]
         assert HealthKind.ACK_ALARM not in kinds_
         assert not any(d.type == "intent_ack" for d in o.drafts)
+
+
+# -- Wave 1.5 T-4: state.json from before 1.5 (no fleet_vis / tech_vis) loads ---------------------------------
+def test_old_state_json_without_categorical_sets_loads() -> None:
+    vs = (view(2, **TURTLE), view(3, **TURTLE))
+    s, _, _ = step(initial_state(ECFG), obs(M0, 100, views=vs, asof=M0))
+    raw = json.loads(s.model_dump_json())
+    assert raw["features"]["fleet_last"] == 0 and raw["features"]["tech_last"] == 0  # rev 3.1 B1: counted
+    for key in ("fleet_vis", "tech_vis", "fleet_last", "tech_last"):
+        raw["features"].pop(key)
+    old = EngineState.model_validate_json(json.dumps(raw))
+    assert old.features.fleet_vis is None and old.features.tech_vis is None
+    assert old.features.fleet_last is None and old.features.tech_last is None
+    assert old.features.vis == s.features.vis

@@ -50,7 +50,7 @@ The map is in §15. The maintainer's three defaults are adopted (§14). §13 is 
 
 ### 2.1 Contracts (W3-A0, architect)
 
-`src/sae/contracts/c10_profile.py` (C10 v1.4):
+`src/sae/contracts/c10_profile.py` (C10 v1.5; v1.4 is proposal 039, Wave 1.5):
 
 ```python
 SPLIT_GAP_MONTHS: Final = 60  # 5 game years (C10 section 1 rule 3)
@@ -95,7 +95,7 @@ carry_refused=no_prior
 `health.metrics` for kind `carry` (floats, all optional): `regress_months`, `gap_months`, `hold_ticks`,
 `skipped_states`. Numbers live in `metrics`, ids and enums in `detail`.
 
-`src/sae/contracts/c8_config.py` (C8 v1.8): `EngineConfig.carry_state: bool = False`. No preset sets it.
+`src/sae/contracts/c8_config.py` (C8 v1.9; v1.8 was taken by the 2026-11-16 re-exec rule): `EngineConfig.carry_state: bool = False`. No preset sets it.
 
 C6 (additive, +1 minor; not in the plan's 036 row): recording dir gains an optional file `folder_key` (one
 `FolderKey`, LF). `ReplayAdapter` uses it instead of `f-synth-`; `LiveAdapter(record_dir=...)` writes it at the
@@ -341,8 +341,8 @@ check`. Implementers do not touch `changelog.d/`.
 
 | Id | Team | Files (exclusive) | Spec | h |
 |---|---|---|---|---|
-| W3-A0 | architect (opus) | `contracts/**`, `src/sae/contracts/**`, `tests/contract/**` | Proposal 036: §2.1. C8 v1.8, C5 v1.6, C10 v1.4, C6 +1 minor (`folder_key` file). States which part is behind the flag (§3 is not) and the downgrade rule (§7). New UNVERIFIED rows (§10). Reader contract test D-10b. Schemas re-exported | 5.5 |
-| W3-0 | T7 | `tests/integration/test_w3_flag_off.py`, `tests/integration/golden/w3_flag_off.json` | **Only on the commit where Waves 1-2 are merged** (hash supplied by the coordinator; the implementer runs no git) and before any W3 source edit: 6-year synth run (seed 2, turtle). Store: that commit hash, sha256 of the normalised bus, the per-event-type counts, the normalised `state.json`. Normaliser = `tests/unit/t6/test_fsync_synth.py::_normalised` rules plus drop `run_started.payload.{contracts,config_sha256,engine_version,platform,python}`; state: pop `carry` (assert `None`) and `window_void` (assert `False`). On a mismatch the test prints the event-type count diff first | 2 |
+| W3-A0 | architect (opus) | `contracts/**`, `src/sae/contracts/**`, `tests/contract/**` | Proposal 036: §2.1. C8 v1.9, C5 v1.6, C10 v1.5, C6 +1 minor (`folder_key` file). States which part is behind the flag (§3 is not) and the downgrade rule (§7). New UNVERIFIED rows (§10). Reader contract test D-10b. Schemas re-exported | 5.5 |
+| W3-0 | T7 | `tests/integration/test_w3_flag_off.py`, `tests/integration/golden/w3_flag_off.json` | **Only on the commit where Waves 1-2 + 1.5 are merged** (hash supplied by the coordinator; the implementer runs no git) and before any W3 source edit: 6-year synth run (seed 2, turtle). Store: that commit hash, sha256 of the normalised bus, the per-event-type counts, the normalised `state.json`. Normaliser = `tests/unit/t6/test_fsync_synth.py::_normalised` rules plus drop `run_started.payload.{contracts,config_sha256,engine_version,platform,python}`; state: pop `carry` (assert `None`) and `window_void` (assert `False`). On a mismatch the test prints the event-type count diff first | 2 |
 | W3-1b | T4 (opus), after W3-A0 and W3-0 | `src/sae/core/engine.py`, `core/engine_tick.py`, `core/state.py` (`window_void` only), `core/belief.py` (`forget`), `core/regress.py` (new), `tests/unit/t4/test_regress.py`, `tests/unit/t4/golden/w3_engine_pre.json`, expectations in `tests/unit/t4/test_engine.py` | **Step 0, same merged commit, before any source edit:** capture the engine-level golden (§12 G-1). Then §3 with rules A and B | 5.5 |
 | W3-1 | T4 (opus), after W3-1b and W3-4b | `src/sae/core/carry.py` (new), `core/engine.py`, `core/engine_tick.py`, `core/state.py`, `src/sae/daemon/carrystore.py` (new), `daemon/loop.py`, `tests/unit/t4/test_carry.py`, `test_carrystore.py`, `test_carry_sessions.py` | §2.2, §4 (epoch-gated switch, foreign-save event, mode filter, flag-off resume line). Imports nothing from `sae.profile` / `sae.tune` | 10.5 |
 | W3-2 | T9, after W3-A0 | `src/sae/profile/index.py`, `src/sae/tune/cli.py`, `tests/unit/t9/` | `index.py` imports `split_candidate` and `SPLIT_GAP_MONTHS` from contracts (keeps the name importable); `_v3` skips `outcome_is_void` and prints the skipped count | 2 |
@@ -390,7 +390,7 @@ SynthAdapter(..., effect: Mapping[ReasonKey, float] | None = None)
 
 ## 10. UNVERIFIED assumptions and the game-PC run (W3-5)
 
-Ids are provisional (A-49 is the last row in `contracts/README.md` §5 today); 036 assigns final numbers.
+Ids are provisional (A-50..A-54 are reserved for these rows; A-55 was taken by proposal 038, Wave 1.5); 036 assigns final numbers.
 
 | Id | Assumption | Design depends on it for | If false |
 |---|---|---|---|
@@ -455,7 +455,7 @@ Unit, T4 `test_regress.py` (W3-1b):
 | Id | Test |
 |---|---|
 | R-1 | In-session reload 30 years earlier (C-review validation 3): posterior exactly uniform; an `outcome` on the same tick with `metrics["void"] == 1.0`, `reward == 0.0`; next window is `below_threshold`, `abstain=True` |
-| G-1 | Engine golden, captured at step 0 on the merged Wave 1-2 commit (review B7): a hand-built observation sequence through `engine.on_observation` with a same-month HELLO (d = 0), a pause and resume, a force and clear-force, and a normal window close. Stored: every draft and the final state in `tests/unit/t4/golden/w3_engine_pre.json`. After W3-1b the same sequence must reproduce it (state compared after popping `carry`, `window_void`) |
+| G-1 | Engine golden, captured at step 0 on the merged Waves 1-2 + 1.5 commit (review B7): a hand-built observation sequence through `engine.on_observation` with a same-month HELLO (d = 0), a pause and resume, a force and clear-force, and a normal window close. Stored: every draft and the final state in `tests/unit/t4/golden/w3_engine_pre.json`. After W3-1b the same sequence must reproduce it (state compared after popping `carry`, `window_void`) |
 | R-2 | D = 6, window opened before the load point: posterior == `1/4 + 0.98**6 * (p - 1/4)` per archetype (abs 1e-12); `window_open is None`; `window_void`; `commit_until` = load month + remaining months; when the window closes the outcome is void |
 | R-2b | Review B3, in-session: counter window opened at 2211.01 (D1 pre-emption), reload to 2210.01 (D = 13). Assert: an `outcome` on the reload tick, void; `strategy_selected` re-decided from the decayed posterior (reason `table` or `below_threshold`, never `commitment_hold`); the old `commit_until` is gone |
 | R-3 | D = 24 decays, D = 25 is uniform (boundary) |
@@ -517,7 +517,7 @@ Daemon and adapters:
 | D-5 | T2 `test_replay_folder_key.py` | File present -> observations carry that key after the first parse and `None` before; reset to `None` by a HELLO; absent -> `f-synth-`; invalid text -> `f-synth-` + `invalid_event` |
 | D-6 | T2 `test_assembler.py` | Real path: `salt_fn` fixed + `folder="W3 Test"` -> key == `folder_key(salt, "W3 Test")`, equal across two assembler instances |
 | D-7 | T2 `test_synth_effect.py` | `effect=None` run equals the W3-0 golden; `{TURTLE_SIEGE: 0.004}` -> in-contact managed AI fleet at the end of the first counter window >= 1.10 x the no-effect run, same seed |
-| D-8 | T7 `test_w3_flag_off.py` | Flag off, 6-year synth: normalised bus sha, per-event-type counts and `state.json` equal the golden; the golden names the merged Wave 1-2 commit (B10, review B7) |
+| D-8 | T7 `test_w3_flag_off.py` | Flag off, 6-year synth: normalised bus sha, per-event-type counts and `state.json` equal the golden; the golden names the merged Waves 1-2 + 1.5 commit (B10, review B7) |
 | D-9 | T7 `test_ci4_imports.py` (unchanged) | Green. `carrystore` and `c10_profile` import only contracts and `statefile` |
 | D-10 | architect `tests/contract` | `split_candidate` equals `profile/index.py` behaviour on its fixtures at 59, 60, 61 months; `format_carry` / `parse_carry` round-trip every doc example, `prior` included, key order fixed; `EngineConfig().carry_state is False`; C5/C8/C10 doc examples validate |
 | D-10b | architect `tests/contract` | Review B6: scan every file under `src/sae` and `tools/console` except `core/outcome.py` and `contracts/`. A file whose text has both `outcome` and `reward` must also have `outcome_is_void` or `void`. Non-vacuity: the scan finds at least `tune/cli.py`, `telemetry/mapping.py`, `tools/console/views.sql` |
@@ -535,7 +535,7 @@ validation 4).
 | 2 | Merge corrupts the live run: a future `EngineState` field (or `lifecycle`, `next_intent_id`) is copied from the prior and the mod sees a reused seq | C-13 fails closed on any unclassified field; D-1 checks seq continuity through the bus checker | none known |
 | 3 | Cross-timeline rewards reach tune: a path sets `window_open` from another timeline without `window_void` (carried regression, deep regression, second regression, future refactor of `_reset`), or a reader scores void as 0 | R-1, R-2, R-6, R-6b, C-10; D-11, D-12 and D-10b prove the readers skip | A forward load of another branch is not detectable (§6 item 5) |
 | 4 | Hold starves the game: phase stuck in `hold` (key never arrives, counter not persisted over re-exec, reloads resetting the cap), so no batch is ever sent | C-3 (cap by ticks), C-4, D-4, C-16 | If A-50 is false every session waits 12 months; game-PC step 4 measures it before the flag is enabled |
-| 5 | Flag-off drift: W3-1b or W3-1 changes default behaviour, `state.json` bytes or the daemon import graph | D-8 golden on the merged Wave 1-2 commit, G-1 engine golden (reload d = 0, pause, force, window close), R-4, R-8, D-4b, D-9 | W3-1b is an intended unflagged change on a regression with D >= 1; neither golden covers that on purpose. R-1..R-6b carry that weight |
+| 5 | Flag-off drift: W3-1b or W3-1 changes default behaviour, `state.json` bytes or the daemon import graph | D-8 golden on the merged Waves 1-2 + 1.5 commit, G-1 engine golden (reload d = 0, pause, force, window close), R-4, R-8, D-4b, D-9 | W3-1b is an intended unflagged change on a regression with D >= 1; neither golden covers that on purpose. R-1..R-6b carry that weight |
 | 6 | Found by the gate: state from another campaign or an abandoned branch acts on the live game: a foreign save flips the key (B1), a non-live run becomes the prior (B2), a window opened after the load point survives (B3) | C-15, C-15b, C-15c; S-3, S-5; R-2b, C-10b | A foreign save that is the first keyed observation of an epoch is still taken as the campaign. Its evidence enters the belief in every case (assembler, T2). Game-PC step 4 counts foreign-save events |
 
 Also checked, no change needed: a stale `state.json.tmp` (never read); two daemons (CURRENT lock); a prior that
@@ -562,7 +562,7 @@ the hole) and note 9 (exact posterior restore), both in §11.
 | B4 | Sticky `window_void`, cleared only where a new window opens; test R-6b | §3 rule B, §12 |
 | B5 | `views.sql:85` is a third reward reader: NULL when void, column `outcome_void`; D-12; W3-6 grows | §1, §7, §9, §12 |
 | B6 | Reader contract test D-10b; duty added to W4-1 / W4-3 (amendment text, §9); `format_carry` gains `prior`, key order fixed, `CarryDecision.prior` | §2.1, §7, §9, §12 |
-| B7 | Golden only on the merged Wave 1-2 commit, with hash and event counts; engine golden G-1 before any edit, R-4 compares to it; resume with the flag off sets `carry=None` (D-4b) | §4 rule 3, §9 (W3-0, W3-1b), §12 |
+| B7 | Golden only on the merged Waves 1-2 + 1.5 commit, with hash and event counts; engine golden G-1 before any edit, R-4 compares to it; resume with the flag off sets `carry=None` (D-4b) | §4 rule 3, §9 (W3-0, W3-1b), §12 |
 | B8 | Six Demo v3 statements | §10.1 |
 | Note 1 | Daemon always fills `policy_sha256` (built-in sha, never `None`) | §2.2 |
 | Note 2 | Prior with a wrong posterior length is skipped; test S-6 | §4.2, §12 |
@@ -579,7 +579,7 @@ These override the matching text above (`docs/status/opt_w3_design_review.md`, c
    Today it trips on `src/sae/telemetry/mapping.py`, `src/sae/tune/cli.py` and `tools/console/views.sql`. The
    architect removes the marker at wave integration, after W3-2 and W3-6 land.
 2. **E2, golden capture.**
-   - The coordinator supplies the merged Wave 1-2 commit hash **and** states that the tree is clean at capture.
+   - The coordinator supplies the merged Waves 1-2 + 1.5 commit hash **and** states that the tree is clean at capture.
    - W3-1b step 0 reads "on the merged commit plus W3-A0, before any T4 source edit".
    - The W3-0 normaliser pops `carry` and `window_void` with a default, since neither key exists at capture.
 3. **B1 residual (W3-5, text only).** Once a foreign key is taken first in an epoch, the real campaign's key is

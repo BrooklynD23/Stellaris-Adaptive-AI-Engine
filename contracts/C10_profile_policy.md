@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.3 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
-| Status | FROZEN v1.3 (2026-11-15; v1.3 proposal 031: Stage 1 `feel_commitment` pass rule §6 rule 4, no schema change; 2026-10-20: v1.2 proposal 029: `sae policy` semantics §5, sealed-query ledger, GateReport pass rules and Stage 2 objectives §6, clarifications, no schema change; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
+| Version | 1.4 (`v = 1` on JSONL rows, `schema_version = 1` on JSON documents) |
+| Status | FROZEN v1.4 (2026-11-16; v1.4 proposal 039: §2 `war_share` / `first_war_year` mean offensive wars, denominator rule, HYP hyperpriors, no schema change; 2026-11-15: v1.3 proposal 031: Stage 1 `feel_commitment` pass rule §6 rule 4, no schema change; 2026-10-20: v1.2 proposal 029: `sae policy` semantics §5, sealed-query ledger, GateReport pass rules and Stage 2 objectives §6, clarifications, no schema change; v1.1 proposal 025 §2–§3: `append_registry_row` landed, §1.7–§1.15 and §2 rules 1–3 index/profile clarifications, no schema change; v1 2026-10-19: proposals 020 §1–§2 and 021, ACCEPTED-WITH-CHANGES; 020 §3 `EnginePriors` and 019 Part B `priors_loaded` DEFERRED, maintainer D2) |
 | Owner | architect (contract); T9 implements the profile side (`src/sae/profile/**`, `src/sae/tune/**`), T7 the gate (`src/sae/bench/gate/**`), T4 the daemon's policy loader |
 | Producers | `sae profile …` (T9: §1, §2); `sae tune` (T9: proposed policies, `propose` rows); `sae gate stage1\|stage2` (T7: `stage*` rows, GateReports); `sae policy …` (T9, human-only rows, Preregistrations) |
 | Consumers | T4 daemon (§4, §5 read-only at start); T9; T7 (gate, privacy and fog tests); T6 (console views); T8 (docs) |
@@ -142,10 +142,36 @@ non-excluded campaigns' `bus.jsonl`. No profile code opens `bus.god.jsonl` (T7 F
 |---|---|
 | `expansion_rate_early` | Δ`systems_owned` per game year, first 30 game years |
 | `expansion_rate_late` | same, after year 30 |
-| `border_fort_ratio` | mean `fortified_border_starbases / frontier_systems` over months with frontier > 0 |
-| `first_war_year` | game years from start to the first month with `player_war_count > 0` (`null` if never) |
-| `war_share` | months with `player_war_count > 0` / months observed |
-| `fleet_power_cat_mean`, `tech_cat_mean`, `economy_cat_mean` | mean of the C4 category |
+| `border_fort_ratio` | mean of the `sae.core.features` border ratio over months where it is evidence; months it drops (no observer alone sees `MIN_FRONTIER` frontier systems) are excluded |
+| `first_war_year` | game years from start to the first month with `at_war = true`, i.e. the first **offensive** war of the player (`null` if never). `n_obs` = months with `at_war` not `null` |
+| `war_share` | months with `at_war = true` / months with `at_war` not `null` (`null` when there is no such month). `n_obs` = that denominator |
+| `fleet_power_cat_mean`, `tech_cat_mean`, `economy_cat_mean` | mean of the C4 category; for fleet and tech, the `sae.core.features` value, so months it drops (reporting-set rule) are excluded |
+
+War features (v1.4, proposal 039). `at_war` is the `sae.core.features` value built from C4
+`player_offensive_war_count` (C4 v1.3, proposal 038):
+
+| `at_war` | When |
+|---|---|
+| `true` | some in-contact view has `player_offensive_war_count > 0` |
+| `false` | war info is present, every `player_war_count` is 0 and no view has `at_war_with_observer` |
+| `null` | anything else: defensive-only war, a war led by a managed AI, role unknown (field `null`, e.g. a bus recorded before C4 v1.3) |
+
+1. **Denominator.** Months with `at_war = null` are in neither the numerator nor the denominator of `war_share`
+   and not in either feature's `n_obs`. So `war_share` is the share of offensive-war months among months whose
+   war role is known; it is **biased up** against "share of all months". A player who is only ever attacked
+   (besieged turtle) has no offensive month and few or no known-peace months: `war_share` is `0.0` or `null`,
+   `first_war_year` is `null`.
+2. **Old buses.** A campaign recorded before C4 v1.3 has `at_war = null` in every war month; its `war_share` is
+   `0.0` or `null`. It is not comparable with a later one.
+3. **Builder version.** The meaning change is carried by `builder_version` (T9 `BUILDER_VERSION` 0.1.0 → 0.2.0). A
+   `ProfileDoc` is built only from summaries of its own `builder_version`; summaries of another version are
+   rebuilt from the bus, never mixed.
+4. **Hyperpriors are HYP.** The designer hyperpriors `war_share` (0.2, sd 0.15) and `first_war_year` (25, sd 15)
+   were set for "any war". Under the offensive meaning they are unvalidated guesses; revisit with real campaigns.
+5. **Two "first war" meanings.** Bus `belief_update.features.first_war_month` is the first month with any war
+   (C5 §3); profile `first_war_year` is the first offensive war. They differ by design.
+6. **Accepted scope.** Under D1 (no confidence or evidence-tick guard) the second evidence tick with a stable
+   reporting set can still lock a strategy alone. 039 does not change that.
 
 Reloads: observations are ordered by run `t_wall`; a game-date regression drops every earlier-recorded
 observation dated after the reloaded date (the abandoned timeline is not learned). `final_belief` is the last

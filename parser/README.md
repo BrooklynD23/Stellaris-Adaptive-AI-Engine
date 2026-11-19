@@ -64,7 +64,7 @@ Save dates are normalised like the contract `GameDate`: `Y.M.D` with 1-4 / 1-2 /
 re-rendered as zero-padded `YYYY.MM.DD` (`2231.4.1` becomes `2231.04.01`); anything else is exit 5. The fixture
 renderer stays strict and accepts only zero-padded dates.
 
-Meta-only fast path (parser 0.1.2, C4 section 1, proposal 032): for exactly `--sections meta`, when the zip `meta`
+Meta-only fast path (parser 0.1.2, C4 section 1, proposal 032; parser 0.1.3 adds `player_offensive_war_count`, proposal 038): for exactly `--sections meta`, when the zip `meta`
 entry holds `date` and `version`, `gamestate` is not inflated (its entry must still exist). Output equals the full
 path except `cost`; the one accepted divergence is a valid `meta` with a corrupt `gamestate`, which exits 0 here. No
 CLI flag forces the full path (debug builds honour the `SAE_PARSE_FORCE_FULL` env var for tests). UNVERIFIED on real
@@ -130,7 +130,7 @@ variables and flags, M0-11).
 ## Fixtures
 
 `fixtures/<name>/{spec.json,save.sav,expected.json}`: `turtle_small` (C4 example), `tech_rush`,
-`early_aggression`, `balanced`, `observer_mode`, `no_contact`, `war_two_fronts`, `plain_text_small`,
+`early_aggression`, `balanced`, `observer_mode`, `no_contact`, `war_two_fronts`, `war_ai_attacker`, `war_ai_led_player_coattacker`, `plain_text_small`,
 `pathological_2x` (256 MiB `pad_bytes`, zip, 0.25 MB on disk; exercises the splitter and size path only).
 `expected.json` is the full `ParseResult` minus `cost`, `save` and `parser_version`.
 

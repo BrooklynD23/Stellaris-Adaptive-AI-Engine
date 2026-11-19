@@ -68,6 +68,11 @@ cd parser && cargo clippy -j 1 -- -D warnings && cargo test -j 1
 uv run python3 mod/sae_bridge/tools/check_mod.py        # mod static checker (T1)
 ```
 
+Run in tiers (`CLAUDE.md` "Testing"; the src -> tests map is in
+[`process/DISPATCH_TEMPLATE.md`](process/DISPATCH_TEMPLATE.md)): the test files you touched while iterating, the
+affected area with `-m "not slow"` before hand-back, the full suite once per wave. Only one pytest process at a
+time on a shared machine.
+
 **Coverage.** Run it explicitly, never from addopts: `uv run pytest --cov` (floor: 90 % line coverage,
 `fail_under = 90`). `[tool.coverage.run] parallel = true`, so each run writes `.coverage.<host>.<pid>.<rand>`
 files; merge them with `uv run coverage combine` before `uv run coverage report`. Concurrent runs (several

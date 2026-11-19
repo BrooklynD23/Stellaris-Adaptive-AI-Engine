@@ -49,7 +49,7 @@ def _view(systems: int, war: bool, cats: tuple[int, int, int, int, int], in_cont
     return LegalView(
         observer_sid=2, in_contact=True, systems_owned=systems, frontier_systems=frontier,
         fortified_border_starbases=fort, fleet_power_cat=fleet, tech_cat=tech, economy_cat=econ,
-        player_war_count=1 if war else 0,
+        player_war_count=1 if war else 0, player_offensive_war_count=1 if war else 0,
     )  # fmt: skip
 
 
@@ -64,11 +64,13 @@ def make_run(
     *,
     keys: list[str | None] | None = None,
     beliefs: list[dict[Archetype, float] | None] | None = None,
+    as_of: list[str] | None = None,
 ) -> Path:
     """Write ``runs/<run_id>/bus.jsonl`` plus a non-empty ``bus.god.jsonl`` (so fog tests are never vacuous).
 
-    ``keys`` overrides the per-month save_folder_key (default: ``folder_key`` for every month). A belief_update
-    follows each observation when ``belief`` (all months) or ``beliefs`` (per month) gives one.
+    ``keys`` overrides the per-month save_folder_key (default: ``folder_key`` for every month). ``as_of``
+    overrides the per-month ``legal_as_of`` (default: the month's date; a repeat makes a stale log tick).
+    A belief_update follows each observation when ``belief`` (all months) or ``beliefs`` (per month) gives one.
     """
     d = runs_dir / run_id
     d.mkdir(parents=True)
@@ -90,7 +92,8 @@ def make_run(
         key = keys[i] if keys is not None else folder_key
         obs = Observation(
             game_date=date, m=None, session_epoch=0, source="log", player_sid=None, managed=(),
-            player_legal=(_view(systems, war, cats, in_contact),), legal_as_of=date, save_folder_key=key,
+            player_legal=(_view(systems, war, cats, in_contact),), legal_as_of=as_of[i] if as_of else date,
+            save_folder_key=key,
             game_version="v4.4.4",
         )  # fmt: skip
         env = {"run_id": run_id, "t_wall": t_wall, "t_mono_ns": seq, "game_date": obs.game_date}

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 (`schema_version = 1` in every JSON document) |
-| Status | FROZEN v1.2 (2026-11-15; v1.2 proposal 032: meta-only fast path, §1; 2026-11-14: v1.1 proposal 030: Windows `cost.rss_peak_bytes` is peak commit, §2; v1 2026-10-19) |
+| Version | 1.3 (`schema_version = 1` in every JSON document) |
+| Status | FROZEN v1.3 (2026-11-16; v1.3 proposal 038: additive `LegalView.player_offensive_war_count`, §3; 2026-11-15: v1.2 proposal 032: meta-only fast path, §1; 2026-11-14: v1.1 proposal 030: Windows `cost.rss_peak_bytes` is peak commit, §2; v1 2026-10-19) |
 | Owner | architect (contract); T3 implements |
 | Producer | `sae-parse` (Rust, jomini; T3) |
 | Consumers | Daemon parse step (T4) through the Governor's worker spawn (T5); ReplayAdapter and SynthAdapter (T2); fixtures for T7 |
@@ -94,6 +94,7 @@ with the player, every feature is `null` (never imputed). Otherwise:
 | `economy_cat` | same thresholds on monthly alloys income ratio |
 | `at_war_with_observer` | a war has the player and the observer on opposite sides |
 | `player_war_count` | wars the player is in |
+| `player_offensive_war_count` (v1.3, proposal 038, optional) | **offensive wars of the player known to this observer**: wars with the player in `attackers` and no other country carrying `sae_sid` in `attackers` (a war a managed or SAE-tagged AI declared, with the player as co-attacker, is not counted). The parser counts all such wars (third-party sides are public, A-55 UNVERIFIED); if A-55 fails it counts only those with this observer in `defenders`, which is no contract change. Never derived from the order of `attackers` (no "first attacker = leader"; order UNVERIFIED). Always ≤ `player_war_count`. `null` = not known: parser older than v1.3, `wars` section not run, or not in contact |
 
 Integer bound (proposal 007): every `LegalView` integer, `observer_sid`, `sid`, and `self_state` `applied_seq`/`pending_seq`
 (also in `FixtureCountry`) are at most `CLAUSEWITZ_INT_MAX` = 1,000,000 (A-17). The parser must never
@@ -129,7 +130,7 @@ Success:
   "legal": [
     {"observer_sid": 3, "in_contact": true, "systems_owned": 41, "frontier_systems": 6,
      "fortified_border_starbases": 4, "fleet_power_cat": 1, "tech_cat": 1, "economy_cat": 0,
-     "at_war_with_observer": false, "player_war_count": 0},
+     "at_war_with_observer": false, "player_war_count": 0, "player_offensive_war_count": 0},
     {"observer_sid": 4, "in_contact": false}
   ],
   "god": {"fleet_power": 12010, "systems_owned": 41, "tech_researched": 58, "alloys_income": 40,
@@ -155,6 +156,17 @@ Invalid: features present without contact (a fog leak).
  "meta": {"game_version": "Cepheus v4.4.4", "date": "2231.04.01"},
  "countries": [], "self_state": {},
  "legal": [{"observer_sid": 4, "in_contact": false, "fleet_power_cat": 2}],
+ "god": null, "sections": ["meta"], "cost": {"rss_peak_bytes": 1, "cpu_s": 0, "wall_s": 0}}
+```
+
+Invalid: more offensive wars than wars (v1.3).
+
+```json model=ParseOutput invalid
+{"schema_version": 1, "status": "ok", "parser_version": "0.1.3",
+ "save": {"path": "x.sav", "size_bytes": 1, "mtime_ns": 1},
+ "meta": {"game_version": "Cepheus v4.4.4", "date": "2231.04.01"},
+ "countries": [], "self_state": {},
+ "legal": [{"observer_sid": 4, "in_contact": true, "player_war_count": 1, "player_offensive_war_count": 2}],
  "god": null, "sections": ["meta"], "cost": {"rss_peak_bytes": 1, "cpu_s": 0, "wall_s": 0}}
 ```
 
@@ -222,6 +234,10 @@ Invalid: two players.
 contract and models are updated (models forbid unknown fields). Removing or retyping a field,
 changing a feature definition (§3), or changing an exit code meaning is a v2 change.
 
+Direction for an added field (v1.3, `player_offensive_war_count`): the models land first. A JSON document
+without the field (older parser, recorded bus, old `state.json`) loads with `null`; a parser that emits the field
+against older models is rejected (unknown field), so the parser ships only with or after the models.
+
 ## 8. UNVERIFIED assumptions (M0 checklist)
 
 | Id | Assumption | M0 test | Fallback |
@@ -229,6 +245,7 @@ changing a feature definition (§3), or changing an exit code meaning is a v2 ch
 | A-18 | 4.4 autosaves are zip(`meta`, `gamestate`) Clausewitz text that jomini parses in ≤ 3 s, ≤ 1 GB | M0-11 | Section-selective parsing; binary support if needed |
 | A-47 | The zip `meta` entry of a real save holds `date` and `version` (meta-only fast path, §1) | M0-11 | Fast path never fires; behaviour equals v1.1 |
 | A-19 | Contact, ownership, starbase modules, fleet power and tech count are present and locatable in the save | M0-11 | Drop the feature; mark `null` |
+| A-55 | War sides (`attackers` / `defenders`) of wars the observer is not in are public to it, as `player_war_count` is (v1.3 `player_offensive_war_count`); the save lists both sides per war | later (save vs war screen; not in the kit yet) | Count only wars with the observer in `defenders` (legal: its own war); a player war on a third party then gives 0 |
 | A-20 | Ironman saves are parseable and `ironman` is detectable | M0-14 | `ironman = null` |
 | A-24 | The autosave interval can be set to monthly for development | M0-11 | Yearly saves; log channel carries the monthly signal |
 | A-30 | Country variables (`sae_sid`, `sae_seq_applied`, `sae_seq_pending`, applied econ/mil) and flags (`sae_managed`) are stored in the save | M0-11 | Map `sid` by `name` (C1); seq from the bus `state.json` |

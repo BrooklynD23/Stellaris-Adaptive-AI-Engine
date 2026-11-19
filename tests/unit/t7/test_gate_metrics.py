@@ -36,7 +36,8 @@ def _obs(mi: int, aggressive: bool) -> Observation:
     view = LegalView(
         observer_sid=1, in_contact=True, systems_owned=10 + mi // 3, frontier_systems=4,
         fortified_border_starbases=0 if aggressive else 4, fleet_power_cat=2 if aggressive else 0,
-        tech_cat=0, at_war_with_observer=aggressive, player_war_count=1 if aggressive else 0)
+        tech_cat=0, at_war_with_observer=aggressive, player_war_count=1 if aggressive else 0,
+        player_offensive_war_count=1 if aggressive else 0)
     return Observation(game_date=date_of(2200 * 12 + mi), m=mi, session_epoch=0, source="save", player_sid=1,
                        managed=(), player_legal=(view,), legal_as_of=date_of(2200 * 12 + mi))
 

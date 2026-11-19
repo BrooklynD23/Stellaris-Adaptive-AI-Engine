@@ -31,7 +31,9 @@ def test_dates_roundtrip() -> None:
 
 def test_out_of_contact_ignored() -> None:
     v = (LegalView(observer_sid=1, in_contact=False), lv(fleet_power_cat=2))
-    _, fv, ev, _ = extract(FeatureMemory(), obs("2201.01.01", v, "2201.01.01"))
+    mem, fv, ev, _ = extract(FeatureMemory(), obs("2201.01.01", v, "2201.01.01"))
+    assert fv.fleet_power_cat == 2 and ev  # Wave 1.5 rev 3.1 B1: the first evidence of the campaign counts
+    _, fv, ev, _ = extract(mem, obs("2202.01.01", v, "2202.01.01"))
     assert fv.fleet_power_cat == 2 and ev
     out = (LegalView(observer_sid=1, in_contact=False),)
     _, fv, ev, _ = extract(FeatureMemory(), obs("2201.01.01", out, "2201.01.01"))
@@ -52,12 +54,13 @@ def test_same_asof_once_and_older_no_evidence() -> None:
 
 def test_border_ratio_and_median() -> None:
     v = (
-        lv(fortified_border_starbases=1, frontier_systems=2, fleet_power_cat=-1, tech_cat=2),
-        lv(fortified_border_starbases=2, frontier_systems=2, fleet_power_cat=2, tech_cat=0),
+        lv(fortified_border_starbases=1, frontier_systems=3, fleet_power_cat=-1, tech_cat=2),
+        lv(fortified_border_starbases=2, frontier_systems=3, fleet_power_cat=2, tech_cat=0),
         lv(fortified_border_starbases=5),
     )
-    _, fv, _, _ = extract(FeatureMemory(), obs("2201.01.01", v, "2201.01.01"))
-    assert fv.border_fort_ratio == 0.75
+    mem, fv, _, _ = extract(FeatureMemory(), obs("2201.01.01", v, "2201.01.01"))
+    assert fv.border_fort_ratio == 0.5
+    _, fv, _, _ = extract(mem, obs("2202.01.01", v, "2202.01.01"))  # F2: categoricals need a stable set
     assert fv.fleet_power_cat == -1 and fv.tech_cat == 0  # lower medians
 
 
@@ -208,3 +211,142 @@ def test_none_report_while_in_contact_breaks_visibility_run() -> None:
         if date == "2204.01.01":  # return save: no rate, no evidence row
             assert not any(e.feature == "expansion_rate" for e in p.top_evidence)
     assert rates == [None, None, None, None, 3.0]  # 13-10 over 12 months, post-return samples only
+
+
+# -- Wave 1.5 (plan rev 2 §6): single-tick artefact fixes ------------------------------------------------------
+def ov(sid: int, **kw: object) -> LegalView:
+    return LegalView(observer_sid=sid, in_contact=True, **kw)
+
+
+def at(d: str, *views: LegalView) -> Observation:
+    return obs(d, views, d)
+
+
+def test_t1_border_ratio_needs_one_observer_with_min_frontier() -> None:
+    for n in (1, 2):
+        one = ov(2, frontier_systems=n, fortified_border_starbases=n)
+        _, fv, _, _ = extract(FeatureMemory(), at("2201.01.01", one))
+        assert fv.border_fort_ratio is None
+    _, fv, _, _ = extract(FeatureMemory(), at("2201.01.01", ov(2, frontier_systems=3, fortified_border_starbases=1)))
+    assert fv.border_fort_ratio == 1 / 3
+    # One player system bordering 3 observers: pooled 3, but no observer alone sees 3 systems.
+    shared = [ov(s, frontier_systems=1, fortified_border_starbases=1) for s in (2, 3, 4)]
+    _, fv, _, _ = extract(FeatureMemory(), at("2201.01.01", *shared))
+    assert fv.border_fort_ratio is None
+    # Gate passes on one view; the ratio stays pooled over every view.
+    mixed = (ov(2, frontier_systems=3, fortified_border_starbases=0), ov(3, frontier_systems=1,
+             fortified_border_starbases=1))
+    _, fv, _, _ = extract(FeatureMemory(), at("2201.01.01", *mixed))
+    assert fv.border_fort_ratio == 0.25
+
+
+def test_t2_categorical_set_change_counts_only_the_last_value() -> None:
+    def o(sid: int, x: int) -> LegalView:
+        return ov(sid, fleet_power_cat=x, tech_cat=x)
+
+    a, b, c = o(2, 2), o(3, 2), o(4, 2)
+    mem, fv, ev, _ = extract(FeatureMemory(), at("2201.01.01", a, b))
+    assert ev and fv.fleet_power_cat == 2 and fv.tech_cat == 2  # rev 3.1 B1: first evidence counts
+    assert (mem.fleet_last, mem.tech_last) == (2, 2)
+    for d, views in (("2203.01.01", (a, b, c)), ("2204.01.01", (a, b)), ("2205.01.01", (a, c))):  # gain, loss, swap
+        mem, fv, ev, _ = extract(mem, at(d, *views))
+        assert ev and fv.fleet_power_cat == 2 and fv.tech_cat == 2, d  # same values: the intersection counts
+    # Gain of a disagreeing observer: the intersection {a, c} still gives 2 = last, counts.
+    mem, fv, _, _ = extract(mem, at("2206.01.01", a, c, o(5, -2)))
+    assert fv.fleet_power_cat == 2
+    # Loss that shifts the median ({2, 2, -2} -> {-2}): dropped, last stays 2.
+    mem, fv, ev, _ = extract(mem, at("2207.01.01", o(5, -2)))
+    assert ev and fv.fleet_power_cat is None and fv.tech_cat is None and mem.fleet_last == 2
+    # Stable set: the new value counts and becomes the last counted value.
+    mem, fv, _, _ = extract(mem, at("2208.01.01", o(5, -2)))
+    assert fv.fleet_power_cat == -2 and mem.fleet_last == -2
+    # Empty intersection (swap {5} -> {6}): dropped.
+    mem, fv, _, _ = extract(mem, at("2209.01.01", o(6, -2)))
+    assert fv.fleet_power_cat is None
+    # Same observer set, only tech changes reporter: tech uses the intersection, fleet the unchanged set.
+    mem, fv, _, _ = extract(mem, at("2210.01.01", o(6, -2)))
+    mem, fv, _, _ = extract(mem, at("2211.01.01", ov(6, fleet_power_cat=1), ov(7, fleet_power_cat=1, tech_cat=1)))
+    assert fv.fleet_power_cat is None and fv.tech_cat is None  # fleet {6} -> {6,7} median 1 != -2; tech no share
+
+
+def test_t2a_log_ticks_before_first_save_are_no_gap() -> None:
+    mem = FeatureMemory()
+    for d in ("2200.06.01", "2200.07.01"):
+        mem, _, ev, _ = extract(mem, at(d))
+        assert not ev
+    assert mem.fleet_vis is None and mem.tech_vis is None
+    _, fv, ev, _ = extract(mem, at("2201.01.01", ov(2, fleet_power_cat=1, tech_cat=-1)))
+    assert ev and fv.fleet_power_cat == 1 and fv.tech_cat == -1
+
+
+def test_t2b_sole_observer_gap_drops_return_tick() -> None:
+    from sae.core.belief import BeliefState, update
+
+    from .fakes_cfg import eff
+
+    a = ov(2, fleet_power_cat=2, tech_cat=2)
+    mem, _, _, _ = extract(FeatureMemory(), at("2201.01.01", a))
+    mem, fv, _, _ = extract(mem, at("2202.01.01", a))
+    assert fv.fleet_power_cat == 2
+    for m in range(1, 25):  # observer gone for 24 months
+        mem, fv, ev, _ = extract(mem, at(date_of(mi_of("2202.01.01") + m)))
+        assert not ev
+    assert mem.fleet_vis == mem.tech_vis == frozenset()
+    st0 = BeliefState(posterior=(0.1, 0.2, 0.3, 0.4))
+    mem, fv, ev, k = extract(mem, at("2204.02.01", a))
+    assert ev and k == 25 and fv.fleet_power_cat is None and fv.tech_cat is None
+    _, p = update(st0, fv, ev, k, eff())
+    assert p.posterior == p.prior
+
+
+def test_t3_tick_after_change_counts_with_k_from_dropped_tick() -> None:
+    mem, _, _, _ = extract(FeatureMemory(), at("2201.01.01", ov(2, fleet_power_cat=-2)))
+    a, b = ov(2, fleet_power_cat=2), ov(3, fleet_power_cat=2)
+    mem, fv, ev, k = extract(mem, at("2201.07.01", a, b))
+    assert ev and k == 6 and fv.fleet_power_cat is None  # gain with a shifted intersection value: dropped
+    mem, fv, ev, k = extract(mem, at("2202.04.01", a, b))
+    assert ev and k == 9 and fv.fleet_power_cat == 2  # k counts from the dropped tick, which advanced it
+    assert mem.last_evidence_mi == mi_of("2202.04.01")
+
+
+def test_t4_old_memory_without_sets_drops_once() -> None:
+    a = ov(2, fleet_power_cat=1, tech_cat=1, systems_owned=5)
+    old = FeatureMemory(vis=frozenset({2}), last_asof_mi=mi_of("2201.01.01"), last_evidence_mi=mi_of("2201.01.01"))
+    assert old.fleet_vis is None and old.tech_vis is None
+    mem, fv, _, _ = extract(old, at("2202.01.01", a))
+    assert fv.fleet_power_cat is None and fv.tech_cat is None
+    _, fv, _, _ = extract(mem, at("2203.01.01", a))
+    assert fv.fleet_power_cat == 1 and fv.tech_cat == 1
+
+
+def test_t5_to_t8_at_war_counts_offensive_wars_only() -> None:
+    cases: list[tuple[tuple[LegalView, ...], bool | None]] = [
+        # T-5: managed AI attacks, player defends.
+        ((ov(2, player_war_count=1, player_offensive_war_count=0, at_war_with_observer=True),), None),
+        # T-6: player attacks (one view enough).
+        ((ov(2, player_war_count=1, player_offensive_war_count=1), ov(3, player_war_count=0)), True),
+        # T-7: no wars anywhere.
+        ((ov(2, player_war_count=0, player_offensive_war_count=0), ov(3, player_war_count=0)), False),
+        # T-8: role unknown, or known defensive.
+        ((ov(2, player_war_count=1),), None),
+        ((ov(2, player_war_count=2, player_offensive_war_count=0),), None),
+        ((ov(2, player_war_count=0), ov(3, at_war_with_observer=True)), None),
+        ((ov(2, at_war_with_observer=False),), None),  # no war info at all
+    ]
+    for views, want in cases:
+        _, fv, _, _ = extract(FeatureMemory(), at("2201.01.01", *views))
+        assert fv.at_war is want, views
+
+
+def test_first_war_month_keeps_any_war_meaning() -> None:
+    _, fv, _, _ = extract(FeatureMemory(), at("2201.01.01", ov(2, player_war_count=1, player_offensive_war_count=0)))
+    assert fv.first_war_observed and fv.at_war is None
+
+
+def test_t9_reset_session_keeps_both_sets() -> None:
+    a = ov(2, fleet_power_cat=0, tech_cat=None)
+    mem, _, _, _ = extract(FeatureMemory(), at("2201.01.01", a))
+    r = reset_session(mem, mi_of("2201.06.01"))
+    assert r.fleet_vis == frozenset({2}) and r.tech_vis == frozenset()
+    _, fv, _, _ = extract(r, at("2201.07.01", a))
+    assert fv.fleet_power_cat == 0

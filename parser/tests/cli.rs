@@ -66,7 +66,7 @@ fn expect_error(args: &[&str], code: i32, kind: &str) {
 
 #[test]
 fn version() {
-    assert_eq!(run(&["--version"]), (0, "sae-parse 0.1.2\n".to_owned()));
+    assert_eq!(run(&["--version"]), (0, "sae-parse 0.1.3\n".to_owned()));
 }
 
 #[test]

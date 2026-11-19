@@ -1,7 +1,7 @@
 # M0 checklist
 
 Every row here is **UNVERIFIED** until the maintainer records evidence from a real Stellaris 4.4 game with
-`sae m0`. Nothing has run in the game. Sources merged: `contracts/README.md` §5 (A-01..A-46),
+`sae m0`. Nothing has run in the game. Sources merged: `contracts/README.md` §5 (A-01..A-49, A-55),
 `mod/sae_bridge/UNVERIFIED.md` (per-construct tags and fallbacks), `parser/README.md` (save key map),
 `docs/status/T3.md`, `T4.md`, `T5.md`, the integration plan's M0 tests and the resource proposal (M0-12, M1-P,
 R-x). The runbook for the weekend is [`tools/m0/README.md`](../tools/m0/README.md).
@@ -99,6 +99,7 @@ none has run. They are not part of M0; their UNVERIFIED inputs are X-12..X-14 in
 | A-47 | The zip `meta` entry holds `date` and `version` (C4 v1.2 meta-only fast path) | M0-11 | `--sections meta` on a real save returns without the gamestate inflate | fast path never fires; behaviour equals v1.1 |
 | A-48 | A Windows console close ends the `sae play` launcher within about 5 s, before any profile update | M0-12 | close the console during `sae play`; no update runs | user runs `sae profile update` by hand |
 | A-49 | `memory_info().private` (Windows) / `RssAnon` (Linux) read within the 100 ms probe bound and track the daemon's private memory | M0-12 | `daemon_private_bytes` p95 vs Task Manager private working set | stack-flip rule restated on working set |
+| A-55 | War sides (`attackers` / `defenders`) of wars an observer is not in are public to it, and the save lists both sides per war (C4 v1.3 `player_offensive_war_count`; A-50..A-54 are reserved for proposal 036) | later, with the save-vs-UI comparison (no kit step yet; T8 wires it) | a war the player declared on a third party and one declared on the player: war screen seen from another empire vs `attackers` / `defenders` in the save and the parsed `player_offensive_war_count` | parser counts only wars with the observer in `defenders`; no contract change |
 
 ## C. Items outside the registry
 
@@ -122,3 +123,7 @@ T5's Windows items map to A-25..A-28 and A-43..A-45 in table B (process names, `
 Code-level notes already covered above: A-15 (T2 tailer resets on truncation), A-16 (T2 decodes UTF-8 with
 replacement), A-33 (T2 path detection), A-34 (T2 save watcher), A-26/A-27/A-28 (T5 Windows code is mock-tested
 only, not executed in CI on this machine).
+
+A-55 wiring (proposal 038, 2026-11-16): table B row only. No `sae m0` check lists it yet, so the registry's Test
+column names no M0 id. T8 follow-up: add `A-55` to the M0-11 check's assumptions with one manual step (war screen
+vs save sides), then put `M0-11` in both Test columns.
