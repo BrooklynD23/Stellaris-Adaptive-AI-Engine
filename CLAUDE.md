@@ -12,6 +12,8 @@ legal data, and steers the AI empire through bounded Intents applied via a conso
   sae-scout (haiku), sae-reviewer (opus), sae-adversary (fable 5.2 medium). They carry the standing rules and
   hand-back shapes, so work orders stay short.
 - `docs/TEAM_PLAN.md` — teams T1–T9, owned paths, deliverables. `docs/status/` and `docs/plans/` per team.
+- `docs/SPRINTBOARD.md` — master progress board (waves, components, tests, open follow-ups). When asked for progress,
+  read it, verify it against git and the status files, report drift, and update it in the same change set as the work.
 - `docs/process/` — `DISPATCH_TEMPLATE.md` (work orders, test-area map), `RESERVATIONS.md` (shared ids),
   `WORKFLOW_OPTIMIZATION.md` (why the process looks like this).
 
