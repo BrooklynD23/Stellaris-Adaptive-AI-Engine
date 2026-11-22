@@ -166,3 +166,20 @@ def test_rule_deferred_counted_apart_from_rejections() -> None:
                                                                      "detail": "no HB month counter yet"}}))
     ents = {r.entity for r in Mapper(T2).map(d)}
     assert "intent/deferred" in ents and "intent/rejected" not in ents
+
+
+def _health_with(metrics: dict[str, float]) -> HealthEvent:
+    hl = json.loads(by_type("health"))
+    ev = BUS_EVENT_ADAPTER.validate_json(json.dumps({**hl, "payload": {**hl["payload"], "metrics": metrics}}))
+    assert isinstance(ev, HealthEvent)
+    return ev
+
+
+def test_v15_monthly_keys_present_and_omitted() -> None:
+    full = {r.entity: r.value for r in Mapper(T1).map(_health_with(
+        {"spm_armed": 1.0, "spm_ratio": 1.04, "daemon_private_bytes": 3.8e7, "engine_ms": 3.2}))}
+    assert full["governor/spm/spm_armed"] == 1.0 and full["governor/spm/spm_ratio"] == 1.04
+    assert full["governor/daemon/daemon_private_bytes"] == 3.8e7 and full["governor/daemon/engine_ms"] == 3.2
+    bare = {r.entity for r in Mapper(T1).map(_health_with({"spm_armed": 0.0, "engine_ms": 0.0}))}
+    assert "governor/spm/spm_armed" in bare and "governor/daemon/engine_ms" in bare
+    assert not bare & {"governor/spm/spm_ratio", "governor/daemon/daemon_private_bytes"}

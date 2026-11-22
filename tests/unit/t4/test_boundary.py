@@ -84,6 +84,7 @@ def test_no_god_names_in_core_or_daemon() -> None:
     assert hits == []
 
 
+@pytest.mark.slow  # 120-year subprocess run: minutes; in the full tier and CI, not in `-m "not slow"`
 def test_rss_growth_120_year_run_under_150_mib() -> None:
     pytest.importorskip("psutil")
     out = subprocess.run([sys.executable, "-c", _RSS], capture_output=True, text=True, check=True, cwd=ROOT)

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.1 |
-| Status | FROZEN v1.1 (2026-10-19; v1 + proposal 008-T5) |
+| Version | 1.3 |
+| Status | FROZEN v1.3 (2026-11-15; v1.3 proposal 035: `SensorSample.daemon_private_bytes`, stack-flip rule §4.7; v1.2 proposal 034: spm mean ratio and armed floor §4.3–§4.5; 2026-10-19: v1.1 = v1 + proposal 008-T5) |
 | Owner | architect (contract); T5 implements Governor, Sensors, Platform |
 | Producers | Governor (T5): `GovernorDecision`, `health` events |
 | Consumers | Daemon loop (T4) — parse scheduling, worker spawn, knob requests; bus (T6); CI-1/CI-3/CI-4/CI-5 (T7) |
@@ -13,7 +13,7 @@
 ## 1. Shape
 
 The Governor is a module **inside the daemon**, not a process. `Governor` is pure logic: it receives
-`SensorSample`s (every `poll_s` = 2 s), `SpmSample`s (one per HB line), `WorkerOutcome`s, the next
+`SensorSample`s (every `poll_s` = 2 s), `SpmSample`s (one per poll that saw HB lines, §4.3), `WorkerOutcome`s, the next
 commitment boundary and operator suspend/resume, and returns a `GovernorDecision` per poll. All I/O
 lives in `Sensors` (probes) and `Platform` (priorities, worker spawn). This makes CI-3 a pure test.
 
@@ -27,7 +27,10 @@ sae.platform.make_platform() -> Platform
 ```
 
 `emit_period` is the resolved `config.bridge.emit_period` (restored on leaving H3, §3); `None` means
-`BridgeConfig().emit_period` (1). The daemon calls `platform.lower_self_priority()` once at start (§7).
+`BridgeConfig().emit_period` (1). T5's governor also exposes read-only attributes that are not part of the
+`Governor` protocol (the daemon reads them with `getattr(governor, name, None)`, so test fakes may omit them):
+`spm_med6`, `spm_med24` (`float | None`, medians) and since v1.2 `spm_armed` (`bool`) and `spm_ratio`
+(`float | None`, `None` when unarmed), both defined in §4.3. The daemon calls `platform.lower_self_priority()` once at start (§7).
 
 **Safety property.** Correctness never depends on throughput: lower levels only coarsen the timing
 of observations; they never change decision logic (CI-1).
@@ -77,16 +80,27 @@ On leaving H3, `knob_request = {emit_period: bridge.emit_period}` once, restorin
    A sample with `months > spm_short_months` (a save load or date jump, not play) is a discontinuity:
    it clears both spm windows and counts no months toward sustained H2, de-escalation, H1 age or the
    spm rate limit; month deltas fed to those counters are clamped to ≤ 1 per poll (proposal 008 §8).
-   Ratio = median of the last `spm_short_months` (6) / median of the last `spm_long_months` (24); it
-   needs 24 samples. Ratio ≥ `spm_h1_ratio` (1.10) escalates **at most one level per 6 game months**
+   A poll that saw no HB gives no sample. **All samples are windowed** (k entries of `wall_s`; v1.2,
+   proposal 034). The trigger is **armed** when the long window holds `spm_long_months` (24) entries and
+   their median ≥ 5 × `poll_s` (10 s); otherwise it is unarmed: no ratio, no spm escalation.
+   Ratio (armed only) = **mean** of the last `spm_short_months` (6) / **mean** of the last
+   `spm_long_months` (24). Ratio ≥ `spm_h1_ratio` (1.10) escalates **at most one level per 6 game months**
    and **never above H1** (architect decision: spm is confounded by speed changes).
+   Effective threshold: the short window is inside the long one, so a sustained slowdown by factor r
+   peaks at r / (0.75 + 0.25 r), six months after the step. 1.10 therefore fires only for r ≥ 1.138
+   (a 13.8 % slowdown; the Wave B review's 14.3 % step peaks at 1.103; +12 % peaks at 1.087 and never
+   fires). Means admit short player pauses below the step reset; the accepted budget is ≤ 1 false H1 per
+   100 game months. Below a median of 10 s/month the spm trigger is disabled and `spm_armed` shows it
+   (UNVERIFIED how often real play sits there, M0-12).
 4. **Speed change:** if one month's spm differs from the previous month's by more than
    `spm_step_reset` (40 %), clear the 24-month window (and the 6-month one). The step test is skipped
-   only when **both** months' spm are below 5 × `poll_s` (10 s), where poll jitter alone exceeds 40 %;
-   samples below 5 × `poll_s` are not added to the ratio windows (proposal 008 §3).
+   when **either** month's spm is below 5 × `poll_s` (10 s), where poll jitter alone exceeds 40 %
+   (proposal 008 §3; wording corrected 2026-11-15 to match the shipped code and
+   `test_spm_step_skipped_when_either_sample_tiny`, no behaviour change). The step test is unchanged in v1.2; the v1.1 per-sample exclusion from the ratio
+   windows is replaced by the armed floor in item 3 (proposal 034).
 5. **De-escalation:** one level down after `deescalate_after_months` (6) consecutive game months with
    no active trigger. "No RAM trigger" means available RAM ≥ entry threshold of the current level +
-   `deescalate_ram_margin_bytes` (0.5 GiB). "No spm trigger" means ratio < `spm_clear_ratio` (1.05).
+   `deescalate_ram_margin_bytes` (0.5 GiB). "No spm trigger" means unarmed, or ratio < `spm_clear_ratio` (1.05).
    In CLOSED (no HB), months are counted from wall time at 1 month = the last median spm floored at
    5 × `poll_s`, or 30 s if none.
 6. **Daemon self-limit** (signoff change 6): `daemon_rss_bytes` > 150 MiB → `health budget_breach`
@@ -96,13 +110,21 @@ On leaving H3, `knob_request = {emit_period: bridge.emit_period}` once, restorin
    `subprocess.Popen` (argv list, so paths with spaces are safe; stdio inherited) and exit; on POSIX
    `os.execv` with the same argv is equivalent. the parent writes `runs/CURRENT` = `"<run_id> <child_pid>"` after `Popen` returns and before it exits; no second
    `run_started`, bus `seq` continues) — no supervisor process, so the topology stays at three
-   processes. 150 MiB stays the CI-4 gate.
+   processes. 150 MiB stays the CI-4 gate. The self-limit stays on `daemon_rss_bytes` in v1.3.
+7. **Stack-flip rule** (v1.3, proposal 035; **not a Governor trigger**, it changes no level and no
+   decision). The maintainer reconsiders the daemon stack (msgspec) only if the M0-12 session on the
+   game PC shows any of: `daemon_private_bytes` p95 > 100 MiB (with `daemon_rss_bytes` p95 recorded
+   alongside); `daemon_cpu_pct` session mean > 1 (% of one core); `engine_ms` p95 > 50 per game month.
+   All three are monthly `health` keys (C5 §3).
 
 ## 5. Sensors (2 s poll, cheap probes only)
 
 `SensorSample`: available RAM (`psutil.virtual_memory().available`); hard-fault rate (Windows PDH
 `\Memory\Pages Input/sec`; Linux `pgmajfault` delta from `/proc/vmstat`; `None` if neither works);
-game process present/CPU time/minimised time; daemon RSS and CPU %. HB timing arrives separately as
+game process present/CPU time/minimised time; daemon RSS and CPU %; since v1.3 `daemon_private_bytes`
+(Linux `RssAnon` from `/proc/self/status`; Windows `psutil` `memory_info().private`, private commit;
+other platforms `None`, no RSS substitute; a failed probe keeps the last good value, so `None` appears
+only before the first success; UNVERIFIED A-49). HB timing arrives separately as
 `SpmSample`. Worker self-reported cost arrives in `WorkerOutcome`. No NVML, no VRAM, no GPU probe of
 any kind. A probe must not block > 100 ms; a failing probe yields `None`, never an exception.
 
@@ -160,7 +182,15 @@ every killed worker.
 
 ```json model=SensorSample
 {"t_mono_s": 1234.5, "available_ram_bytes": 1500000000, "hard_fault_rate": 12.0, "game_running": true,
- "game_cpu_s": 8812.4, "game_minimized_s": 0, "daemon_rss_bytes": 61000000, "daemon_cpu_pct": 0.6}
+ "game_cpu_s": 8812.4, "game_minimized_s": 0, "daemon_rss_bytes": 61000000, "daemon_private_bytes": 38000000,
+ "daemon_cpu_pct": 0.6}
+```
+
+A pre-v1.3 sample (no `daemon_private_bytes`) still validates:
+
+```json model=SensorSample
+{"t_mono_s": 2.0, "available_ram_bytes": 1500000000, "game_running": false, "daemon_rss_bytes": 61000000,
+ "daemon_cpu_pct": 0.0}
 ```
 
 ```json model=GovernorDecision
@@ -211,6 +241,10 @@ levels, states, triggers, decision fields or a change to a rule in §3–§7 are
 v1.1 (proposal 008): trigger `budget_breach`, config `fault_mad_floor` and the RAM-band margin
 check, the spm step-test and discontinuity rules, the sustained-H2 and CLOSED-month clarifications,
 the factory signatures. No wire field changed; `CONTRACT_VERSIONS` and `run_started` keep `C7: 1`.
+v1.2 (proposal 034): §4.3 ratio of means, all samples windowed, armed floor, effective threshold
+stated; accessors `spm_armed` / `spm_ratio` (§1). No model or config field changed.
+v1.3 (proposal 035): optional `SensorSample.daemon_private_bytes` (§5); stack-flip rule (§4.7).
+Both additive; `C7: 1` stays.
 
 ## 11. UNVERIFIED / HYPOTHESIS items
 
@@ -221,3 +255,4 @@ the factory signatures. No wire field changed; `CONTRACT_VERSIONS` and `run_star
 | A-27 | Job `PROCESS_MEMORY` limit makes allocations fail so the Rust worker aborts (nesting rule VERIFIED in signoff) | R-5 | Kill on `rss_peak` overrun after the fact |
 | A-28 | Background mode lowers I/O and memory priority, not just CPU | R-5 | ≥ 8 s start delay is the real protection |
 | A-29 | Mod script costs ≤ 1 % of seconds per game year at the shipped config | M0-12, R-3 | Longer period, fewer managed countries |
+| A-49 | Windows `memory_info().private` and Linux `RssAnon` read within the 100 ms probe bound and track the daemon's private memory | M0-12 | `daemon_private_bytes` absent; judge the flip rule on `daemon_rss_bytes` (upper bound) |

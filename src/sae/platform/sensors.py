@@ -62,6 +62,7 @@ class SystemSensors:
             raise RuntimeError(f"RAM probe unavailable: {exc}") from exc
         self._me = self._ps.Process()
         self._last_rss = 0
+        self._last_private: int | None = None
         try:
             self._me.cpu_percent(None)  # prime
         except Exception:
@@ -170,6 +171,26 @@ class SystemSensors:
         self._min_since = None
         return 0.0
 
+    def _private(self) -> int | None:
+        """Private bytes: Linux RssAnon, Windows ``memory_info().private``; else None. Failure keeps last good.
+
+        UNVERIFIED A-49: these track the daemon's true private footprint; M0 tests it by allocating a
+        known buffer and comparing the delta.
+        """
+        try:
+            if self._system.startswith("linux"):
+                for line in self._read_text("/proc/self/status").splitlines():
+                    if line.startswith("RssAnon:"):
+                        self._last_private = int(line.split()[1]) * 1024  # kB
+                        break
+                else:
+                    raise ValueError("RssAnon missing")
+            elif self._system == "win32":
+                self._last_private = int(self._me.memory_info().private)
+        except Exception:
+            log.debug("private probe failed; using last good", exc_info=True)
+        return self._last_private
+
     def _daemon(self) -> tuple[int, float]:
         try:
             self._last_rss = int(self._me.memory_info().rss)
@@ -195,6 +216,7 @@ class SystemSensors:
             game_cpu_s=None if cpu is None or cpu < 0 else cpu,
             game_minimized_s=mini,
             daemon_rss_bytes=rss,
+            daemon_private_bytes=self._private(),
             daemon_cpu_pct=pct,
         )
 

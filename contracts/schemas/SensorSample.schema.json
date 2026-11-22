@@ -13,6 +13,20 @@
       "title": "Daemon Cpu Pct",
       "type": "number"
     },
+    "daemon_private_bytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Private memory (Linux RssAnon, Windows private commit); C7 v1.3, UNVERIFIED A-49.",
+      "title": "Daemon Private Bytes"
+    },
     "daemon_rss_bytes": {
       "minimum": 0,
       "title": "Daemon Rss Bytes",

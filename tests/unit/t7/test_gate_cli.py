@@ -42,3 +42,42 @@ def test_stage2_objective_has_no_default() -> None:
 def test_sae_dispatch_reaches_gate(capsys: pytest.CaptureFixture[str]) -> None:
     assert sae_cli.main(["gate"]) == 2
     assert "usage" in capsys.readouterr().err.lower()
+
+
+def _spy(monkeypatch: pytest.MonkeyPatch, running: bool) -> dict[str, int]:
+    calls = {"s1": 0, "prio": 0}
+
+    def s1(args: argparse.Namespace, ctx: object) -> int:
+        calls["s1"] += 1
+        return 0
+
+    def prio() -> None:
+        calls["prio"] += 1
+
+    monkeypatch.setattr(cli, "_game_running", lambda: running)
+    monkeypatch.setattr(cli, "_lower_priority", prio)
+    monkeypatch.setattr(cli, "cmd_stage1", s1)
+    monkeypatch.setattr(cli, "_context", lambda a: object())
+    return calls
+
+
+def test_game_running_refuses_exit_5(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls = _spy(monkeypatch, True)
+    assert cli.main("gate", ["stage1", "a" * 64]) == 5
+    assert "Stellaris is running" in capsys.readouterr().err
+    assert calls == {"s1": 0, "prio": 0}
+
+
+def test_force_proceeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _spy(monkeypatch, True)
+    assert cli.main("gate", ["stage1", "a" * 64, "--force"]) == 0
+    assert calls == {"s1": 1, "prio": 1}
+
+
+def test_priority_is_own_process_only() -> None:
+    import inspect
+
+    from sae.profile import cli as pcli
+
+    src = inspect.getsource(pcli._lower_priority)
+    assert "psutil.Process()" in src and "os.nice" in src  # no pid argument: self only

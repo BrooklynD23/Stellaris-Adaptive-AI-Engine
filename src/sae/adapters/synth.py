@@ -73,8 +73,8 @@ class _Profile:
 
 PROFILES: dict[Archetype, _Profile] = {
     Archetype.TURTLE: _Profile(6, 0.04, 4, 1.0, 1.0, 1.0, 30.0, None),
-    Archetype.TECH_RUSH: _Profile(6, 0.10, 2, 0.0, 0.4, 2.2, 45.0, None),
-    Archetype.EARLY_AGGRESSION: _Profile(5, 0.25, 2, 0.5, 2.5, 0.9, 30.0, 6),
+    Archetype.TECH_RUSH: _Profile(6, 0.10, 3, 0.0, 0.4, 2.2, 45.0, None),
+    Archetype.EARLY_AGGRESSION: _Profile(5, 0.25, 4, 0.5, 2.5, 0.9, 30.0, 6),
     Archetype.BALANCED: _Profile(6, 0.15, 3, 0.34, 1.0, 1.0, 35.0, None),
 }
 

@@ -67,7 +67,7 @@ Config layering (later wins): built-in defaults < preset < `sae.toml` (or `--con
 | `sae profile exclude <campaign> [--reason <text>]` | built (T9) | keep a campaign out of the profile; removes `profile.json` at once |
 | `sae profile delete [--campaign <id>] [--yes]` | built (T9) | delete one campaign (or, without `--campaign`, the `profile/<player_key>/` folder and mark every campaign deleted; the index file stays); needs `--yes`, or a terminal and typing `DELETE` (else exit 2) |
 | `sae profile label [<campaign> \| --recording <dir>] --segment <date>=<archetype> [--segment ...] [--note <text>] [--not-blind]` | built (T9) | write a ground-truth label; exit 2 if the label file exists, the id is unknown or the label is invalid |
-| `sae play [--adapter live\|release] [--resume <run_id>]` plus the common flags | built (T9 D5) | run `sae profile update`, then `sae daemon` (see 8c); exit code is the daemon's |
+| `sae play [--adapter live\|release] [--resume <run_id>]` plus the common flags | built (T9 D5) | run `sae daemon`, then `sae profile update` after it exits (see 8c); exit code is the daemon's |
 | `sae m0 list\|steps\|init\|stage\|check\|tail\|record\|summary` | built (T8) | the M0 spike kit ([runbook](../tools/m0/README.md)) |
 
 Common flags for daemon/replay/synth/ctl/profile/play: `--config <path>`, `--preset <name>`, `--set <section>.<key>=<value>`
@@ -185,11 +185,15 @@ in order before `promote`. Human rows come only from the planned T9 policy comma
 ## 8c. The `play` launcher
 
 `sae play` (C8 §5, maintainer D5) accepts the daemon's flags (`--config`, `--preset`, `--set`, `--runs-dir`,
-`--adapter`, `--resume`). When `profile.mode != "off"` it first runs `sae profile update` (10 minute timeout).
-If that fails, or the config is invalid, it prints a notice on stderr and still starts the daemon, which then
-reports any config error itself. It then runs `sae daemon` with the same flags and returns the daemon's exit code.
+`--adapter`, `--resume`). It runs `sae daemon` with the same flags first. After the daemon exits, and only when the
+config is valid and `profile.mode != "off"`, it runs `sae profile update` (10 minute timeout, input closed, never
+`--force`; C8 v1.7, proposal 033). An update failure only prints a warning on stderr; exit 1 (usually because the
+game is still running) prints `run sae profile update after closing the game`. The exit code is always the daemon's.
 It never launches Stellaris and never touches its install or mod folder: start the game yourself. Whether
-`update` sees the game as running depends on game-process detection, UNVERIFIED until M0 (A-46).
+`update` sees the game as running depends on game-process detection, UNVERIFIED until M0 (A-46). On Windows,
+closing the console window may end the launcher before the update runs (A-48, UNVERIFIED).
+If the daemon re-executes itself (memory self-limit), no update runs; on Windows the launcher says so and asks you
+to run `sae profile update` after the game closes (C8 v1.8).
 
 ## 8d. Tuning the detector (`sae tune`)
 
@@ -215,6 +219,9 @@ labelled campaigns and writes a candidate policy `policies/<sha>.json` plus one 
 
 Order: `sae policy propose` or `sae tune detector` -> `sae policy prereg <sha>` (human, interactive terminal) ->
 `sae gate stage1 <sha>` -> `sae gate stage2 <sha> --objective ...` -> `sae policy approve <sha>`.
+
+While Stellaris is running, `sae gate` refuses with exit 5 before any stage work (C8 v1.7); pass `--force` to
+override. It lowers only its own process priority, never the game's.
 
 - **Stage 1** checks the schema, parent, mutable surface (only detector/tuning/notes may differ), pinned game version,
   sealed split, seed range, sealed budget, prereg, deterministic replay, held-in log loss and feel limits. The log-loss

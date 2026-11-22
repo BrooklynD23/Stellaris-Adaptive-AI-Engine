@@ -56,8 +56,9 @@ elseif (Test-Path -LiteralPath (Join-Path $UvRoot 'uv.exe')) { $uv = Join-Path $
 # (3) Download list and consent
 Say 'This setup will download:'
 if (-not $uv) { Say "  - uv $UvVersion zip from github.com/astral-sh/uv ($UvUrl)" }
-Say '  - CPython 3.12 (only if no Python >= 3.11) from github.com/astral-sh/python-build-standalone'
-Say '  - pydantic and psutil from pypi.org, at the versions in constraints.txt'
+Say '  - CPython 3.12 (always requested via uv --python 3.12; skipped if uv already has a managed 3.12) from github.com/astral-sh/python-build-standalone'
+Say '  - pydantic and psutil from pypi.org and files.pythonhosted.org, at the versions in constraints.txt'
+Say '  - GitHub release assets are served from objects.githubusercontent.com and release-assets.githubusercontent.com (redirect hosts)'
 if ($DryRun) {
     Plan 'ask "Continue? [y/N]"'
 } else {
@@ -87,6 +88,8 @@ if (-not $uv) {
 }
 
 # (5) Install sae
+# Pin the Python mirror to GitHub so no host outside the consent text is contacted.
+$env:UV_PYTHON_INSTALL_MIRROR = 'https://github.com/astral-sh/python-build-standalone/releases/download'
 $wheel = (Get-ChildItem -LiteralPath $Kit -Filter '*.whl' | Select-Object -First 1)
 if (-not $wheel) { Say 'No wheel in kit.'; exit 1 }
 $constraints = Join-Path $Kit 'constraints.txt'

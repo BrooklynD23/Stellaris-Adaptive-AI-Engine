@@ -194,7 +194,7 @@ CHECKS: tuple[Check, ...] = (
     ),
     Check(
         "M0-11", "autosave parse <= 3 s and fields match the UI", "core",
-        ("A-18", "A-19", "A-24", "A-30", "A-34", "A-36", "A-46"),
+        ("A-18", "A-19", "A-24", "A-30", "A-34", "A-36", "A-46", "A-47"),
         (
             "sae-parse is bundled in the field kit (bin/sae-parse.exe, found by `sae m0 doctor`); in a dev checkout "
             "build it: cd {repo}/parser && cargo build --release -j 1",
@@ -209,16 +209,25 @@ CHECKS: tuple[Check, ...] = (
             "once (a second record replaces the first): sae m0 record M0-11 pass|fail --value fields_match_ui=yes|no "
             "--value same_name_new_game_reuses_folder=yes|no. Pass or fail is decided by the parse criteria only "
             "(exit 0, valid C4 output, wall <= 3 s, fields match the UI); the A-46 answer never changes the verdict.",
-            "Optional: repeat on your largest mid/late-game 4.4 save and record its size.",
+            "Largest-save step (UNVERIFIED, game PC only): COPY your largest existing save to a scratch folder, run "
+            "`sae-parse parse --background --save <copy>` on the copy (never the original) and note text bytes, "
+            "peak commit and the largest single entry span; record them as largest_save_text_bytes, "
+            "largest_save_peak_commit_bytes and largest_save_max_entry_span_bytes.",
+            "CPU cross-check (UNVERIFIED): on that same save note the bench `cpu_s` and the daemon's `parse_cpu_s`; "
+            "record bench_cpu_s and daemon_parse_cpu_s. They must agree within 10 %.",
+            "While the game runs, note the game process name in Task Manager (expect stellaris.exe) and record "
+            "game_process_name.",
         ),
         "parse wall time, peak RSS, save size, raw date, extracted god-view fields, sae_* variables present, "
-        "A-46 folder behaviour",
-        "exit 0, valid C4 output, wall <= 3 s, fields match the UI, A-46 folder behaviour recorded",
+        "A-46 folder behaviour, largest-save text bytes / peak commit / max entry span, bench cpu_s vs "
+        "parse_cpu_s, game process name",
+        "exit 0, valid C4 output, wall <= 3 s, fields match the UI, A-46 folder behaviour recorded, "
+        "bench cpu_s within 10 % of daemon parse_cpu_s",
         "parse a subset of sections (--sections); dashboard parser cross-check",
         True,
     ),
     Check(
-        "M0-12", "resource baseline", "stretch", ("A-26", "A-29", "A-43", "A-44", "A-45"),
+        "M0-12", "resource baseline", "core", ("A-26", "A-29", "A-43", "A-44", "A-45", "A-48", "A-49"),
         (
             "On your real late-game save: time 12 game months at fastest speed with sae_bridge disabled, "
             "then enabled (stopwatch or `sae m0 tail` s/month).",
@@ -226,9 +235,13 @@ CHECKS: tuple[Check, ...] = (
             "Note whether Performance Monitor shows \\Memory\\Pages Input/sec moving during play (A-26).",
             "Note the game process name in Task Manager (expected stellaris.exe) and whether minimising "
             "shows as minimised (A-43, A-44; A-45 is measured later with the daemon).",
-            "sae m0 record M0-12 pass|fail --value s_month_off=<n> --value s_month_on=<n> --value game_rss_mb=<n>",
+            "Read the daemon's Task Manager 'Memory (private working set)' and the bus value: p95 over the session "
+            "for daemon_private_bytes and daemon_rss_bytes (psutil rss is the total working set, not the private "
+            "set the stack-flip rule uses).",
+            "sae m0 record M0-12 pass|fail --value s_month_off=<n> --value s_month_on=<n> --value game_rss_mb=<n> "
+            "--value daemon_private_bytes=<n> --value daemon_rss_bytes=<n>",
         ),
-        "s/month with and without the mod; game RSS; fault counter; process name",
+        "s/month with and without the mod; game RSS; daemon private bytes and rss p95; fault counter; process name",
         "mod costs <= 1 % of s/game-year",
         "redesign emission (fewer records, longer period) before engine work continues",
         False,

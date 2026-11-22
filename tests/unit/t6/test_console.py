@@ -193,3 +193,21 @@ def test_v_runs_without_policy_is_null(tmp_path: Path) -> None:
     query.load_views(conn, tmp_path / "bus.jsonl")
     rows = conn.execute("SELECT policy_version, policy_sha256 FROM v_runs").fetchall()
     assert rows == [(None, None)]
+
+
+def test_v_governor_v15_columns(tmp_path: Path) -> None:
+    run = _bus(tmp_path)
+    monthly = next(ln for ln in _lines() if '"kind":"monthly"' in ln)
+    armed = monthly.replace('"seq":7', '"seq":80').replace(
+        '"daemon_cpu_pct":0.4', '"daemon_cpu_pct":0.4,"spm_armed":1.0,"spm_ratio":1.04,'
+        '"daemon_private_bytes":3.8e7,"engine_ms":3.2')
+    unarmed = monthly.replace('"seq":7', '"seq":81').replace(
+        '"daemon_cpu_pct":0.4', '"daemon_cpu_pct":0.4,"spm_armed":0.0')
+    with (run / "bus.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write("\n" + armed + "\n" + unarmed + "\n")
+    cols = "seq, spm_armed, spm_ratio, daemon_private_bytes, engine_ms"
+    rows = {r["seq"]: r for r in _rows(run, f"SELECT {cols} FROM v_governor")}
+    assert rows[7]["spm_armed"] is None and rows[7]["engine_ms"] is None  # old bus: unknown, not 0
+    assert rows[80]["spm_armed"] == 1.0 and rows[80]["spm_ratio"] == pytest.approx(1.04)
+    assert rows[80]["daemon_private_bytes"] == pytest.approx(3.8e7) and rows[80]["engine_ms"] == pytest.approx(3.2)
+    assert rows[81]["spm_armed"] == 0.0 and rows[81]["spm_ratio"] is None

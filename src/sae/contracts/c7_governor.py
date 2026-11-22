@@ -128,6 +128,11 @@ class SensorSample(Frozen):
     game_cpu_s: float | None = Field(default=None, ge=0, description="Cumulative CPU time of the game process.")
     game_minimized_s: float | None = Field(default=None, ge=0)
     daemon_rss_bytes: int = Field(ge=0)
+    daemon_private_bytes: int | None = Field(
+        default=None,
+        ge=0,
+        description="Private memory (Linux RssAnon, Windows private commit); C7 v1.3, UNVERIFIED A-49.",
+    )
     daemon_cpu_pct: float = Field(ge=0, description="Percent of one core over the last poll.")
 
 
@@ -151,7 +156,8 @@ class SpmSample(Frozen):
     """Seconds per game month, measured at poll resolution (C7 section 4.3).
 
     ``wall_s`` = wall time between the previous poll that saw an HB and this one, divided by the
-    number of HB lines this poll saw. Always > 0 because polls are >= 2 s apart.
+    number of HB lines this poll saw. Always > 0 because polls are >= 2 s apart. One sample per poll
+    that saw HB lines; a poll without an HB gives none (v1.2).
     """
 
     game_date: GameDate

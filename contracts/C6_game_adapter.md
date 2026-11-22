@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Version | 1.3 (`schema_version = 1` on `Observation`/`GodObservation`) |
-| Status | FROZEN v1.2 (2026-10-19; v1.1 multiplayer write guard §1.6, proposals 009 health hook §1.8, 011 replay/synth lockstep §1.7; v1.2 proposal 017: neutralise on close/`mp=1` §1.9, Ironman observe-only §1.10, `EmitReceipt.error = "ironman"`, `SaveParser.parse(..., sections=)`; v1.3 proposals 019 Part A `Observation.save_folder_key`/`game_version` §2, 022 recording hygiene §3; §3 recorded PLYR stub keeps `sid`, review 2 B1) |
+| Status | FROZEN v1.3 (2026-10-19; v1.1 multiplayer write guard §1.6, proposals 009 health hook §1.8, 011 replay/synth lockstep §1.7; v1.2 proposal 017: neutralise on close/`mp=1` §1.9, Ironman observe-only §1.10, `EmitReceipt.error = "ironman"`, `SaveParser.parse(..., sections=)`; v1.3 proposals 019 Part A `Observation.save_folder_key`/`game_version` §2, 022 recording hygiene §3; §3 recorded PLYR stub keeps `sid`, review 2 B1) |
 | Owner | architect (contract); T2 implements the adapters |
 | Producers | LiveAdapter, ReplayAdapter, SynthAdapter, release mode (T2) |
 | Consumers | Engine core and daemon loop (T4); bus writer (T6) for `observation`/`observation_god` |
@@ -184,6 +184,12 @@ The engine may only use what a player in the AI's seat could plausibly see (Alie
    `sae/daemon` for `GodView|GodObservation|PlayerRecord|\.god\b|bus\.god`. Per the advisor this test is a **convention, not a
    guarantee**: a determined change can bypass it. Reviews treat any new god-path reference as blocking.
 5. The strict per-(observer, target) intel mask is deferred (report decision 3).
+6. **War sides (2026-11-16, proposal 038; note only, no version change).** `LegalView.player_offensive_war_count`
+   (C4 v1.3) rides in `player_legal` unchanged; `Observation` gains no field of its own. Its legality: a war
+   between the player and the observer is the observer's own war, so its side is known to it. The sides of a
+   war the observer is not in are treated as public, the same class as `player_war_count` (**UNVERIFIED,
+   A-55**). If A-55 fails the parser counts only wars with the observer in `defenders`; the field definition
+   already allows that. Adapters never fill or alter the field.
 
 ## 5. Examples
 
@@ -259,4 +265,5 @@ does not need `mp`: the adapter enforces the guard), so `schema_version` stays 1
 | A-24 | Autosave can be monthly in dev | M0-11 | Log channel carries monthly signal |
 | A-34 | Autosave file names `autosave_*.sav` / `ironman.sav` | M0-11 | Config glob |
 | A-46 | Each campaign's autosaves live in one folder under `save games/`; a folder name is reused only by a new game of the same empire name | M0-11 | C10 §1 split rule + `sae profile exclude` |
+| A-55 | Sides of wars the observer is not in are public to it (§4 item 6; C4 v1.3) | later (not in the kit yet) | Parser counts only wars with the observer in `defenders` |
 | A-32 | The mod can detect "in contact with the player" in script to set `sae_managed` | M0-6 | Engine-chosen list staged via a C2 v2 line |

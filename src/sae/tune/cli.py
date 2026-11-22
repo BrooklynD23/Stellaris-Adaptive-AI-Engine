@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 __all__ = ["main"]
 
 MIN_CAMPAIGNS = 5
-TUNER_VERSION = "0.1.0"
+TUNER_VERSION = "0.2.0"
 SYNTH_NOTE = "synth: diagnostic only, not V-1 verification"
 _NOTES_MAX = 2048
 

@@ -215,6 +215,11 @@ class ReplayAdapter:
 
     async def _apply_saves(self, saves: list[tuple[int, Path]], consumed: int) -> list[Observation]:
         out: list[Observation] = []
+        if saves and saves[0][0] <= consumed:
+            # A save's offset is a recorded poll's end, and live/synth flush the log observation at every poll
+            # end before a later save applies: flush it here too, or the save would overtake it (record/replay
+            # equivalence; the engine would tick on the save first and decide a month early).
+            out.extend(o for o in self._asm.flush() if self._visible(o.game_date))
         while saves and saves[0][0] <= consumed:
             _, path = saves.pop(0)
             try:

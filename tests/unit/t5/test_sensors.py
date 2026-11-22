@@ -41,12 +41,13 @@ class FakeProc:
 class FakeMe:
     def __init__(self) -> None:
         self.rss: Any = 1000
+        self.private: Any = 777
         self.cpu: Any = 3.0
 
     def memory_info(self) -> Any:
         if isinstance(self.rss, Exception):
             raise self.rss
-        return SimpleNamespace(rss=self.rss)
+        return SimpleNamespace(rss=self.rss, private=self.private)
 
     def cpu_percent(self, interval: float | None = None) -> float:
         if isinstance(self.cpu, Exception):
@@ -269,3 +270,36 @@ def test_cpu_times_fails_and_process_dead_reports_not_running() -> None:
     ps.procs = [Dying(1, "stellaris")]
     r = build(ps, clk).sample()
     assert r.game_running is False and r.game_cpu_s is None
+
+
+def _status(kb: int) -> str:
+    return f"Name:\tx\nRssAnon:\t{kb} kB\nRssFile:\t5 kB\n"
+
+
+def test_private_linux_rssanon_and_keeps_last_on_failure() -> None:
+    box = [_status(10)]
+    s = build(FakePsutil(), FakeClock(), box)
+    r = s.sample()
+    assert r.daemon_private_bytes == 10 * 1024 and r.daemon_rss_bytes == 1000
+    box[0] = "garbage\n"  # RssAnon missing -> last good
+    assert s.sample().daemon_private_bytes == 10 * 1024
+    box[0] = _status(20)
+    assert s.sample().daemon_private_bytes == 20 * 1024
+
+
+def test_private_linux_first_probe_failure_is_none() -> None:
+    assert build(FakePsutil(), FakeClock(), ["x\n"]).sample().daemon_private_bytes is None
+
+
+def test_private_windows_and_failure_keeps_last() -> None:
+    ps = FakePsutil()
+    s = SystemSensors(None, clock=FakeClock(), psutil_mod=ps, system="win32", win32=FakeWin32())
+    r = s.sample()
+    assert r.daemon_private_bytes == 777 and r.daemon_rss_bytes == 1000
+    ps.me.private = OSError("x")
+    assert s.sample().daemon_private_bytes == 777
+
+
+def test_private_other_platform_is_none() -> None:
+    s = SystemSensors(None, clock=FakeClock(), psutil_mod=FakePsutil(), system="darwin")
+    assert s.sample().daemon_private_bytes is None

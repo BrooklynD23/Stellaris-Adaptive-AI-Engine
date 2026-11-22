@@ -20,13 +20,17 @@ class StateFileError(Exception):
     """``state.json`` is missing, unreadable, corrupt or of an unsupported version."""
 
 
-def save_state(path: Path, state: EngineState) -> None:
-    """Write ``state`` atomically (``.tmp``, flush, fsync, then ``os.replace``)."""
+def save_state(path: Path, state: EngineState, *, fsync: bool = True) -> None:
+    """Write ``state`` atomically (``.tmp``, flush, fsync, then ``os.replace``).
+
+    ``fsync=False`` (SYNTH/REPLAY: no resume) skips the fsync; the atomic replace is kept in every mode.
+    """
     tmp = path.with_name(path.name + ".tmp")
     with tmp.open("w", encoding="utf-8") as f:
         f.write(state.model_dump_json())
         f.flush()
-        os.fsync(f.fileno())
+        if fsync:
+            os.fsync(f.fileno())
     os.replace(tmp, path)
 
 

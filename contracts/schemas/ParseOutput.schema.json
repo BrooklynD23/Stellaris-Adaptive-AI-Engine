@@ -198,6 +198,21 @@
           "title": "Observer Sid",
           "type": "integer"
         },
+        "player_offensive_war_count": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "v1.3 (proposal 038). Offensive wars of the player known to this observer: the player is in `attackers` and no other country carrying `sae_sid` is. Third-party war sides are UNVERIFIED A-55; if A-55 fails, only wars with this observer in `defenders` count. None = not known (parser < v1.3, `wars` section not run, not in contact).",
+          "title": "Player Offensive War Count"
+        },
         "player_war_count": {
           "anyOf": [
             {

@@ -63,7 +63,7 @@ fn run(cmd: Command, start: Instant) -> Result<u8, Failure> {
             }
             // Single-threaded in v1: `threads` is validated by the CLI and never exceeded (C4 section 1).
             let _ = threads;
-            run_parse(&save, &sections, start)
+            run_parse(&save, &sections, start, force_full())
         }
         Command::Fixture { spec, out } => {
             fixture::run(&spec, &out)?;
@@ -73,9 +73,21 @@ fn run(cmd: Command, start: Instant) -> Result<u8, Failure> {
     }
 }
 
-fn run_parse(save: &std::path::Path, sections: &[String], start: Instant) -> Result<u8, Failure> {
+/// Test hook, debug builds only (no CLI flag, C4 section 1): `SAE_PARSE_FORCE_FULL` forces the full path.
+fn force_full() -> bool {
+    cfg!(debug_assertions) && std::env::var_os("SAE_PARSE_FORCE_FULL").is_some()
+}
+
+/// `force_full` disables the meta-only fast path (the "library argument" of proposal 032).
+fn run_parse(
+    save: &std::path::Path,
+    sections: &[String],
+    start: Instant,
+    force_full: bool,
+) -> Result<u8, Failure> {
     let ran = features::Ran::from_names(sections);
-    let loaded = input::load(save)?;
+    let meta_only = !force_full && ran.names() == ["meta"];
+    let loaded = input::load(save, meta_only)?;
     let input::Loaded {
         gamestate,
         meta,

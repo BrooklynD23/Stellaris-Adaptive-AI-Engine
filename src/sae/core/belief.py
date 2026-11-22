@@ -97,8 +97,13 @@ def _raw_lls(fv: FeatureVector, m: LikelihoodModel) -> dict[str, list[float]]:
         # HYP: clamp ratio to the largest archetype mean so saturated forts do not over-favour turtle.
         x = min(fv.border_fort_ratio, max(mu for mu, _ in m.border.values()))
         out["border_fort_ratio"] = [_gauss(x, *m.border[a]) for a in ARCHS]
-    if fv.expansion_rate is not None:
-        out["expansion_rate"] = [_gauss(fv.expansion_rate, *m.expansion[a]) for a in ARCHS]
+    if fv.expansion_rate is not None and fv.expansion_rate >= 0:
+        # Rates beyond the largest archetype mean carry no extra signal (keeps the posterior monotone);
+        # negative rates are observer-loss artefacts and give no evidence row.
+        # The low end is clamped to the smallest mean too: below it P(early_aggression) would dip (narrow turtle sd).
+        mus = [mu for mu, _ in m.expansion.values()]
+        x = min(max(fv.expansion_rate, min(mus)), max(mus))
+        out["expansion_rate"] = [_gauss(x, *m.expansion[a]) for a in ARCHS]
     if fv.fleet_power_cat is not None:
         out["fleet_power_cat"] = [math.log(m.fleet[a][fv.fleet_power_cat + 2]) for a in ARCHS]
     if fv.tech_cat is not None:

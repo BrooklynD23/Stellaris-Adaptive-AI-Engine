@@ -22,7 +22,7 @@ def summ(n: int, values: dict[str, float | None] | None = None, belief: Archetyp
     if belief is not None:
         fb = {a: (0.7 if a == belief else 0.1) for a in Archetype}
     return CampaignSummary(
-        campaign_id=f"c-{n:016x}", builder_version="0.1.0", game_versions=(), policy_sha256=(),
+        campaign_id=f"c-{n:016x}", builder_version="0.2.0", game_versions=(), policy_sha256=(),
         start_date="2200.01.01", last_date="2250.01.01",
         features={k: SummaryFeature(value=v, n_obs=10) for k, v in vals.items()},  # type: ignore[misc]
         final_belief=fb,
