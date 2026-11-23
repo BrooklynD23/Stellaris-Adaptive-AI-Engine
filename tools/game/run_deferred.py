@@ -16,6 +16,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -101,6 +102,37 @@ def _parser_version(runner: Runner) -> str | None:
     return str(r.stdout).strip()
 
 
+def _update_gate_index(junit: Path, out: Path) -> None:
+    """Best effort: fold the junit results into the dev dashboard's gate index (``.sae-dev/gates.json``).
+
+    Does nothing unless the dashboard is enabled, i.e. ``<dev dir>/enabled`` exists (the dev dir is
+    ``$SAE_DEVDASH_DIR`` or ``<repo>/.sae-dev``).
+
+    Never raises: any failure prints one warning to stderr and leaves pytest's exit code alone.
+    """
+    if not junit.is_file():
+        return
+    try:
+        tool = str(REPO / "tools" / "devdash")
+        added = tool not in sys.path
+        if added:
+            sys.path.insert(0, tool)
+        try:
+            from devdash import dev_dir
+            from devdash.gateindex import from_junit, update_index
+        finally:
+            if added and tool in sys.path:
+                sys.path.remove(tool)
+        target = dev_dir(REPO)
+        if not (target / "enabled").is_file():
+            return
+        pairs = redactions()
+        now = datetime.now(UTC).isoformat(timespec="seconds")
+        update_index(target, from_junit(junit, str(out), now, scrub=lambda s: redact(s, pairs)))
+    except Exception as exc:  # best effort by design
+        sys.stderr.write(f"run_deferred: gate index not updated: {type(exc).__name__}: {exc}\n")
+
+
 def main(argv: Sequence[str] | None = None, runner: Runner = subprocess.run) -> int:
     """Entry point; returns pytest's exit code."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -140,6 +172,7 @@ def main(argv: Sequence[str] | None = None, runner: Runner = subprocess.run) -> 
         "sae_parse_version": _parser_version(runner),
     }
     (out / "inputs.json").write_text(redact(json.dumps(inputs, indent=2), pairs), encoding="utf-8")
+    _update_gate_index(junit, out)
     return code
 
 

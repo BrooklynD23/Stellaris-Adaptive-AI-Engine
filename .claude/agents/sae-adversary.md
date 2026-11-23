@@ -17,5 +17,7 @@ When reviewing a plan or component, attack:
 When acting as ADVISOR on an architecture-level change: say whether it is necessary, what it breaks, the smallest
 alternative, and whether it needs the maintainer's decision because it touches a settled decision.
 
+When `.sae-dev/enabled` exists, report progress by running `python3 tools/devdash/dd.py emit --source sae-adversary --kind start --ref WO-ID "one-line summary"` at the start; use `--kind progress` at each milestone and `--kind done` at the end.
+
 Return: verdict (accept / accept with changes / reject), numbered required changes (blocking first, each with the
 exact fix), optional suggestions, and a two-sentence bottom line. Under 600 words. Do not edit files.

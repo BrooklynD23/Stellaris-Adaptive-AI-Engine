@@ -1,0 +1,1194 @@
+[
+ {
+  "id": "X3-G0",
+  "stage": "x3",
+  "title": "Harness works on the PC",
+  "runner": {
+   "kind": "collect"
+  },
+  "inputs": [],
+  "owner_play": false,
+  "owner_instruction": "Nothing to do: the pipeline lists the deferred index and collects the game tests.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "X3-G1",
+  "stage": "x3",
+  "title": "Parser handles real saves",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_parse_real_saves"
+  },
+  "inputs": [
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Quit Stellaris, then set SAE_GAME_SAVES_DIR to a folder of real saves.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-19",
+   "A-20"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G1"
+ },
+ {
+  "id": "X3-G2",
+  "stage": "x3",
+  "title": "Parse cost budget",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_parse_cost_budget"
+  },
+  "inputs": [
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same saves folder as X3-G1; nothing extra to do.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-18"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G2"
+ },
+ {
+  "id": "X3-G3",
+  "stage": "x3",
+  "title": "Fixtures represent real saves",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_roundtrip_vs_fixtures"
+  },
+  "inputs": [
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same saves folder as X3-G1; use saves from a sae_bridge session.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G3"
+ },
+ {
+  "id": "X3-G4",
+  "stage": "x3",
+  "title": "Clean failures on Windows",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_exit_codes"
+  },
+  "inputs": [
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same saves folder as X3-G1; a truncated temp copy is made, originals stay untouched.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": true,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G4"
+ },
+ {
+  "id": "X3-G5",
+  "stage": "x3",
+  "title": "Autosave cadence and folder",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_autosave_cadence"
+  },
+  "inputs": [
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Point SAE_GAME_SAVES_DIR at one campaign's autosave_*.sav folder (monthly autosaves).",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-24",
+   "A-34",
+   "A-46"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G5"
+ },
+ {
+  "id": "X3-G6",
+  "stage": "x3",
+  "title": "Ironman detection",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_ironman_flagged"
+  },
+  "inputs": [
+   "SAE_GAME_IRONMAN_SAVE"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Quit the game, then set SAE_GAME_IRONMAN_SAVE to the Ironman save from the M0-14 game.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-20"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G6"
+ },
+ {
+  "id": "X3-G7",
+  "stage": "x3",
+  "title": "Real log grammar",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_log_grammar"
+  },
+  "inputs": [
+   "SAE_GAME_LOG"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Set SAE_GAME_LOG to a copy of game.log from a sae_bridge session.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-04"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G7"
+ },
+ {
+  "id": "X3-G8",
+  "stage": "x3",
+  "title": "Log adapter on real bytes",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_tailer_matches_parser"
+  },
+  "inputs": [
+   "SAE_GAME_LOG"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same game.log copy as X3-G7, taken after quitting the game.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G8"
+ },
+ {
+  "id": "X3-G9",
+  "stage": "x3",
+  "title": "Decision chain on real play",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_replay_chain"
+  },
+  "inputs": [
+   "SAE_GAME_LOG",
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Set SAE_GAME_LOG and SAE_GAME_SAVES_DIR; SAE_GAME_RECORDING is optional (when unset the recording is built from them).",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G9"
+ },
+ {
+  "id": "X3-G10",
+  "stage": "x3",
+  "title": "Determinism on real data",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_replay_deterministic"
+  },
+  "inputs": [
+   "SAE_GAME_LOG",
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same inputs as X3-G9 (SAE_GAME_RECORDING optional).",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G10"
+ },
+ {
+  "id": "X3-G11",
+  "stage": "x3",
+  "title": "Fog of war on real recordings",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_fog_v5"
+  },
+  "inputs": [
+   "SAE_GAME_LOG",
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same inputs as X3-G9 (SAE_GAME_RECORDING optional).",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": "X3-G11"
+ },
+ {
+  "id": "X4-G0",
+  "stage": "x4",
+  "title": "Prerequisite: 6 labelled campaigns",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Play and label 6 closed live campaigns (5 tune, 1 sealed) with sae play, sae profile update/close/label; see docs/handoff/deferred/X4.md.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "later",
+  "milestone_later": true,
+  "deferred_id": null
+ },
+ {
+  "id": "X4-G1",
+  "stage": "x4",
+  "title": "Real LOCO tuning (V-1 numbers)",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_x4_g1_v1_on_real_campaigns"
+  },
+  "inputs": [
+   "SAE_GAME_SAE_DIR",
+   "SAE_GAME_PLAYER_KEY"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Set SAE_GAME_SAE_DIR (copy of the real sae dir, X4-G0 met) and SAE_GAME_PLAYER_KEY.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": "X4-G1"
+ },
+ {
+  "id": "X4-G2",
+  "stage": "x4",
+  "title": "V-3 signal on real data",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_x4_g2_v3_block"
+  },
+  "inputs": [
+   "SAE_GAME_SAE_DIR",
+   "SAE_GAME_PLAYER_KEY"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same inputs as X4-G1.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": "X4-G2"
+ },
+ {
+  "id": "X4-G3",
+  "stage": "x4",
+  "title": "Sealed-slot query end to end",
+  "runner": {
+   "kind": "pytest",
+   "select": "test_stage1_then_stage2_on_real_campaigns"
+  },
+  "inputs": [
+   "SAE_GAME_SAE_DIR",
+   "SAE_GAME_CANDIDATE_SHA"
+  ],
+  "owner_play": false,
+  "owner_instruction": "Same SAE_GAME_SAE_DIR as X4-G1 plus SAE_GAME_CANDIDATE_SHA from X4-G1; the burned sealed query cannot be redone.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": "X4-G3"
+ },
+ {
+  "id": "M0-1",
+  "stage": "m0",
+  "title": "StarNet build and ship-size hook",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [],
+   "args": [
+    "--starnet-dir",
+    "{starnet_dir}"
+   ]
+  },
+  "inputs": [],
+  "owner_play": false,
+  "owner_instruction": "Nothing to set: preflight auto-detects the StarNet Workshop folder ({starnet_dir}, steamapps/workshop/content/281990/<id>); record what the check finds.",
+  "judged": true,
+  "question": "Is the ship-size hook string present in a 4.x StarNet build?",
+  "evidence": [
+   {
+    "key": "workshop_id",
+    "label": "StarNet Workshop id"
+   },
+   {
+    "key": "supported_version",
+    "label": "descriptor supported_version"
+   },
+   {
+    "key": "hook_files",
+    "label": "files containing str_var_ai_ship_data_factor_"
+   }
+  ],
+  "assumptions": [
+   "A-22"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-2",
+  "stage": "m0",
+  "title": "sae_bridge loads cleanly",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [
+    [
+     "stage",
+     "M0-2"
+    ]
+   ],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Run sae m0 stage M0-2, copy the mod and .mod file by hand, enable sae_bridge last, start a new game, unpause one month and quit.",
+  "judged": true,
+  "question": "Does sae_bridge load with zero error.log lines mentioning sae?",
+  "evidence": [
+   {
+    "key": "error_log_sae_lines",
+    "label": "error.log lines mentioning sae after a fresh launch"
+   }
+  ],
+  "assumptions": [
+   "A-01",
+   "A-33"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "critical",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-3",
+  "stage": "m0",
+  "title": "log lines reach game.log",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "New non-Ironman game, play 3 months, then save mid-month, reload, play 1 month; see sae m0 steps M0-3.",
+  "judged": true,
+  "question": "Do HELLO and HB lines reach game.log, parse, and arrive once per game month?",
+  "evidence": [
+   {
+    "key": "starnet_monthly",
+    "label": "StarNet monthly behaviour still runs (yes/no/n/a)"
+   },
+   {
+    "key": "truncated_on_launch",
+    "label": "game.log truncated on launch (yes/no)"
+   },
+   {
+    "key": "banner_differs",
+    "label": "first lines differ from previous launch (yes/no)"
+   },
+   {
+    "key": "hello_after_reload",
+    "label": "HELLO after save reload (yes/no)"
+   }
+  ],
+  "assumptions": [
+   "A-02",
+   "A-03",
+   "A-04",
+   "A-05",
+   "A-14",
+   "A-15",
+   "A-16",
+   "A-35",
+   "A-39",
+   "A-40",
+   "A-42"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "critical",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-4",
+  "stage": "m0",
+  "title": "log flush latency <= 5 s",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [
+    [
+     "tail",
+     "--seconds",
+     "300"
+    ]
+   ],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Play at normal speed for 10+ months with the tailer running, then pause within 2 game days after a month starts and time the HB.",
+  "judged": true,
+  "question": "Does the paused HB appear within 5 s and no poll batch 2+ game months?",
+  "evidence": [
+   {
+    "key": "paused_flush_s",
+    "label": "seconds until the paused month's HB printed"
+   }
+  ],
+  "assumptions": [
+   "A-07"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-5",
+  "stage": "m0",
+  "title": "variable printing and counters",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Play on until you meet an AI plus 12 months, then compare one SNAP fleet value with that empire's fleet power in the UI.",
+  "judged": true,
+  "question": "Does a SNAP line print numeric fleet power with sid >= 1 that matches the UI?",
+  "evidence": [
+   {
+    "key": "fleet_value_ui",
+    "label": "one empire's fleet power as shown in the UI"
+   },
+   {
+    "key": "fleet_matches_ui",
+    "label": "SNAP fleet matches the UI (yes/no)"
+   }
+  ],
+  "assumptions": [
+   "A-06",
+   "A-17",
+   "A-31",
+   "A-36",
+   "A-37",
+   "A-38",
+   "A-41"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "critical",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-6",
+  "stage": "m0",
+  "title": "console run of sae_in.ini is applied and acked",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Run uv run sae m0 --user-dir <user dir> stage M0-6 --sid N --m M --target <player sid from a PLYR line> with N, M from the SNAP and HB lines, copy sae_in.ini by hand, type run sae_in.ini in the console, play to the next month.",
+  "judged": true,
+  "question": "Is the staged sae_in.ini applied and acked (APPLIED/OK) for the staged sid and seq?",
+  "evidence": [
+   {
+    "key": "sid",
+    "label": "managed AI sid from a SNAP line"
+   },
+   {
+    "key": "m",
+    "label": "latest HB m value"
+   },
+   {
+    "key": "stutter",
+    "label": "none, minor or bad at the moment of run"
+   },
+   {
+    "key": "opinion_modifier_visible",
+    "label": "sae_posture opinion modifier visible (yes/no)"
+   }
+  ],
+  "assumptions": [
+   "A-08",
+   "A-09",
+   "A-10",
+   "A-11",
+   "A-12",
+   "A-13",
+   "A-23",
+   "A-32",
+   "A-39",
+   "A-41"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "critical",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-7",
+  "stage": "m0",
+  "title": "ship-size knob efficacy (only if M0-1 passed)",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Only if M0-1 passed: set the corvette factor to 100 on one AI, run 10 game years, count its new ships by size.",
+  "judged": true,
+  "question": "Does the ship-size knob push the corvette share to 0.70 or more?",
+  "evidence": [
+   {
+    "key": "corvette_share",
+    "label": "share of corvettes among new builds, 0..1"
+   }
+  ],
+  "assumptions": [
+   "A-22"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-8",
+  "stage": "m0",
+  "title": "flag-gated budget knob efficacy (A/B)",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "From the m0_8_base save run two 15-year games (B: econ=military via M0-6, A: observe) one after the other and read the same AI's fleet power.",
+  "judged": true,
+  "question": "Is the flagged AI's fleet power at least 1.3 times its unflagged twin's?",
+  "evidence": [
+   {
+    "key": "fleet_a",
+    "label": "unflagged twin fleet power after 15 years"
+   },
+   {
+    "key": "fleet_b",
+    "label": "flagged AI fleet power after 15 years (pass: fleet_b/fleet_a >= 1.3)"
+   }
+  ],
+  "assumptions": [
+   "A-21"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "core",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-9",
+  "stage": "m0",
+  "title": "SNAP emission cost",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Run 20 game years at speed 0.95 with emit period 1, mod on and off, and time days per minute.",
+  "judged": true,
+  "question": "Does the mod change days per minute by less than 5 percent?",
+  "evidence": [
+   {
+    "key": "dpm_off",
+    "label": "days per minute, mod off"
+   },
+   {
+    "key": "dpm_on",
+    "label": "days per minute, mod on"
+   }
+  ],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "later",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-10",
+  "stage": "m0",
+  "title": "keystroke injection",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": false,
+  "owner_instruction": "Backlog (T2): record skip with note backlog.",
+  "judged": true,
+  "question": "Keystroke injection is backlog: record skip.",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "backlog",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-11",
+  "stage": "m0",
+  "title": "autosave parse <= 3 s and fields match the UI",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [],
+   "args": [
+    "--save",
+    "{save}"
+   ]
+  },
+  "inputs": [
+   "SAE_GAME_SAVES_DIR"
+  ],
+  "owner_play": true,
+  "owner_instruction": "Set autosaves to monthly, play 1 month, pause, set SAE_GAME_SAVES_DIR; compare the printed fields with the UI and note the save folder name (A-46).",
+  "judged": true,
+  "question": "Does the autosave parse (exit 0, valid C4, wall <= 3 s) with fields matching the UI?",
+  "evidence": [
+   {
+    "key": "fields_match_ui",
+    "label": "fleet power, systems, tech count, alloy income match the UI (yes/no)"
+   },
+   {
+    "key": "same_name_new_game_reuses_folder",
+    "label": "a new game with the same empire name reuses the save folder (yes/no)"
+   },
+   {
+    "key": "save_size_mb",
+    "label": "autosave size in MB"
+   }
+  ],
+  "assumptions": [
+   "A-18",
+   "A-19",
+   "A-24",
+   "A-30",
+   "A-34",
+   "A-36",
+   "A-46"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "critical",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-12",
+  "stage": "m0",
+  "title": "resource baseline",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "On a late-game save time 12 game months mod off vs on and note game RAM, the Pages Input/sec counter and the process name.",
+  "judged": true,
+  "question": "Does the mod cost 1 percent or less of seconds per game year?",
+  "evidence": [
+   {
+    "key": "s_month_off",
+    "label": "seconds per game month, mod off"
+   },
+   {
+    "key": "s_month_on",
+    "label": "seconds per game month, mod on"
+   },
+   {
+    "key": "game_rss_mb",
+    "label": "game RAM in MB"
+   },
+   {
+    "key": "process_name",
+    "label": "game process name in Task Manager"
+   }
+  ],
+  "assumptions": [
+   "A-26",
+   "A-29",
+   "A-43",
+   "A-44",
+   "A-45"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-13",
+  "stage": "m0",
+  "title": "additive economic subplan",
+  "runner": {
+   "kind": "m0",
+   "auto": false,
+   "pre": [],
+   "args": []
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Add a zz_ economic_plans subplan in a scratch mod copy, run 10 years in observe mode and compare with an unmodified twin.",
+  "judged": true,
+  "question": "Is the additive zz_ economic subplan active while StarNet's subplans are kept?",
+  "evidence": [
+   {
+    "key": "what_changed",
+    "label": "what changed in resource trends vs the twin"
+   }
+  ],
+  "assumptions": [
+   "A-21"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "M0-14",
+  "stage": "m0",
+  "title": "Ironman check",
+  "runner": {
+   "kind": "m0",
+   "auto": true,
+   "pre": [],
+   "args": [
+    "--save",
+    "{ironman_save}"
+   ]
+  },
+  "inputs": [
+   "SAE_GAME_IRONMAN_SAVE"
+  ],
+  "owner_play": true,
+  "owner_instruction": "Start an Ironman game with sae_bridge, play 2 months, quit; {ironman_save} is SAE_GAME_IRONMAN_SAVE if set, else the newest .sav in a campaign folder created after this step started.",
+  "judged": true,
+  "question": "Does the Ironman save parse and is it flagged ironman?",
+  "evidence": [
+   {
+    "key": "ironman_save",
+    "label": "path of the Ironman save used"
+   },
+   {
+    "key": "mod_allowed",
+    "label": "launcher allows the mod in Ironman (yes/no)"
+   },
+   {
+    "key": "console_blocked",
+    "label": "console blocked (yes/no)"
+   },
+   {
+    "key": "meta_ironman_yes",
+    "label": "meta entry contains ironman=yes (yes/no)"
+   },
+   {
+    "key": "sections_meta_ironman",
+    "label": "sae-parse --sections meta reports meta.ironman (true/false/null)"
+   }
+  ],
+  "assumptions": [
+   "A-20"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "X2-G1",
+  "stage": "x2",
+  "title": "X2 gate 1 (pending PR #4)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": false,
+  "owner_instruction": "Pending: X2 gate definitions land with PR #4; nothing to run yet.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": "PR #4",
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "X2-G2",
+  "stage": "x2",
+  "title": "X2 gate 2 (pending PR #4)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": false,
+  "owner_instruction": "Pending: X2 gate definitions land with PR #4; nothing to run yet.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": "PR #4",
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "X2-G3",
+  "stage": "x2",
+  "title": "X2 gate 3 (pending PR #4)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": false,
+  "owner_instruction": "Pending: X2 gate definitions land with PR #4; nothing to run yet.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": "PR #4",
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "R-1",
+  "stage": "r",
+  "title": "Overhead vs no SAE (R-1)",
+  "runner": {
+   "kind": "bench",
+   "args": [
+    "overhead",
+    "{r1_csv}"
+   ]
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Play 10 game years from one save, 5 runs each of no SAE and mod+daemon interleaved; fill r1_runs_template.csv and run sae bench overhead.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-34"
+  ],
+  "hardware": "second_machine",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "R-2",
+  "stage": "r",
+  "title": "Stutter p99 frame time (R-2)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Capture PresentMon CSVs during an R-1 (a) and (c) run, then run uv run sae bench stutter a.csv c.csv.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "R-3",
+  "stage": "r",
+  "title": "Mod-script cost scaling (R-3)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Time the same save in three configs (sae_quiet, period=1, period=1 with 5x emits), then run sae bench script-cost scaling.csv --emits <shipped emits/month> and sae m0 record R-3.",
+  "judged": true,
+  "question": "Is the projected mod-script cost 1 percent or less of seconds per game year?",
+  "evidence": [
+   {
+    "key": "s_year_quiet",
+    "label": "seconds per year, sae_quiet"
+   },
+   {
+    "key": "s_year_period1",
+    "label": "seconds per year, period=1"
+   },
+   {
+    "key": "s_year_period1_5x",
+    "label": "seconds per year, period=1 with 5x emits"
+   }
+  ],
+  "assumptions": [
+   "A-29"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "R-4",
+  "stage": "r",
+  "title": "Starved machine (R-4)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "Run uv run python3 bench/balloon.py --leave-gb 1.2 by hand during a 2-year game with the daemon, then sae bench bus runs/<id> --gate R-4; never automatic.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [
+   "A-26"
+  ],
+  "hardware": "one_pc",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "R-5",
+  "stage": "r",
+  "title": "Windows Job cap and pause (R-5)",
+  "runner": {
+   "kind": "none"
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "On Windows, point paths.save_dir at the pathological save, run the daemon, pause 60 s and unpause with RAM above and then below the floor; run sae bench bus runs/<id> --gate R-5 then sae m0 record R-5.",
+  "judged": true,
+  "question": "Does the daemon log a budget_breach and keep running on the pathological save under the Job cap?",
+  "evidence": [
+   {
+    "key": "worker_exit_under_cap",
+    "label": "worker exit under the 1 GiB Job cap"
+   },
+   {
+    "key": "io_priority_background",
+    "label": "I/O priority in Process Explorer"
+   }
+  ],
+  "assumptions": [
+   "A-27",
+   "A-28"
+  ],
+  "hardware": "one_pc",
+  "windows_only": true,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ },
+ {
+  "id": "R-6",
+  "stage": "r",
+  "title": "Low-end laptop (R-6)",
+  "runner": {
+   "kind": "bench",
+   "args": [
+    "bus",
+    "{run_dir}",
+    "--gate",
+    "R-6"
+   ]
+  },
+  "inputs": [],
+  "owner_play": true,
+  "owner_instruction": "On the 4-core / 8 GB laptop run condition (c) for 2 game years, then sae bench bus runs/<id> --gate R-6.",
+  "judged": false,
+  "question": "",
+  "evidence": [],
+  "assumptions": [],
+  "hardware": "laptop_4core",
+  "windows_only": false,
+  "pending_source": null,
+  "priority": "stretch",
+  "milestone_later": false,
+  "deferred_id": null
+ }
+]

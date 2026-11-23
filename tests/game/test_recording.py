@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -24,9 +25,12 @@ def _replay_cli(rec: Path, base: Path, exe: Path) -> Path:
 
 
 @pytest.mark.game(id="X3-G9")
-def test_replay_chain(game_recording: Path, game_parser_exe: Path, tmp_path: Path) -> None:
+def test_replay_chain(
+    game_recording: Path, game_parser_exe: Path, tmp_path: Path, record_property: Callable[[str, object], None]
+) -> None:
     """Replay exits 0 and the decision chain is clean (V-3 signal)."""
     run = _replay_cli(game_recording, tmp_path, game_parser_exe)
+    record_property("run_dir", str(run))  # lets the dev dashboard's Results view find the legal bus
     events = _bus.load(run)
     applied = _has_ack(game_recording)
     problems = _bus.check_chain(events, min_decisions=3, require_applied=applied)

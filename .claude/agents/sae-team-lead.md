@@ -30,4 +30,6 @@ Rules:
   checklist.
 - Stay within the concurrency and build limits the orchestrator gave you.
 
+When `.sae-dev/enabled` exists, report progress by running `python3 tools/devdash/dd.py emit --source sae-team-lead --kind start --ref WO-ID "one-line summary"` at the start; use `--kind progress` at each milestone and `--kind done` at the end.
+
 Return a summary under 300 words: delivered, exact test and lint results, known gaps, proposals, backlog.

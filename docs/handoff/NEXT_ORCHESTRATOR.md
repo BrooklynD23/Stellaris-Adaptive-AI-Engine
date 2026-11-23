@@ -28,7 +28,7 @@ Do not re-read `context/` unless a task needs the source design; the docs above 
 - Git: branch `feat/sae-mvp` (not pushed). Commits on top of `c5e7dc2 Initial commit`:
   `af40e18` (MVP), `a44fd5d` (proposal 015 status), plus the X0 expansion + coverage commit(s) listed in §9.
 - Hooks: `git config core.hooksPath .githooks`. `pre-commit` runs a secret scan, ruff, `mypy --strict src/sae`,
-  the full pytest suite (10–15 min), and the mod or parser gates when those paths change. `commit-msg` requires a
+  the full pytest suite (10–15 min, killed after `SAE_PYTEST_TIMEOUT` s, default 1800; needs GNU `timeout`), and the mod or parser gates when those paths change. `commit-msg` requires a
   conventional subject and a `Reviewed-by: <reviewer> (<review record>)` trailer. Run commits in the background.
 - MVP (game-free) is done: `sae synth`, `sae replay`, `sae daemon` (live, fake game folder) run the full loop;
   every decision has observation → belief → strategy → intent → ack; `sae telemetry` writes `.rrd`.

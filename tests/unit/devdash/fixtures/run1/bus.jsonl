@@ -1,0 +1,6 @@
+{"v":1,"run_id":"r","seq":1,"t_wall":1.0,"game_date":"2200.01.01","type":"belief_update","decision_id":"d1","payload":{"posterior":{"rush":0.7,"turtle":0.3},"entropy":0.6}}
+not json at all
+{"v":1,"run_id":"r","seq":2,"t_wall":2.0,"game_date":"2200.01.01","type":"strategy_selected","decision_id":"d1","payload":{"strategy":"counter_rush","reason":"first","switched":true}}
+{"v":1,"run_id":"r","seq":3,"t_wall":3.0,"game_date":"2200.01.01","type":"strategy_selected","decision_id":"d1","payload":{"strategy":"hold","reason":"floor","switched":false}}
+{"v":1,"run_id":"r","seq":4,"t_wall":4.0,"game_date":"2200.02.01","type":"belief_update","decision_id":"d2","payload":{"posterior":{"rush":0.2,"turtle":0.8}}}
+{"v":1,"run_id":"r","seq":5,"t_wall":5.0,"game_date":"2200.02.01","type":"strategy_selected","decision_id":"d2","payload":{"strategy":"expand","reason":"safe","switched":true}}
