@@ -105,6 +105,9 @@ def _parser_version(runner: Runner) -> str | None:
 def _update_gate_index(junit: Path, out: Path) -> None:
     """Best effort: fold the junit results into the dev dashboard's gate index (``.sae-dev/gates.json``).
 
+    Does nothing unless the dashboard is enabled, i.e. ``<dev dir>/enabled`` exists (the dev dir is
+    ``$SAE_DEVDASH_DIR`` or ``<repo>/.sae-dev``).
+
     Never raises: any failure prints one warning to stderr and leaves pytest's exit code alone.
     """
     if not junit.is_file():
@@ -120,9 +123,12 @@ def _update_gate_index(junit: Path, out: Path) -> None:
         finally:
             if added and tool in sys.path:
                 sys.path.remove(tool)
+        target = dev_dir(REPO)
+        if not (target / "enabled").is_file():
+            return
         pairs = redactions()
         now = datetime.now(UTC).isoformat(timespec="seconds")
-        update_index(dev_dir(REPO), from_junit(junit, str(out), now, scrub=lambda s: redact(s, pairs)))
+        update_index(target, from_junit(junit, str(out), now, scrub=lambda s: redact(s, pairs)))
     except Exception as exc:  # best effort by design
         sys.stderr.write(f"run_deferred: gate index not updated: {type(exc).__name__}: {exc}\n")
 

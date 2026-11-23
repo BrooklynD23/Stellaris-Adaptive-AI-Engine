@@ -1,7 +1,7 @@
 """Game-test pipeline: run the game-PC gates in order, report each step to the dev dashboard, pause for the owner.
 
 Usage: ``uv run python3 tools/game/pipeline.py [--stages x3,x4,m0,x2,r] [--from ID] [--out DIR] [--rerun]
-[--launch] [--dry-run] [--max-saves N]``.
+[--launch] [--dry-run] [--max-saves N] [--while-game] [--keep-runs N]``.
 
 The pipeline reuses ``run_deferred.py`` (X3/X4 pytest stages), ``sae m0`` (M0 gates) and ``sae bench``; it never
 reimplements their checks. Every gate emits ``start`` then exactly one of ``pass|fail|skip`` (``owner`` in between
@@ -73,6 +73,13 @@ _SAVE_SEGMENT = "save games"
 _STELLARIS_REL = Path("Paradox Interactive") / "Stellaris"
 _STEAM_SUBDIRS = ("Steam", "Program Files (x86)/Steam", "SteamLibrary")
 _STOP_AFTER = 130
+SETTLE_S = 15.0  # a save is copied only after its mtime is this old (UNVERIFIED: Stellaris write pattern; M0 would
+SETTLE_GAP_S = 2.0  # two equal stats this far apart are required even for a save that looks old
+SETTLE_TRIES = 4  # watch a save grow during an autosave and time how long the file keeps changing)
+KEEP_RUNS = 3
+ACTIVE_RUN_S = 3600.0  # a run whose state.json is newer than this is never pruned
+_RUN_NAME = re.compile(r"\d{8}-\d{6}")
+PROC_VERSION = Path("/proc/version")
 
 
 # --- small helpers --------------------------------------------------------------------------------------------------
@@ -244,6 +251,15 @@ def _mod_state(user_dir: Path | None, repo: Path) -> tuple[bool, bool]:
     return True, set(have) != set(want) or any(have[name] != digest for name, digest in want.items())
 
 
+def platform_label(proc_version: Path = PROC_VERSION) -> str:
+    """``sys.platform``, plus ``+wsl`` when ``/proc/version`` mentions Microsoft (a WSL kernel)."""
+    try:
+        wsl = "microsoft" in proc_version.read_text(encoding="utf-8", errors="replace").lower()
+    except OSError:
+        wsl = False
+    return f"{sys.platform}+wsl" if wsl else sys.platform
+
+
 def game_running(runner: Runner) -> bool:
     """True when ``tasklist.exe`` lists ``stellaris.exe`` (the exit code is 0 whether or not it matches)."""
     _, out = _call(runner, ["tasklist.exe", "/FI", "IMAGENAME eq stellaris.exe", "/NH"])
@@ -377,11 +393,11 @@ def skip_reason(gate: Gate, pf: Mapping[str, Any], found_markers: set[str]) -> s
 # --- input copies ---------------------------------------------------------------------------------------------------
 
 
-def _newest_sav(folder: Path) -> float:
+def _newest_sav(folder: Path, prefix: str = "") -> float:
     best = 0.0
     try:
         for entry in os.scandir(folder):
-            if entry.name.endswith(".sav"):
+            if entry.name.endswith(".sav") and entry.name.startswith(prefix):
                 with contextlib.suppress(OSError):
                     best = max(best, entry.stat().st_mtime)
     except OSError:
@@ -389,15 +405,23 @@ def _newest_sav(folder: Path) -> float:
     return best
 
 
-def newest_campaign(user_dir: Path) -> Path | None:
-    """The campaign folder under ``<user_dir>/save games/`` holding the newest ``.sav``."""
+def newest_campaign(user_dir: Path, *, prefer_autosaves: bool = False) -> Path | None:
+    """The campaign folder under ``<user_dir>/save games/`` holding the newest ``.sav``.
+
+    With ``prefer_autosaves`` the newest folder holding an ``autosave*.sav`` wins, and any ``.sav`` counts only when no
+    folder has an autosave. A manual save in its own folder (a bug-repro save, say) would otherwise starve the
+    autosave gates (X3-G5, X3-G9, X3-G10) of a campaign; found on the first real-save run, 2026-11-23.
+    """
     root = user_dir / _SAVE_SEGMENT
     try:
         folders = [p for p in root.iterdir() if p.is_dir()]
     except OSError:
         return None
-    scored = [(s, p) for p in folders if (s := _newest_sav(p)) > 0]
-    return max(scored, key=lambda sp: sp[0])[1] if scored else None
+    for prefix in ("autosave", "") if prefer_autosaves else ("",):
+        scored = [(s, p) for p in folders if (s := _newest_sav(p, prefix)) > 0]
+        if scored:
+            return max(scored, key=lambda sp: sp[0])[1]
+    return None
 
 
 def _locked(exc: OSError) -> bool:
@@ -430,12 +454,43 @@ def _same(src: Path, dst: Path) -> bool:
     return a.st_size == b.st_size and int(a.st_mtime) == int(b.st_mtime)
 
 
-def copy_inputs(pf: Mapping[str, Any], out: Path, max_saves: int, *, sleep: Sleep) -> dict[str, str]:
+def _settled(src: Path, clock: Callable[[], float], sleep: Sleep, note: Callable[[str], None]) -> bool:
+    """True once ``src`` is unchanged across two stats ``SETTLE_GAP_S`` apart and is at least ``SETTLE_S`` old.
+
+    A torn copy of a save the game is still writing would be parsed and failed as a parser bug. Age alone is not
+    trusted: the WSL clock can run ahead of Windows, so even a save that looks old needs two equal ``(size, mtime)``
+    stats. A younger save is waited for first (``sleep``); one dated in the future sleeps ``SETTLE_S`` before the
+    second stat. At most ``SETTLE_TRIES`` rounds.
+    """
+    for i in range(SETTLE_TRIES + 1):
+        try:
+            before = src.stat()
+        except OSError:
+            return False
+        age = clock() - before.st_mtime
+        young = 0 <= age < SETTLE_S
+        if young and i == SETTLE_TRIES:
+            break
+        sleep(SETTLE_S - age + 1.0 if young else (SETTLE_S if age < 0 else SETTLE_GAP_S))
+        try:
+            after = src.stat()
+        except OSError:
+            return False
+        if not young and (after.st_size, after.st_mtime) == (before.st_size, before.st_mtime):
+            return True
+    note(f"{src.name} was still changing; left out")
+    return False
+
+
+def copy_inputs(
+    pf: Mapping[str, Any], out: Path, max_saves: int, *, sleep: Sleep, clock: Callable[[], float] = time.time
+) -> dict[str, str]:
     """Copy the newest ``max_saves`` autosaves of the newest campaign, plus ``game.log``, into ``<out>/private/inputs``.
 
     A file that stays locked is left out and reported in an ``info`` event. Returns the env vars to set:
     ``SAE_GAME_SAVES_DIR`` (only when at least one save was copied), ``SAE_GAME_LOG`` (when the log was copied),
-    ``SAE_GAME_MAX_SAVES`` and ``SAE_PARSER_EXE`` (when known). Nothing is parsed here.
+    ``SAE_GAME_MAX_SAVES`` and ``SAE_PARSER_EXE`` (when known). A save whose mtime is under ``SETTLE_S`` seconds old is
+    waited for (``clock`` and ``sleep`` are injectable) and left out if it keeps changing. Nothing is parsed here.
     """
     dev = dev_dir()
     env: dict[str, str] = {"SAE_GAME_MAX_SAVES": str(max_saves)}
@@ -450,7 +505,7 @@ def copy_inputs(pf: Mapping[str, Any], out: Path, max_saves: int, *, sleep: Slee
         note("no Stellaris user folder; nothing copied")
         return env
     inputs = out / "private" / "inputs"
-    campaign = newest_campaign(user)
+    campaign = newest_campaign(user, prefer_autosaves=True)
     if campaign is None:
         _prune(inputs / "saves", set())
         note("no saves found")
@@ -468,7 +523,7 @@ def copy_inputs(pf: Mapping[str, Any], out: Path, max_saves: int, *, sleep: Slee
         copied = 0
         for src in chosen:
             dst = inputs / "saves" / src.name
-            if _same(src, dst) or _copy_retry(src, dst, sleep, note):
+            if _same(src, dst) or (_settled(src, clock, sleep, note) and _copy_retry(src, dst, sleep, note)):
                 copied += 1
         if copied:
             env["SAE_GAME_SAVES_DIR"] = str(inputs / "saves")
@@ -487,6 +542,60 @@ def _prune(folder: Path, keep: set[str]) -> None:
                 stale.unlink(missing_ok=True)
     except OSError as exc:
         _LOG.warning("could not prune %s: %s", folder, exc)
+
+
+def _private_dirs(run: Path) -> list[Path]:
+    """The ``private`` folder of a run and of each stage folder directly in it (real folders only)."""
+    found: list[Path] = []
+    for cand in [run / "private", *sorted(run.glob("*/private"))]:
+        if cand.is_dir() and not cand.is_symlink() and not cand.parent.is_symlink():
+            found.append(cand)
+    return found
+
+
+def _active(run: Path, now: float) -> bool:
+    """True when the run's ``state.json`` was written within ``ACTIVE_RUN_S`` (another pipeline may be using it)."""
+    try:
+        return now - (run / "state.json").stat().st_mtime < ACTIVE_RUN_S
+    except OSError:
+        return False
+
+
+def prune_runs(dev: Path, keep: int, current: Path | None = None, *, now: float | None = None) -> list[Path]:
+    """Delete ``private/`` (raw saves, basetemp copies) of all but the newest ``keep`` pipeline runs.
+
+    Only timestamp-named real folders directly inside ``<dev>/pipeline`` count as runs the pipeline created; the
+    ``current`` run is always kept. Only ``private`` folders are removed (never the run folder, ``state.json`` or
+    ``results.json``), and no symlink is followed. The ``current`` run is compared by resolved path (so ``<run>/x3/..``
+    or a symlink to it still counts), and a run whose ``state.json`` changed within ``ACTIVE_RUN_S`` is treated as in
+    flight and kept. Returns the folders removed.
+    """
+    base = dev / "pipeline"
+    removed: list[Path] = []
+    if base.is_symlink():
+        return removed
+    stamp = time.time() if now is None else now
+    try:
+        cur = current.resolve() if current is not None else None
+        root = base.resolve(strict=True)
+        runs = sorted(
+            p for p in base.iterdir()
+            if _RUN_NAME.fullmatch(p.name) and p.is_dir() and not p.is_symlink() and p.resolve().parent == root
+        )
+    except OSError:
+        return removed
+    kept = {p.name for p in runs[max(len(runs) - max(keep, 1), 0):]}
+    for run in runs:
+        if run.name in kept or run.resolve() == cur or _active(run, stamp):
+            continue
+        for private in _private_dirs(run):
+            try:
+                shutil.rmtree(private)
+            except OSError as exc:
+                _LOG.warning("could not remove %s: %s", private, exc)
+                continue
+            removed.append(private)
+    return removed
 
 
 def newest_copied_save(env: Mapping[str, str]) -> Path | None:
@@ -570,11 +679,14 @@ class _Run:
     input_fn: Callable[[], str]
     isatty: Callable[[], bool]
     environ: Mapping[str, str]
+    while_game: bool = False
+    platform: str = ""
     state: dict[str, Any] = field(default_factory=dict)
     results: dict[str, Any] = field(default_factory=dict)
     inputs: dict[str, str] | None = None
     launched: bool = False
     open_refs: dict[str, bool] = field(default_factory=dict)  # ref -> owner event open?
+    owner_clicked: bool = False  # the last dashboard owner_wait ended on Mark done (not on the game closing)
     failed: bool = False
     missing: str = ""
 
@@ -606,7 +718,9 @@ class _Run:
 
     def ensure_inputs(self, *, refresh: bool = False) -> dict[str, str]:
         if self.inputs is None or refresh:
-            self.inputs = copy_inputs(self.pf, self.out, self.max_saves, sleep=self.sleep)
+            self.inputs = copy_inputs(
+                self.pf, self.out, self.max_saves, sleep=self.sleep, clock=lambda: self.now().timestamp()
+            )
         return self.inputs
 
     # -- waiting --
@@ -624,35 +738,75 @@ class _Run:
 
     def wait_done(self, gate: Gate) -> bool:
         """Emit the ``owner`` event and wait for Mark done. False means the gate was finished as a skip."""
+        if self.owner_wait(gate.id, gate.owner_instruction):
+            return True
+        self.finish(gate, "skip", "owner step needs the dashboard or a terminal")
+        return False
+
+    def owner_wait(self, ref: str, instruction: str, *, until_game_closed: bool = False) -> bool:
+        """Emit an ``owner`` event for ``ref`` and wait for Mark done (dashboard) or Enter (terminal).
+
+        False means the step cannot be waited for (no dashboard and no terminal, or the terminal input ended); the
+        caller decides what that means. Ctrl-C propagates; ``main`` closes the open refs. With ``until_game_closed``
+        the dashboard wait also ends when Stellaris is no longer running (checked every ``GAME_CHECK_EVERY`` polls,
+        read-only), so closing the game needs no click.
+        """
         if not ev.is_enabled(self.dev):
             if not self.isatty():
-                self.finish(gate, "skip", "owner step needs the dashboard or a terminal")
                 return False
-            self.emit("owner", gate.owner_instruction, gate.id)
-            print(f"{gate.id}: {gate.owner_instruction}\nDashboard is off; press Enter when done.", flush=True)
-            self.open_refs[gate.id] = True
+            self.emit("owner", instruction, ref)
+            print(f"{ref}: {instruction}\nDashboard is off; press Enter when done.", flush=True)
+            self.open_refs[ref] = True
             try:
                 self.input_fn()
             except EOFError:
-                self.emit("done", "no terminal input", gate.id)  # closes the owner state
-                self.finish(gate, "skip", "owner step needs the dashboard or a terminal")
+                self.emit("done", "no terminal input", ref)  # closes the owner state
                 return False
             except KeyboardInterrupt:
                 raise  # main() closes the gate (skip + done) and exits 130
             return True
         tail = ev.Tail(ev.events_path(self.dev, "wsl"))
         tail.poll()  # baseline: older done events for this ref must not resume us
-        self.emit("owner", gate.owner_instruction, gate.id)
-        self.open_refs[gate.id] = True
+        self.emit("owner", instruction, ref)
+        self.open_refs[ref] = True
         hit = {"done": False}
+        polls = [0]
 
         def done() -> bool:
             fresh, _ = tail.poll()
-            hit["done"] = hit["done"] or any(e["kind"] == "done" and e.get("ref") == gate.id for e in fresh)
-            return hit["done"]
+            hit["done"] = hit["done"] or any(e["kind"] == "done" and e.get("ref") == ref for e in fresh)
+            if hit["done"]:
+                return True
+            polls[0] += 1
+            return until_game_closed and polls[0] % GAME_CHECK_EVERY == 0 and not game_running(self.runner)
 
         self.wait(done)
+        self.owner_clicked = hit["done"]
         return True
+
+    def stand_down(self, what: str) -> bool:
+        """Do not compete with the game: when Stellaris runs, ask the owner to close it before ``what``.
+
+        True means go ahead (game not running, ``--while-game``, or the owner confirmed). False means the owner could
+        not be asked (no dashboard and no terminal), so the caller must skip the work. Only reads the process list;
+        the game's process, priority and affinity are never touched. UNVERIFIED: that a parse in the WSL2 VM slows the
+        game; M0 would time a parse with and without the game running.
+        """
+        if self.while_game or not game_running(self.runner):
+            return True
+        ref = "game-close"
+        dashboard = ev.is_enabled(self.dev)
+        ok = self.owner_wait(ref, f"close Stellaris to run {what}, or rerun with --while-game", until_game_closed=True)
+        self.open_refs.pop(ref, None)
+        if ok and dashboard and game_running(self.runner):
+            ok = False  # Mark done with the game still open: do not compete with it
+        elif ok and dashboard and not self.owner_clicked:
+            self.emit("done", "Stellaris closed", ref)  # closes the owner state; nobody clicked
+        elif ok and not dashboard:
+            self.emit("done", "owner pressed Enter", ref)
+        if not ok:
+            self.emit("info", f"{what}: skipped, Stellaris is running (close it or pass --while-game)")
+        return ok
 
     def manual_since(self, gate_id: str, start: datetime) -> bool:
         floor = start.replace(microsecond=0)
@@ -726,7 +880,11 @@ class _Run:
         def note(msg: str) -> None:
             self.emit("info", f"inputs: {msg}")
 
-        return str(dst) if _same(best, dst) or _copy_retry(best, dst, self.sleep, note) else None
+        if _same(best, dst):
+            return str(dst)
+        if not _settled(best, lambda: self.now().timestamp(), self.sleep, note):
+            return None
+        return str(dst) if _copy_retry(best, dst, self.sleep, note) else None
 
     def run_m0_gate(self, gate: Gate) -> None:
         start = self.now()
@@ -745,6 +903,10 @@ class _Run:
                 self.finish(gate, "fail", f"pre step failed: sae m0 {pre[0]}")
                 return
         if runner_cfg["auto"]:
+            # an owner-play gate needs the game running, so only the other M0 gates stand down for it
+            if not gate.owner_play and not self.stand_down(f"{gate.id} (copies saves)"):
+                self.finish(gate, "skip", "Stellaris is running; close it or rerun with --while-game")
+                return
             self.ensure_inputs(refresh=gate.owner_play)
             args = [self.fill(a, step_start) for a in runner_cfg.get("args", [])]
             if any(a is None for a in args):
@@ -875,12 +1037,15 @@ class _Run:
             self.emit("info", f"launch: aborted while copying the mod: {type(exc).__name__}")
             return
         staged_mod = self.repo / "m0_results" / "stage" / "sae_bridge.mod"
-        if staged_mod.is_file():
-            try:
-                _write_atomic(staged_mod, modfile)
-            except OSError as exc:
-                self.emit("info", f"launch: aborted while writing sae_bridge.mod: {type(exc).__name__}")
-                return
+        if not staged_mod.is_file():
+            self.emit("info", "launch: aborted, m0_results/stage/sae_bridge.mod is missing after staging; not started")
+            print("launch: aborted, the staged sae_bridge.mod is missing; Stellaris was not started", flush=True)
+            return
+        try:
+            _write_atomic(staged_mod, modfile)
+        except OSError as exc:
+            self.emit("info", f"launch: aborted while writing sae_bridge.mod: {type(exc).__name__}")
+            return
         self.emit("info", f"launch: copied {copied} mod files (removed {removed} extra) and sae_bridge.mod")
         self.runner(["cmd.exe", "/c", "start", "", f"steam://rungameid/{STELLARIS_APP_ID}"],
                     capture_output=True, text=True)
@@ -902,6 +1067,10 @@ class _Run:
                 runnable.append(gate)
         if collect is not None:
             self.run_collect(collect, group)
+        if runnable and not self.stand_down(f"{stage.upper()} parse gates"):
+            for gate in runnable:
+                self.finish(gate, "skip", "Stellaris is running; close it or rerun with --while-game")
+            return
         env = self.ensure_inputs() if runnable else {}
         pending: list[Gate] = []
         for gate in runnable:
@@ -943,13 +1112,20 @@ class _Run:
                 try:
                     rows = json.loads(raw)
                     self.results["parse"] = [
-                        {"label": str(r["save"]), "wall_s": float(r["wall_s"]), "rss_bytes": int(r["rss_bytes"])}
+                        {
+                            "label": str(r["save"]), "wall_s": float(r["wall_s"]), "rss_bytes": int(r["rss_bytes"]),
+                            "platform": self.platform or platform_label(), "source": self.source(),
+                        }
                         for r in rows
                     ]
                 except (ValueError, KeyError, TypeError) as exc:
                     _LOG.warning("parse_costs property unusable: %s", exc)
             if values.get("run_dir"):
                 self.results["run_dir"] = values["run_dir"]
+
+    def source(self) -> str:
+        """Where the parsed saves came from: always a copy; ``wsl-copy`` when this runs under WSL."""
+        return "wsl-copy" if "wsl" in (self.platform or platform_label()) else "copy"
 
     def run_collect(self, gate: Gate, group: Sequence[Gate]) -> None:
         """X3-G0: every X3-G1..G11 has a marker, and ``run_deferred.py --list`` exits 0."""
@@ -1088,6 +1264,10 @@ def _parser() -> argparse.ArgumentParser:
     ap.add_argument("--launch", action="store_true", help="stage the mod and start Stellaris before owner steps")
     ap.add_argument("--dry-run", action="store_true", help="print the plan and preflight, run nothing")
     ap.add_argument("--max-saves", type=int, default=13, help="autosaves to copy (default 13)")
+    ap.add_argument("--while-game", action="store_true",
+                    help="run parse stages and copy saves even while Stellaris runs (default: wait for it to close)")
+    ap.add_argument("--keep-runs", type=int, default=KEEP_RUNS,
+                    help=f"keep raw save copies (private/) only for the newest N runs (default {KEEP_RUNS})")
     return ap
 
 
@@ -1127,6 +1307,9 @@ def main(
     if unknown or not stages:
         sys.stderr.write(f"pipeline: unknown stage(s) {unknown or args.stages!r}; use {','.join(ALL_STAGES)}\n")
         return 2
+    if args.keep_runs < 1 or args.max_saves < 1:
+        sys.stderr.write("pipeline: --keep-runs and --max-saves must be at least 1\n")
+        return 2
     env = os.environ if environ is None else environ
     try:
         planned = plan(gate_registry.load_gates(registry), stages, args.start)
@@ -1147,13 +1330,16 @@ def main(
     run = _Run(
         repo=repo, dev=dev, out=out, pf=pf, runner=runner, sleep=sleep, now=now, max_saves=args.max_saves,
         launch=args.launch, rerun=args.rerun, found=found, input_fn=input_fn, environ=env,
-        isatty=isatty or _stdin_isatty,
+        isatty=isatty or _stdin_isatty, while_game=args.while_game, platform=platform_label(),
     )
     run.state = _load_json(out / "state.json") or {"gates": {}, "started": _iso(now())}
     run.state.setdefault("gates", {})
     run.results = _load_json(out / "results.json") or {"parse": [], "budget_s": BUDGET_S, "impact": [], "run_dir": None}
     run.results.setdefault("budget_s", BUDGET_S)
     run.save_state()
+    pruned = prune_runs(dev, args.keep_runs, out)
+    if pruned:
+        run.emit("info", f"pruned {len(pruned)} older private folder(s); keeping {args.keep_runs} runs")
     print(default_scrub(f"pipeline output: {out}"), flush=True)
     done_stages: set[str] = set()
     try:

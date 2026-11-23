@@ -1305,7 +1305,7 @@
         const over = v > budget;
         return el('div', {
           className: 'plot-col',
-          attrs: { role: 'img', 'aria-label': str(r.label) + ': ' + v.toFixed(2) + ' seconds' + (over ? ', over budget' : '') },
+          attrs: { role: 'img', 'aria-label': str(r.label) + ': ' + v.toFixed(2) + ' seconds' + (Number(r.rss_bytes) > 0 ? ', ' + Math.round(Number(r.rss_bytes) / (1024 * 1024)) + ' MB RSS' : '') + (over ? ', over budget' : '') },
         }, [
           rows.length > 12
             ? null
@@ -1317,7 +1317,19 @@
     const axis = el('div', { className: 'axis', attrs: { 'aria-hidden': 'true' } }, rows.map(function (r) {
       return el('span', { text: str(r.label), attrs: { title: str(r.label) } });
     }));
-    fill(host, head, plot, axis);
+    const note = parseNote(rows);
+    fill(host, head, plot, axis, el('div', { className: 'card-sub text-warn parse-note', text: note }));
+  }
+
+  // The parse numbers come from the Linux parser reading a WSL copy: never present them as the Windows A-24 result.
+  function parseNote(rows) {
+    const last = rows[rows.length - 1] || {};
+    const platform = str(last.platform || 'unknown platform');
+    const source = last.source ? ', ' + str(last.source) : '';
+    let peak = 0;
+    for (const r of rows) peak = Math.max(peak, Number(r.rss_bytes) || 0);
+    const rss = peak > 0 ? ' · peak RSS ' + (peak / (1024 * 1024)).toFixed(0) + ' MB' : '';
+    return 'UNVERIFIED A-24 (measured on ' + platform + source + ')' + rss;
   }
 
   function renderBelief(host, rows) {

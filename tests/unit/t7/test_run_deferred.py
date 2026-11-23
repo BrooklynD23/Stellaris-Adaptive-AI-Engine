@@ -145,3 +145,19 @@ def test_windows_path_forms_redacted(mod: ModuleType, tmp_path: Path, monkeypatc
     mod.main(["--out", str(out)], runner=Runner(xml, code=1))
     s = (out / "summary.md").read_text(encoding="utf-8")
     assert "Users" not in s and "game.log" not in s
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_gate_index_written_only_when_dashboard_enabled(
+    mod: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, enabled: bool
+) -> None:
+    """``_update_gate_index`` is a no-op without ``<dev dir>/enabled`` and writes ``gates.json`` with it."""
+    dev = tmp_path / "dev"
+    dev.mkdir()
+    if enabled:
+        (dev / "enabled").write_text("", encoding="utf-8")
+    monkeypatch.setenv("SAE_DEVDASH_DIR", str(dev))
+    junit = tmp_path / "j.xml"
+    junit.write_text(_junit(tmp_path), encoding="utf-8")
+    mod._update_gate_index(junit, tmp_path / "out")
+    assert (dev / "gates.json").is_file() is enabled

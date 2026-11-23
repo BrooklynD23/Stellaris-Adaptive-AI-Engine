@@ -10,12 +10,25 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src" / "sae"
 # Substrings checked in every source text (covers string literals such as paths and dynamic import names).
-FORBIDDEN = ("import devdash", "from devdash", "tools.devdash", "tools/devdash", "tools\\devdash")
+FORBIDDEN = (
+    "import devdash",
+    "from devdash",
+    "tools.devdash",
+    "tools/devdash",
+    "tools\\devdash",
+    "tools.game",
+    "tools/game",
+    "tools\\game",
+)
 
 
 def _is_devdash(name: str) -> bool:
     """True for ``devdash``, ``devdash.x``, ``tools.devdash`` and ``tools.devdash.x``."""
-    return name.split(".")[0] == "devdash" or name == "tools.devdash" or name.startswith("tools.devdash.")
+    return (
+        name.split(".")[0] == "devdash"
+        or name in ("tools.devdash", "tools.game")
+        or name.startswith(("tools.devdash.", "tools.game."))
+    )
 
 
 def _string_is_devdash(value: str) -> bool:
@@ -31,10 +44,14 @@ def _ast_hits(tree: ast.AST) -> list[str]:
             hits.extend(f"import {a.name}" for a in node.names if _is_devdash(a.name))
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            from_tools = module == "tools" and any(a.name == "devdash" for a in node.names)
+            from_tools = module == "tools" and any(a.name in ("devdash", "game") for a in node.names)
             if node.level == 0 and (_is_devdash(module) or from_tools):
                 hits.append(f"from {module} import ...")
-        elif isinstance(node, ast.Constant) and isinstance(node.value, str) and "tools\\devdash" in node.value:
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and ("tools\\devdash" in node.value or "tools\\game" in node.value)
+        ):
             hits.append(f"path literal {node.value!r}")
         elif isinstance(node, ast.Call) and node.args:
             func = node.func
@@ -85,6 +102,10 @@ CASES = {
     "dunder_import": "__import__('devdash')\n",
     "windows_path": "p = 'tools\\\\devdash\\\\dd.py'\n",
     "posix_path": "p = 'tools/devdash/dd.py'\n",
+    "game_from_import": "from tools.game import pipeline\n",
+    "game_from_tools": "from tools import game\n",
+    "game_import": "import tools.game.pipeline\n",
+    "game_path": "p = 'tools/game/pipeline.py'\n",
 }
 
 

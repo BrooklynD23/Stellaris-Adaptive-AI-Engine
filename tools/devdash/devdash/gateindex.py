@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypedDict
 
+from devdash.events import scrub_winhome
 from sae.m0 import results as m0_results
 
 __all__ = ["GateResult", "default_scrub", "from_junit", "from_m0", "load_index", "merge_newest", "update_index"]
@@ -56,12 +57,12 @@ def _when(text: str) -> datetime:
 
 
 def default_scrub(text: str) -> str:
-    """Replace the home directory (and its forward-slash form) with ``<HOME>``."""
+    """Replace the home directory with ``<HOME>`` and Windows profile paths with ``<WINHOME>``."""
     home = str(Path.home())
     for form in sorted({home, home.replace("\\", "/")}, key=len, reverse=True):
         if form and form != "/":
             text = text.replace(form, "<HOME>")
-    return text
+    return scrub_winhome(text)
 
 
 def _identity(text: str) -> str:

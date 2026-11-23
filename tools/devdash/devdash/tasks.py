@@ -8,7 +8,6 @@ is an RFC3339 UTC timestamp.
 from __future__ import annotations
 
 import contextlib
-import fcntl
 import json
 import os
 import tempfile
@@ -82,6 +81,8 @@ def _locked(path: Path) -> Iterator[None]:
 
     Retries every 50 ms up to ``LOCK_WAIT_SECONDS``, then raises ``TimeoutError``.
     """
+    import fcntl  # POSIX-only; imported here so the module imports on Windows (spec D8)
+
     lock = path.with_name(path.name + ".lock")
     path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o644)

@@ -233,7 +233,10 @@ def test_results_from_pipeline_run(tmp_path: Path, dev: Path) -> None:
     shutil.copytree(FIXTURES / "run1", bus)
     res = _snap(tmp_path, dev)["results"]
     assert res["source"] == "20261029" and res["budget_s"] == 3.0
-    assert res["parse"] == [{"label": "save-a", "wall_s": 1.25}, {"label": "save-b", "wall_s": 2.5}]
+    assert res["parse"] == [
+        {"label": "save-a", "wall_s": 1.25, "rss_bytes": 1000},
+        {"label": "save-b", "wall_s": 2.5, "rss_bytes": 2000},
+    ]
     assert res["impact"] == [{"label": "overhead", "value": "1.2%", "pct": 12}]
     assert res["belief"] == [
         {"date": "2200.01.01", "p": {"rush": 0.7, "turtle": 0.3}},
@@ -535,3 +538,37 @@ def test_bus_values_scrubbed(tmp_path: Path, dev: Path) -> None:
     (run / "b" / "bus.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
     res = _snap(tmp_path, dev)["results"]
     assert res["belief"] and home not in json.dumps(res) and "<HOME>" in json.dumps(res)
+
+
+def test_results_parse_rows_carry_rss_platform_and_source(tmp_path: Path, dev: Path) -> None:
+    run = dev / "pipeline" / "20261029-010101"
+    run.mkdir(parents=True)
+    rows = [
+        {"save": "x", "label": "autosave_1.sav", "wall_s": 1.5, "rss_bytes": 123456789,
+         "platform": "linux+wsl", "source": "wsl-copy"},
+        {"label": "old.sav", "wall_s": 2.0},
+        {"label": "bad.sav", "wall_s": 2.0, "rss_bytes": "lots", "platform": 7},
+    ]
+    (run / "results.json").write_text(json.dumps({"budget_s": 3.0, "parse": rows}), encoding="utf-8")
+    parse = _snap(tmp_path, dev)["results"]["parse"]
+    assert parse[0] == {"label": "autosave_1.sav", "wall_s": 1.5, "rss_bytes": 123456789,
+                        "platform": "linux+wsl", "source": "wsl-copy"}
+    assert parse[1] == {"label": "old.sav", "wall_s": 2.0}
+    assert parse[2] == {"label": "bad.sav", "wall_s": 2.0}
+
+
+def test_windows_home_is_scrubbed_in_env_rows_and_results(tmp_path: Path, dev: Path) -> None:
+    dev.mkdir(parents=True, exist_ok=True)
+    (dev / "env.json").write_text(
+        json.dumps({"user_dir": "/mnt/c/Users/Bob Smith/OneDrive/Stellaris", "install": "D:\\Users\\bob\\x"}),
+        encoding="utf-8",
+    )
+    run = dev / "pipeline" / "20261029-010101"
+    run.mkdir(parents=True)
+    (run / "results.json").write_text(
+        json.dumps({"parse": [{"label": "C:/Users/Bob/x.sav", "wall_s": 1.0}]}), encoding="utf-8"
+    )
+    snap = _snap(tmp_path, dev)
+    text = json.dumps(snap["env"]) + json.dumps(snap["results"])
+    assert "<WINHOME>" in text
+    assert "Bob" not in text and "bob" not in text

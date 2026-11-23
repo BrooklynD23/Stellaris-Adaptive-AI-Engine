@@ -33,6 +33,14 @@ ROTATE_BYTES: Final = 5 * 1024 * 1024
 
 ENABLED_FLAG: Final = "enabled"
 HOME_TOKEN: Final = "<HOME>"
+WINHOME_TOKEN: Final = "<WINHOME>"
+_SEP: Final = r"(?:\\\\|[\\/])"
+_BAD: Final = r"/\\\s\"<>|:*?'"
+_WORD: Final = rf"[^{_BAD}]+(?:'+[^{_BAD}]+)*"
+_NAME: Final = rf"(?:{_WORD}(?: +{_WORD})*(?=[/\\\"'\r]|$)|{_WORD})"
+_WINHOME_RE: Final = re.compile(
+    rf"/mnt/[a-z]/users/{_NAME}|[a-z]:{_SEP}users{_SEP}{_NAME}", re.IGNORECASE | re.MULTILINE
+)
 _WRITER_FILES: Final[dict[str, str]] = {"wsl": "events.jsonl", "win": "events.win.jsonl"}
 _MAX_LINE_BYTES: Final = 64 * 1024
 """Longest line :class:`Tail` buffers; a valid event is well under 1 KiB, so longer lines are dropped."""
@@ -48,8 +56,18 @@ def _home_dir() -> str:
         return ""
 
 
+def scrub_winhome(text: str) -> str:
+    """Replace Windows profile paths by ``<WINHOME>``.
+
+    Matches ``/mnt/<drive>/Users/<name>``, ``C:\\Users\\<name>`` (also JSON-escaped) and ``C:/Users/<name>`` for any
+    drive letter and case. A name with spaces is replaced whole only when a separator, a quote or a line end follows it;
+    otherwise the name ends at the first space. Apostrophes inside a name are part of it.
+    """
+    return _WINHOME_RE.sub(WINHOME_TOKEN, text)
+
+
 def redact(text: str, home: str | None = None) -> str:
-    """Replace the home directory in ``text`` by ``<HOME>``, in both slash styles.
+    """Replace the home directory in ``text`` by ``<HOME>``, in both slash styles, then Windows profile paths.
 
     Uses the same rule as ``tools/game/run_deferred.py``. A bare root (``/``, ``\\``, or an empty home) is never
     replaced, because that would mangle every path in the text.
@@ -58,7 +76,7 @@ def redact(text: str, home: str | None = None) -> str:
     for value in sorted({root, root.replace("\\", "/")}, key=len, reverse=True):
         if value.strip("/\\"):
             text = text.replace(value, HOME_TOKEN)
-    return text
+    return scrub_winhome(text)
 
 
 def _clean_msg(msg: str) -> str:

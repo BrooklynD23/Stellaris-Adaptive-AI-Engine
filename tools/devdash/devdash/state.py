@@ -31,6 +31,7 @@ __all__ = ["STALE_AFTER", "snapshot"]
 
 _LOG = logging.getLogger(__name__)
 
+
 STALE_AFTER: Final = timedelta(minutes=30)
 """A running item with no event for this long is shown stale."""
 FEED_MAX: Final = 200
@@ -444,6 +445,26 @@ def _legal_bus(run_dir: Path, base: Path, repo: Path, dev: Path) -> Path | None:
     return bus
 
 
+def _is_parse_row(row: Any) -> bool:
+    return isinstance(row, dict) and "label" in row and _num(row.get("wall_s"))
+
+
+def _parse_row(row: Mapping[str, Any]) -> dict[str, Any]:
+    """One parse-cost row for the Results view: label, wall seconds, and the optional RSS bytes, platform and source.
+
+    The numbers come from the Linux ``sae-parse`` reading a WSL copy, not from the Windows budget machine, so the UI
+    labels them UNVERIFIED A-24 (M0 would measure them on the game PC with the Windows build).
+    """
+    out: dict[str, Any] = {"label": default_scrub(str(row["label"])), "wall_s": float(row["wall_s"])}
+    rss: Any = row.get("rss_bytes")
+    if _num(rss) and float(rss) >= 0:
+        out["rss_bytes"] = int(float(rss))
+    for key in ("platform", "source"):
+        if isinstance(row.get(key), str):
+            out[key] = default_scrub(str(row[key]))[:64]
+    return out
+
+
 def _results(repo: Path, dev: Path) -> dict[str, Any]:
     out: dict[str, Any] = {
         "source": None,
@@ -470,11 +491,7 @@ def _results(repo: Path, dev: Path) -> dict[str, Any]:
     out["source"] = path.parent.name
     if _num(data.get("budget_s")):
         out["budget_s"] = float(data["budget_s"])
-    out["parse"] = [
-        {"label": default_scrub(str(r["label"])), "wall_s": float(r["wall_s"])}
-        for r in data.get("parse", [])
-        if isinstance(r, dict) and "label" in r and _num(r.get("wall_s"))
-    ]
+    out["parse"] = [_parse_row(r) for r in data.get("parse", []) if _is_parse_row(r)]
     out["impact"] = [
         {"label": default_scrub(str(r["label"])), "value": default_scrub(str(r["value"])), "pct": r["pct"]}
         for r in data.get("impact", [])

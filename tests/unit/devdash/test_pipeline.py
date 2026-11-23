@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -78,6 +79,7 @@ class Fake:
         self.auto_status = "pass"
         self.check_rc = 0
         self.stage_rc = 0
+        self.write_mod = True  # False: ``sae m0 stage`` exits 0 but leaves no sae_bridge.mod
         self.tasklist_after: str | None = None  # returned from the second tasklist call on
         self._tasklist_calls = 0
 
@@ -112,7 +114,8 @@ class Fake:
                     return SimpleNamespace(returncode=self.stage_rc, stdout="", stderr="boom")
                 stage = self.repo / "m0_results" / "stage"
                 stage.mkdir(parents=True, exist_ok=True)
-                (stage / "sae_bridge.mod").write_text('name="x"\npath="mod/sae_bridge"\n', encoding="utf-8")
+                if self.write_mod:
+                        (stage / "sae_bridge.mod").write_text('name="x"\npath="mod/sae_bridge"\n', encoding="utf-8")
             return ok
         if any(x.endswith("run_deferred.py") for x in argv) and "--out" in argv:
             out = Path(argv[argv.index("--out") + 1])
@@ -164,11 +167,16 @@ class World:
 
     def run(self, fake: Fake, *argv: str, sleep: Callable[[float], None] | None = None, **kw: Any) -> int:
         def default_sleep(seconds: float) -> None:
-            self.sleeps.append(seconds)
+            if seconds != pipeline.SETTLE_GAP_S:  # the save-settle gap is not a poll tick
+                self.sleeps.append(seconds)
+
+        def custom_sleep(seconds: float) -> None:  # hides settle gaps from the caller's sleep
+            if seconds != pipeline.SETTLE_GAP_S and sleep is not None:
+                sleep(seconds)
 
         args = ["--out", str(self.out), *argv] if "--out" not in argv else list(argv)
         return pipeline.main(
-            args, runner=fake, sleep=sleep or default_sleep, now=lambda: NOW, registry=self.registry,
+            args, runner=fake, sleep=custom_sleep if sleep else default_sleep, now=lambda: NOW, registry=self.registry,
             roots=self.roots, repo=self.repo, environ=kw.pop("environ", {}),
             isatty=kw.pop("isatty", lambda: True), **kw,
         )
@@ -333,8 +341,12 @@ def test_results_json_from_parse_costs(world: World, fake: Fake) -> None:
     ])
     world.run(fake, "--stages", "x3")
     data = json.loads((world.out / "results.json").read_text(encoding="utf-8"))
-    assert data["parse"] == [{"label": "autosave_1.sav", "wall_s": 1.5, "rss_bytes": 100},
-                             {"label": "autosave_2.sav", "wall_s": 4.0, "rss_bytes": 200}]
+    plat = pipeline.platform_label()
+    src = "wsl-copy" if "wsl" in plat else "copy"
+    assert data["parse"] == [
+        {"label": "autosave_1.sav", "wall_s": 1.5, "rss_bytes": 100, "platform": plat, "source": src},
+        {"label": "autosave_2.sav", "wall_s": 4.0, "rss_bytes": 200, "platform": plat, "source": src},
+    ]
     assert data["budget_s"] == 3.0 and data["impact"] == [] and data["run_dir"] == str(world.out / "run1")
 
 
@@ -355,7 +367,7 @@ def test_copy_inputs_retries_locked(world: World, monkeypatch: pytest.MonkeyPatc
     sleeps: list[float] = []
     pf = {"user_dir": str(world.user), "parser": None}
     env = pipeline.copy_inputs(pf, world.out, 2, sleep=sleeps.append)
-    assert sleeps == [30, 30, 30]
+    assert [x for x in sleeps if x != pipeline.SETTLE_GAP_S] == [30, 30, 30]
     assert Path(env["SAE_GAME_LOG"]).is_file()
     names = sorted(p.name for p in Path(env[SAVES]).glob("*.sav"))
     assert names == ["autosave_3.sav", "autosave_4.sav"]  # the newest two
@@ -375,7 +387,8 @@ def test_copy_inputs_leaves_out_a_file_locked_ten_times(world: World, monkeypatc
     pf = {"user_dir": str(world.user), "parser": "/x/sae-parse"}
     env = pipeline.copy_inputs(pf, world.out, 13, sleep=sleeps.append)
     assert "SAE_GAME_LOG" not in env and env["SAE_PARSER_EXE"] == "/x/sae-parse"
-    assert len(sleeps) == 9 and set(sleeps) == {30}
+    locks = [x for x in sleeps if x != pipeline.SETTLE_GAP_S]
+    assert len(locks) == 9 and set(locks) == {30}
     assert any("still locked after 10 tries" in e["msg"] for e in world.events() if e["kind"] == "info")
 
 
@@ -1012,3 +1025,404 @@ def test_judged_only_site_prints_instruction(
 
     assert world.run(fake, "--stages", "r", sleep=sleep) == 0
     assert "uv run sae m0 record R-3 pass|fail --value KEY=VALUE" in capsys.readouterr().out
+
+
+# --- game stand-down (final-fix B) ------------------------------------------------------------------------------
+
+RUNNING = "stellaris.exe   4242 Console   1   1,000,000 K\r\n"
+
+
+def x3_world(world: World, fake: Fake) -> None:
+    world.set_registry([pytest_gate("X3-G1", "test_a")])
+    fake.junit = junit_xml([("test_a", "X3-G1", {}, "pass")])
+
+
+def test_parse_stage_waits_for_the_game_to_close(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    ticks: list[int] = []
+
+    def sleep(_: float) -> None:
+        ticks.append(1)
+        assert not fake.deferred_calls() and not (world.out / "private").exists()  # nothing ran or was copied yet
+        if len(ticks) == 2:
+            say(world, "done", "game-close")
+            fake.tasklist = ""  # the owner closed the game before clicking
+
+    assert world.run(fake, "--stages", "x3", sleep=sleep) == 0
+    owner = next(e for e in world.events() if e["kind"] == "owner")
+    assert owner["ref"] == "game-close"
+    assert owner["msg"] == "close Stellaris to run X3 parse gates, or rerun with --while-game"
+    assert len(fake.deferred_calls()) == 1 and world.state()["gates"]["X3-G1"] == "pass"
+
+
+def test_parse_stage_while_game_flag_skips_the_wait(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    assert world.run(fake, "--stages", "x3", "--while-game") == 0
+    assert not any(e["kind"] == "owner" for e in world.events())
+    assert len(fake.deferred_calls()) == 1
+    assert world.sleeps == []
+
+
+def test_parse_stage_game_closed_does_not_ask(world: World, fake: Fake) -> None:
+    x3_world(world, fake)
+    assert world.run(fake, "--stages", "x3") == 0
+    assert not any(e["kind"] == "owner" for e in world.events())
+
+
+def test_parse_stage_game_running_without_dashboard_or_tty_skips(world: World, dev: Path) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    (dev / "enabled").unlink()
+
+    def no_input() -> str:
+        raise AssertionError("input() must not be called without a terminal")
+
+    assert world.run(fake, "--stages", "x3", isatty=lambda: False, input_fn=no_input) == 0
+    assert world.state()["gates"]["X3-G1"] == "skip"
+    assert not fake.deferred_calls() and not (world.out / "private").exists()
+
+
+def test_parse_stage_game_running_enter_fallback(world: World, dev: Path) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    (dev / "enabled").unlink()
+    pressed: list[int] = []
+    assert world.run(fake, "--stages", "x3", input_fn=lambda: pressed.append(1) or "") == 0
+    assert pressed == [1] and len(fake.deferred_calls()) == 1
+
+
+def test_game_stand_down_never_touches_the_process(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    world.run(fake, "--stages", "x3", "--while-game")
+    world.run(fake, "--stages", "x3", sleep=lambda _: say(world, "done", "game-close"), **{"environ": {}})
+    text = " ".join(" ".join(a) for a in fake.argvs()).lower()
+    assert not any(bad in text for bad in ("taskkill", "wmic", "/affinity", "renice", "setpriority"))
+
+
+# --- platform and source labels --------------------------------------------------------------------------------
+
+
+def test_platform_label(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pipeline.sys, "platform", "linux")
+    wsl = tmp_path / "version"
+    wsl.write_text("Linux version 6.6.114.1-microsoft-standard-WSL2", encoding="utf-8")
+    assert pipeline.platform_label(wsl) == "linux+wsl"
+    wsl.write_text("Linux version 6.8 generic", encoding="utf-8")
+    assert pipeline.platform_label(wsl) == "linux"
+    assert pipeline.platform_label(tmp_path / "missing") == "linux"
+
+
+def test_parse_rows_say_wsl_copy_when_run_under_wsl(world: World, fake: Fake, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pipeline, "platform_label", lambda *a: "linux+wsl")
+    costs = json.dumps([{"save": "a.sav", "wall_s": 1.0, "rss_bytes": 5}])
+    world.set_registry([pytest_gate("X3-G2", "test_b")])
+    fake.junit = junit_xml([("test_b", "X3-G2", {"parse_costs": costs}, "pass")])
+    world.run(fake, "--stages", "x3")
+    data = json.loads((world.out / "results.json").read_text(encoding="utf-8"))
+    assert data["parse"][0]["platform"] == "linux+wsl" and data["parse"][0]["source"] == "wsl-copy"
+
+
+# --- run retention ---------------------------------------------------------------------------------------------
+
+
+def make_run(dev: Path, name: str) -> Path:
+    run = dev / "pipeline" / name
+    for sub in ("private/inputs/saves", "x3/private/basetemp"):
+        (run / sub).mkdir(parents=True)
+        (run / sub / "raw.sav").write_bytes(b"raw")
+    (run / "state.json").write_text("{}", encoding="utf-8")
+    os.utime(run / "state.json", (1_700_000_000, 1_700_000_000))  # long finished, not in flight
+    return run
+
+
+def test_prune_runs_keeps_newest_n_and_only_private(dev: Path) -> None:
+    runs = [make_run(dev, f"2026010{i}-000000") for i in range(1, 7)]
+    removed = pipeline.prune_runs(dev, 3)
+    assert len(removed) == 6  # private and x3/private of the three oldest
+    for old in runs[:3]:
+        assert not (old / "private").exists() and not (old / "x3" / "private").exists()
+        assert (old / "state.json").is_file() and (old / "x3").is_dir()
+    for new in runs[3:]:
+        assert (new / "private" / "inputs" / "saves" / "raw.sav").is_file()
+
+
+def test_prune_runs_always_keeps_the_current_run(dev: Path) -> None:
+    runs = [make_run(dev, f"2026010{i}-000000") for i in range(1, 5)]
+    pipeline.prune_runs(dev, 1, current=runs[0])
+    assert (runs[0] / "private").is_dir() and (runs[3] / "private").is_dir()
+    assert not (runs[1] / "private").exists() and not (runs[2] / "private").exists()
+
+
+def test_prune_runs_never_follows_symlinks_or_leaves_the_pipeline_folder(dev: Path, tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    (outside / "private").mkdir(parents=True)
+    (outside / "private" / "keep.txt").write_text("k", encoding="utf-8")
+    base = dev / "pipeline"
+    base.mkdir(parents=True)
+    (base / "20260101-000000").symlink_to(outside, target_is_directory=True)  # a run folder that is a symlink
+    linked = make_run(dev, "20260102-000000")
+    shutil.rmtree(linked / "private")
+    (linked / "private").symlink_to(outside / "private", target_is_directory=True)  # a private that is a symlink
+    stray = base / "notes"  # not a run the pipeline created
+    (stray / "private").mkdir(parents=True)
+    for i in range(3, 7):
+        make_run(dev, f"2026010{i}-000000")
+    pipeline.prune_runs(dev, 3)
+    assert (outside / "private" / "keep.txt").is_file()
+    assert (linked / "private").is_symlink()
+    assert (stray / "private").is_dir()
+    assert not (base / "20260103-000000" / "private").exists()
+
+
+def test_main_prunes_older_runs_and_validates_flag(world: World, fake: Fake, dev: Path) -> None:
+    old = [make_run(dev, f"2025010{i}-000000") for i in range(1, 6)]
+    world.set_registry([row("M0-3", runner=m0_runner(), owner_play=False)])
+    current = str(dev / "pipeline" / "20260101-000000")
+    assert world.run(fake, "--stages", "m0", "--keep-runs", "2", "--out", current) == 0
+    assert not (old[0] / "private").exists() and not (old[2] / "private").exists()
+    assert not (old[3] / "private").exists()  # the current run (newest name) plus one older run are kept
+    assert (old[4] / "private").is_dir()
+    assert world.run(fake, "--stages", "m0", "--keep-runs", "0") == 2
+
+
+# --- settle ----------------------------------------------------------------------------------------------------
+
+
+def test_copy_waits_until_a_save_is_stable(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    clock = {"t": 1_700_000_400.0 + 5.0}  # 5 s after the newest save was written
+    os.utime(newest, (1_700_000_400, 1_700_000_400))
+    sleeps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        clock["t"] += seconds
+
+    pf = {"user_dir": str(world.user), "parser": None}
+    env = pipeline.copy_inputs(pf, world.out, 1, sleep=sleep, clock=lambda: clock["t"])
+    assert sleeps == [11.0, pipeline.SETTLE_GAP_S]  # 15 - 5 + 1, then the second stat
+    assert [p.name for p in Path(env[SAVES]).glob("*.sav")] == ["autosave_4.sav"]
+
+
+def test_copy_leaves_out_a_save_that_keeps_changing(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    os.utime(newest, (1_700_000_400, 1_700_000_400))
+    pf = {"user_dir": str(world.user), "parser": None}
+    env = pipeline.copy_inputs(pf, world.out, 1, sleep=lambda _: None, clock=lambda: 1_700_000_401.0)
+    assert SAVES not in env
+    infos = [e["msg"] for e in world.events() if e["kind"] == "info"]
+    assert any("autosave_4.sav was still changing" in m for m in infos)
+
+
+# --- Windows home scrubbing and the launch check ---------------------------------------------------------------
+
+
+def test_dry_run_scrubs_windows_profile_paths(world: World, fake: Fake, capsys: pytest.CaptureFixture[str]) -> None:
+    world.set_registry([row("M0-3", runner=m0_runner(), owner_play=True)])
+    assert world.run(fake, "--dry-run") == 0
+    text = capsys.readouterr().out
+    assert "<WINHOME>" in text and "Bob" not in text
+
+
+def test_env_json_display_rows_scrub_windows_profile(world: World, fake: Fake, dev: Path, tmp_path: Path) -> None:
+    from devdash import state
+
+    pipeline.preflight(fake, roots=world.roots, repo=world.repo, environ={})
+    snap = state.snapshot(world.repo, dev, now=NOW)
+    shown = json.dumps(snap["env"])
+    assert "<WINHOME>" in shown and "Bob" not in shown
+
+
+def test_launch_aborts_when_staged_mod_file_is_missing(world: World, fake: Fake) -> None:
+    fake.write_mod = False
+    assert launch_world(world, fake) == 0
+    assert not started(fake)
+    assert not (world.user / "mod" / "sae_bridge.mod").exists()
+    infos = [e["msg"] for e in world.events() if e["kind"] == "info"]
+    assert any("sae_bridge.mod is missing" in m for m in infos)
+
+
+def test_prune_runs_resolves_the_current_run(dev: Path) -> None:
+    runs = [make_run(dev, f"2026010{i}-000000") for i in range(1, 5)]
+    pipeline.prune_runs(dev, 1, current=runs[0] / "x3" / "..")
+    assert (runs[0] / "private").is_dir()
+    older = make_run(dev, "20251231-000000")
+    link = dev / "pipeline" / "latest"
+    link.symlink_to(older, target_is_directory=True)
+    pipeline.prune_runs(dev, 1, current=link)
+    assert (older / "private").is_dir()
+
+
+def test_prune_runs_ignores_a_symlinked_pipeline_folder(dev: Path, tmp_path: Path) -> None:
+    real = tmp_path / "elsewhere"
+    (real / "20260101-000000" / "private").mkdir(parents=True)
+    (real / "20260102-000000" / "private").mkdir(parents=True)
+    dev.mkdir(parents=True, exist_ok=True)
+    (dev / "pipeline").symlink_to(real, target_is_directory=True)
+    assert pipeline.prune_runs(dev, 1) == []
+    assert (real / "20260101-000000" / "private").is_dir()
+
+
+def test_prune_runs_keeps_a_run_in_flight(dev: Path) -> None:
+    runs = [make_run(dev, f"2026010{i}-000000") for i in range(1, 5)]
+    os.utime(runs[0] / "state.json", (1_700_000_000 + 3000, 1_700_000_000 + 3000))  # written 50 min before "now"
+    assert [p for p in pipeline.prune_runs(dev, 1, now=1_700_000_000 + 6000) if p.parent == runs[0]] == []
+    assert (runs[0] / "private").is_dir() and not (runs[1] / "private").exists()
+    pipeline.prune_runs(dev, 1, now=1_700_000_000 + 3000 + 3601)
+    assert not (runs[0] / "private").exists()
+
+
+def test_future_mtime_is_not_trusted_but_unchanged_after_a_wait_settles(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    os.utime(newest, (1_700_000_500, 1_700_000_500))
+    sleeps: list[float] = []
+    pf = {"user_dir": str(world.user), "parser": None}
+    env = pipeline.copy_inputs(pf, world.out, 1, sleep=sleeps.append, clock=lambda: 1_700_000_000.0)
+    assert sleeps == [pipeline.SETTLE_S]  # slept once, then saw size and mtime unchanged
+    assert [p.name for p in Path(env[SAVES]).glob("*.sav")] == ["autosave_4.sav"]
+
+
+def test_future_mtime_that_changes_is_left_out(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    os.utime(newest, (1_700_000_500, 1_700_000_500))
+    stamp = {"t": 1_700_000_500}
+
+    def sleep(_: float) -> None:
+        stamp["t"] += 1
+        os.utime(newest, (stamp["t"], stamp["t"]))  # the game keeps writing
+
+    pf = {"user_dir": str(world.user), "parser": None}
+    env = pipeline.copy_inputs(pf, world.out, 1, sleep=sleep, clock=lambda: 1_700_000_000.0)
+    assert SAVES not in env
+
+
+def test_settle_checks_once_more_after_the_last_sleep(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    os.utime(newest, (1_700_000_400, 1_700_000_400))
+    clock = {"t": 1_700_000_401.0}
+    sleeps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        if len(sleeps) == pipeline.SETTLE_TRIES:
+            clock["t"] += 100  # old enough only after the final sleep
+
+    ok = pipeline._settled(newest, lambda: clock["t"], sleep, lambda _: None)
+    assert ok and sleeps == [15.0] * pipeline.SETTLE_TRIES + [pipeline.SETTLE_GAP_S]
+
+
+def test_stand_down_ends_when_the_game_closes_without_a_click(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    ticks: list[int] = []
+
+    def sleep(_: float) -> None:
+        ticks.append(1)
+        if len(ticks) == 2:
+            fake.tasklist = ""  # closed, but the next check is GAME_CHECK_EVERY polls in
+
+    assert world.run(fake, "--stages", "x3", sleep=sleep) == 0
+    assert len(ticks) == pipeline.GAME_CHECK_EVERY - 1  # no faster than the game-check interval
+    assert len(fake.deferred_calls()) == 1 and world.state()["gates"]["X3-G1"] == "pass"
+    closes = [e for e in world.events() if e.get("ref") == "game-close"]
+    assert [e["kind"] for e in closes] == ["owner", "done"] and closes[-1]["msg"] == "Stellaris closed"
+
+
+def test_stand_down_skips_when_mark_done_but_the_game_still_runs(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    world.run(fake, "--stages", "x3", sleep=lambda _: say(world, "done", "game-close"))
+    assert not fake.deferred_calls() and not (world.out / "private").exists()
+    assert world.state()["gates"]["X3-G1"] == "skip"
+    assert any("Stellaris is running" in e["msg"] for e in world.events() if e["kind"] == "info")
+
+
+def test_stand_down_never_taskkills_while_waiting_for_close(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    n = {"t": 0}
+
+    def sleep(_: float) -> None:
+        n["t"] += 1
+        if n["t"] == 3 * pipeline.GAME_CHECK_EVERY:
+            fake.tasklist = ""
+
+    world.run(fake, "--stages", "x3", sleep=sleep)
+    assert not any(a[0].startswith("taskkill") for a in fake.argvs())
+
+
+def test_old_looking_save_that_changes_between_two_stats_is_left_out(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    stamp = time.time() + 500  # the newest save
+    os.utime(newest, (stamp, stamp))  # the clock below says it is 100 s old
+    sleeps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        newest.write_bytes(newest.read_bytes() + b"x")  # the game is mid-write (WSL clock ahead of Windows)
+        os.utime(newest, (stamp, stamp))
+
+    pf = {"user_dir": str(world.user), "parser": None}
+    env = pipeline.copy_inputs(pf, world.out, 1, sleep=sleep, clock=lambda: stamp + 100)
+    assert SAVES not in env and sleeps[0] == pipeline.SETTLE_GAP_S
+
+
+def test_old_save_needs_a_second_equal_stat(world: World) -> None:
+    newest = world.user / "save games" / "camp_1" / "autosave_4.sav"
+    os.utime(newest, (1_700_000_000, 1_700_000_000))
+    sleeps: list[float] = []
+    assert pipeline._settled(newest, lambda: 1_700_000_100.0, sleeps.append, lambda _: None)
+    assert sleeps == [pipeline.SETTLE_GAP_S]
+
+
+def test_ironman_copy_waits_for_the_save_to_settle(world: World, fake: Fake) -> None:
+    world.set_registry([row("M0-14", runner=m0_runner(args=["--save", "{ironman_save}"]))])
+    iron = world.user / "save games" / "camp_1" / "ironman.sav"
+    future = time.time() + 1000
+    iron.write_bytes(b"i")
+    os.utime(iron, (future, future))
+    seen: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        seen.append(seconds)
+        iron.write_bytes(iron.read_bytes() + b"i")  # still being written
+        os.utime(iron, (future, future))
+
+    world.run(fake, "--stages", "m0", sleep=sleep)
+    assert not any("check" in a for a in fake.argvs()) and pipeline.SETTLE_S in seen
+    assert not (world.out / "private" / "inputs" / "ironman" / "ironman.sav").exists()
+
+
+def test_game_is_rechecked_at_every_stand_down(world: World) -> None:
+    fake = Fake(world.repo, tasklist=RUNNING)
+    x3_world(world, fake)
+    run_calls = {"n": 0}
+
+    def sleep(_: float) -> None:
+        run_calls["n"] += 1
+        say(world, "done", "game-close")
+
+    world.run(fake, "--stages", "x3", sleep=sleep)
+    first = len([a for a in fake.argvs() if a[0] == "tasklist.exe"])
+    assert first >= 2  # preflight plus the stand-down; nothing is cached for later gates
+
+
+def test_newest_campaign_prefers_autosave_folders(tmp_path: Path) -> None:
+    """A newer manual repro save in its own folder must not displace the campaign with autosaves."""
+    root = tmp_path / "save games"
+    camp, repro = root / "campaign", root / "repro"
+    camp.mkdir(parents=True)
+    repro.mkdir()
+    (camp / "autosave_2300.01.01.sav").write_bytes(b"x")
+    (repro / "repro.sav").write_bytes(b"x")
+    os.utime(camp / "autosave_2300.01.01.sav", (1000, 1000))
+    os.utime(repro / "repro.sav", (2000, 2000))
+    assert pipeline.newest_campaign(tmp_path) == repro
+    assert pipeline.newest_campaign(tmp_path, prefer_autosaves=True) == camp
+    (camp / "autosave_2300.01.01.sav").unlink()
+    (camp / "manual.sav").write_bytes(b"x")
+    os.utime(camp / "manual.sav", (500, 500))
+    assert pipeline.newest_campaign(tmp_path, prefer_autosaves=True) == repro

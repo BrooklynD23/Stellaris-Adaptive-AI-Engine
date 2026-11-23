@@ -12,6 +12,14 @@ from pathlib import Path
 
 import pytest
 
+# Spec D8: the dev tooling (dashboard server, hooks, task board, game pipeline) runs on WSL/Linux only. Its tests use
+# POSIX facilities (fcntl, fork-style subprocesses, signals), so on Windows CI they are not even imported. Only the
+# platform-neutral boundary and gate-registry tests remain.
+_PORTABLE = {"conftest.py", "test_boundary.py", "test_gates.py"}
+collect_ignore: list[str] = (
+    [p.name for p in Path(__file__).parent.glob("*.py") if p.name not in _PORTABLE] if sys.platform == "win32" else []
+)
+
 _ROOT = Path(__file__).resolve().parents[3]
 for _tool in ("tools/game", "tools/devdash"):
     _entry = str(_ROOT / _tool)

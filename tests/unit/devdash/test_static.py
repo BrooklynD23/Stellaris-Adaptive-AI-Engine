@@ -120,3 +120,11 @@ def test_index_served_with_token(tmp_path: Path, dev: Path) -> None:
         srv.shutdown()
         srv.server_close()
         thread.join(5)
+
+
+def test_results_view_labels_parse_numbers_unverified_and_uses_textcontent() -> None:
+    code = _read("app.js")
+    assert "UNVERIFIED A-24 (measured on " in code
+    assert "rss_bytes" in code
+    assert "parseNote" in code
+    assert "innerHTML" not in code

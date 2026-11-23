@@ -182,6 +182,8 @@ class _Runner:
 
 def test_run_deferred_updates_index(tmp_path: Path, dev: Path, capsys: pytest.CaptureFixture[str]) -> None:
     out = tmp_path / "out"
+    dev.mkdir(parents=True)
+    (dev / "enabled").write_text("", encoding="utf-8")
     assert _load_rd().main(["--out", str(out)], runner=_Runner()) == 1
     index = json.loads((dev / "gates.json").read_text(encoding="utf-8"))
     assert index["X3-G1"]["status"] == "pass" and index["X3-G1"]["run"] == str(out)
@@ -192,9 +194,19 @@ def test_run_deferred_updates_index(tmp_path: Path, dev: Path, capsys: pytest.Ca
 def test_run_deferred_index_failure_harmless(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    blocker = tmp_path / "blocker"
-    blocker.write_text("a file, so the dev dir cannot be created", encoding="utf-8")
-    monkeypatch.setenv("SAE_DEVDASH_DIR", str(blocker / "dev"))
+    dev = tmp_path / "dev"
+    dev.mkdir()
+    (dev / "enabled").write_text("", encoding="utf-8")
+    (dev / "gates.json").mkdir()  # a directory where the index file belongs, so the atomic replace fails
+    monkeypatch.setenv("SAE_DEVDASH_DIR", str(dev))
     assert _load_rd().main(["--out", str(tmp_path / "out")], runner=_Runner()) == 1
     err = capsys.readouterr().err
     assert err.count("run_deferred: gate index not updated:") == 1
+
+
+def test_default_scrub_covers_windows_profile() -> None:
+    from devdash.gateindex import default_scrub
+
+    out = default_scrub("/mnt/c/Users/Some One/Documents and C:\\Users\\x\\y")
+    assert "Some One" not in out and "Users\\x" not in out
+    assert out.count("<WINHOME>") == 2

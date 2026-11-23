@@ -54,9 +54,20 @@ uv run python tools/game/pipeline.py --from X3-G4       # resume at a gate (newe
 ```
 
 Other flags: `--out DIR` (default `.sae-dev/pipeline/<timestamp>`), `--rerun`, `--launch`, `--max-saves N`
-(default 13). Gates that only mean something on Windows report "setup needed: Windows uv" and are never run under
+(default 13), `--while-game`, `--keep-runs N` (default 3). Gates that only mean something on Windows report "setup needed: Windows uv" and are never run under
 WSL (once Windows `uv` exists they skip with "setup needed: Windows-side runner (not built)"); the pipeline installs nothing on Windows. A gate shows passed only when a result file says so; missing data
 shows "No data". Gate registry: `tools/game/gates.json`, runbook: `docs/handoff/GAME_PC_AGENT.md`.
+
+The pipeline does not compete with the game. Before the X3/X4 parse stages (and before copying saves for other
+non-owner-play gates) it checks `tasklist.exe`; if Stellaris is running it posts an owner step "close Stellaris to run
+<stage>, or rerun with --while-game" and waits (Mark done, or Enter without the dashboard; with neither a dashboard
+nor a terminal the gates are skipped). `--while-game` skips the wait. It only reads the process list and never touches
+the game's process, priority or affinity. A save is copied only once its mtime is about 15 s old (UNVERIFIED: how
+Stellaris writes a save; M0 would watch one autosave grow).
+
+Parse costs on the Results view come from the Linux `sae-parse` reading a WSL copy of the save, not from the Windows
+budget machine. Each row carries `platform` (`sys.platform`, plus `+wsl`) and `source` (`wsl-copy`), and the chart
+labels them "UNVERIFIED A-24 (measured on <platform>)" with the peak RSS. A WSL pass is never an A-24 pass.
 
 ## Privacy
 
@@ -65,3 +76,12 @@ control characters flattened, and the Claude `session_id`. For Bash tool calls t
 calls the description and `subagent_type`. Never logged: shell commands (`tool_input.command`), prompts, tool
 output, file contents. The server reads the legal bus only (never `bus.god.jsonl`) and never serves raw saves, logs
 or recordings. `.sae-dev*/` is git-ignored.
+
+Windows profile paths (`/mnt/<drive>/Users/<name>`, `C:\Users\<name>`, `C:/Users/<name>`, any drive and case) are
+replaced by `<WINHOME>` in event messages, the sidebar (`env.json` rows), the Results view and `--dry-run` output.
+`env.json` itself still holds the real paths on disk.
+
+Retention: every pipeline run copies saves and pytest basetemp under `.sae-dev/pipeline/<timestamp>/private/` (and
+`<stage>/private/`). At the start of a run the pipeline deletes those `private/` folders for all but the newest N runs
+(`--keep-runs N`, default 3; the current run always stays). It removes only `private/` folders inside timestamp-named
+run folders directly under `.sae-dev/pipeline`, never follows a symlink, and keeps `state.json` and `results.json`.

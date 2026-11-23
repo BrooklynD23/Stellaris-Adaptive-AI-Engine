@@ -525,3 +525,57 @@ def test_read_events_never_raises_on_arbitrary_lines(lines: list[str]) -> None:
     non_blank = sum(1 for line in lines if line.encode("utf-8").strip())
     assert invalid + len(got) == non_blank
     assert all(event["v"] == 1 for event in got)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "/mnt/c/Users/Bob Smith/OneDrive/x.sav",
+        "/mnt/D/users/bob/x",
+        "C:\\Users\\Bob\\Documents",
+        "c:/users/Bob/Documents",
+        "Z:\\USERS\\bob",
+        '{"p": "C:\\\\Users\\\\Bob\\\\x"}',
+    ],
+)
+def test_redact_scrubs_windows_profile_paths(text: str) -> None:
+    out = events.redact(text, home="/nonexistent-home")
+    assert "<WINHOME>" in out
+    assert "Bob" not in out and "bob" not in out.lower().replace("<winhome>", "")
+
+
+@pytest.mark.parametrize(
+    ("text", "want"),
+    [
+        ("/mnt/d/users/bob to /tmp", "<WINHOME> to /tmp"),
+        ("/mnt/c/Users/O'Brien/x", "<WINHOME>/x"),
+        ("C:\\Users\\Bob Smith\\Doc", "<WINHOME>\\Doc"),
+        ('"C:\\Users\\Bob Smith"', '"<WINHOME>"'),
+        ("file:///C:/Users/Bob%20Smith/x", "file:///<WINHOME>/x"),
+        ("\\\\?\\C:\\Users\\bob\\x", "\\\\?\\<WINHOME>\\x"),
+        ("'/mnt/c/Users/bob'", "'<WINHOME>'"),
+        ("denied: '/mnt/c/Users/John Smith'", "denied: '<WINHOME>'"),
+        ("/mnt/c/Users/John Smith\nnext line", "<WINHOME>\nnext line"),
+        ("C:\\Users\\John Smith\r\nnext", "<WINHOME>\r\nnext"),
+        ("'/mnt/c/Users/O'Brien'", "'<WINHOME>'"),
+        ("/mnt/c/Users/O'Brien\nnext", "<WINHOME>\nnext"),
+    ],
+)
+def test_scrub_winhome_cases(text: str, want: str) -> None:
+    assert events.scrub_winhome(text) == want
+
+
+def test_redact_keeps_other_mnt_paths() -> None:
+    text = "/mnt/c/Program Files/x and C:\\Games\\y and /mnt/e/Programming"
+    assert events.redact(text, home="/nonexistent-home") == text
+
+
+@settings(max_examples=60, deadline=None)
+@given(name=st.text(alphabet=st.characters(blacklist_characters="/\\\"'<>|:*?", blacklist_categories=("Cs", "Cc", "Z")),
+                    min_size=1, max_size=12),
+       drive=st.sampled_from("cCdDzZ"), tail=st.sampled_from(["", "/a/b", "\\a"]))
+def test_scrub_winhome_property(name: str, drive: str, tail: str) -> None:
+    for text in (f"/mnt/{drive}/Users/{name}{tail}", f"{drive}:\\Users\\{name}{tail}", f"{drive}:/Users/{name}{tail}"):
+        out = events.scrub_winhome(text)
+        assert out.startswith("<WINHOME>")
+        assert events.scrub_winhome(out) == out

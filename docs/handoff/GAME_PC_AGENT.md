@@ -79,6 +79,10 @@ write their files in parallel with this one. Generic row for those ids in the re
    says so. That includes `junit.xml` and `private\tmp` (pytest's basetemp, which holds save and log copies).
 2. Share only: `summary.md`, `inputs.json`, the filled results template, and the `sae m0` pack output.
 3. After the maintainer confirms receipt: `Remove-Item -Recurse -Force $out\private`.
+4. The pipeline (section 10) keeps `private\` (raw save copies and basetemp) only for the newest 3 runs under
+   `.sae-dev\pipeline` (`--keep-runs N`) and deletes older ones at the start of the next run. Windows home paths are
+   shown as `<WINHOME>` in the dashboard and `--dry-run`. Delete `.sae-dev\pipeline\*\private` by hand once the
+   maintainer confirms receipt.
 
 ## 9. Finish
 
@@ -92,3 +96,8 @@ Fill `docs/handoff/GAME_PC_RESULTS_TEMPLATE.md` (copy it to `$out\results.md`), 
 WSL Python and copies saves and logs from the Windows side; gates that only mean something on Windows (X3-G4,
 R-5) report "setup needed: Windows uv" (later "setup needed: Windows-side runner (not built)") and are skipped under WSL, so run those by hand per this runbook. Game
 behaviour it observes is UNVERIFIED until M0 proves it.
+
+If Stellaris is running, the pipeline asks you to close it before the X3/X4 parse stages ("close Stellaris to run
+..., or rerun with --while-game") and waits; `--while-game` skips the wait. Parse timings it records come from the
+Linux parser on a WSL copy, so the dashboard labels them "UNVERIFIED A-24 (measured on linux+wsl)"; only the Windows
+runs in sections 4 and 5 can show A-24 met.
